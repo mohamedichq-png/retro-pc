@@ -28,6 +28,12 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [headerSearch, setHeaderSearch] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  React.useEffect(() => {
+    const token = sessionStorage.getItem('retro_admin_auth');
+    setIsAdmin(token === 'authenticated');
+  }, [pathname]);
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'ar' : 'en');
@@ -106,14 +112,16 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-3">
             
             {/* Manage Products Link */}
-            <Link
-              href="/admin"
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:scale-105 hover:shadow-purple-500/40 transition-all duration-300 cursor-pointer"
-              title={isRtl ? "لوحة إدارة المنتجات والمخزون" : "Manage Products"}
-            >
-              <PlusIcon size={16} />
-              <span>{isRtl ? "إدارة المنتجات" : "Manage Products"}</span>
-            </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:scale-105 hover:shadow-purple-500/40 transition-all duration-300 cursor-pointer"
+                title={isRtl ? "لوحة إدارة المنتجات والمخزون" : "Manage Products"}
+              >
+                <PlusIcon size={16} />
+                <span>{isRtl ? "إدارة المنتجات" : "Manage Products"}</span>
+              </Link>
+            )}
 
             {/* Active Cashier Status */}
             {activeCashier && (
@@ -163,13 +171,15 @@ export default function Navbar() {
           {/* Mobile Actions Header */}
           <div className="flex items-center gap-3 lg:hidden">
             {/* Manage Products Link on Mobile Header */}
-            <Link
-              href="/admin"
-              className="flex items-center gap-1.5 rounded-lg bg-cyan-500 text-slate-950 px-2.5 py-1.5 text-xs font-bold shadow-md shadow-cyan-500/20"
-            >
-              <PlusIcon size={14} />
-              <span>{isRtl ? "الإدارة" : "Admin"}</span>
-            </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 rounded-lg bg-cyan-500 text-slate-950 px-2.5 py-1.5 text-xs font-bold shadow-md shadow-cyan-500/20"
+              >
+                <PlusIcon size={14} />
+                <span>{isRtl ? "الإدارة" : "Admin"}</span>
+              </Link>
+            )}
 
             <button 
               onClick={toggleLanguage}
@@ -258,16 +268,18 @@ export default function Navbar() {
 
             </div>
 
-            <div className="pt-2">
-              <Link
-                href="/admin"
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-xs font-bold text-white shadow-lg text-center"
-              >
-                <PlusIcon size={16} />
-                <span>{isRtl ? "لوحة إدارة المنتجات" : "Product Management Desk"}</span>
-              </Link>
-            </div>
+            {isAdmin && (
+              <div className="pt-2">
+                <Link
+                  href="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-xs font-bold text-white shadow-lg text-center"
+                >
+                  <PlusIcon size={16} />
+                  <span>{isRtl ? "لوحة إدارة المنتجات" : "Product Management Desk"}</span>
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </header>
@@ -285,13 +297,15 @@ export default function Navbar() {
         </a>
 
         {/* Floating Center Admin Dashboard Link */}
-        <Link
-          href="/admin"
-          className="-mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-500 to-purple-600 text-white shadow-lg shadow-cyan-500/40 border-2 border-slate-950 animate-pulse cursor-pointer"
-          title={isRtl ? "إدارة المنتجات" : "Manage Products"}
-        >
-          <PlusIcon size={24} />
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className="-mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-500 to-purple-600 text-white shadow-lg shadow-cyan-500/40 border-2 border-slate-950 animate-pulse cursor-pointer"
+            title={isRtl ? "إدارة المنتجات" : "Manage Products"}
+          >
+            <PlusIcon size={24} />
+          </Link>
+        )}
 
         <Link href="/repair" className="flex flex-col items-center gap-1 text-slate-400 hover:text-purple-400">
           <RepairIcon size={20} />
