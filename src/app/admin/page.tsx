@@ -214,7 +214,7 @@ export default function AdminDashboard() {
                 <input
                   type="password"
                   required
-                  placeholder={isRtl ? "كلمة المرور (Retro2026!)" : "Password (Retro2026!)"}
+                  placeholder={isRtl ? "كلمة المرور" : "Password"}
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   className="w-full rounded-xl bg-slate-950 px-4 py-3 text-xs text-slate-100 border border-slate-800 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-center tracking-widest font-mono"
