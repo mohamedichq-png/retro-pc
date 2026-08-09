@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>All Images Inspector</title>
+  <style>
+    body { font-family: sans-serif; background: #111; color: #fff; padding: 20px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+    .card { background: #222; border: 1px solid #333; padding: 8px; border-radius: 8px; text-align: center; }
+    img { max-width: 100%; height: 150px; object-fit: contain; }
+    h3 { margin: 8px 0 0 0; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>All Images Inspector (1-71)</h1>
+  <div class="grid" id="imageGrid"></div>
+  <script>
+    const grid = document.getElementById('imageGrid');
+    // We have 71 images. Some are .png, some are .jpeg
+    // Let's generate them.
+    const pngs = [15, 34, 58, 59, 68];
+    for (let i = 1; i <= 71; i++) {
+      const ext = pngs.includes(i) ? 'png' : 'jpeg';
+      const name = `image${i}.${ext}`;
+      
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <img src="/media/${name}" alt="${name}">
+        <h3>${name}</h3>
+      `;
+      grid.appendChild(card);
+    }
+  </script>
+</body>
+</html>
