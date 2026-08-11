@@ -45,7 +45,7 @@ export default function Navbar() {
     { id: 'PC Components', nameAr: 'قطع الغيار والتجميع', nameEn: 'PC Components', href: '/?cat=PC%20Components#store-catalog' },
     { id: 'Monitors', nameAr: 'الشاشات', nameEn: 'Monitors', href: '/?cat=Monitors#store-catalog' },
     { id: 'Retro Consoles', nameAr: 'أجهزة الكونسول والألعاب', nameEn: 'Consoles & Games Store', href: '/consoles' },
-    { id: 'Accessories', nameAr: 'الملحقات والأصوات', nameEn: 'Accessories', href: '/?cat=Accessories#store-catalog' },
+    { id: 'Accessories', nameAr: 'الملحقات والأصوات', nameEn: 'Accessories', href: '/accessories' },
   ];
 
   const cartItemsCount = cart.reduce((acc, item) => acc + item.qty, 0);
