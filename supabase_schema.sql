@@ -47,9 +47,10 @@ CREATE TABLE IF NOT EXISTS products (
     description_en TEXT,
     description_ar TEXT,
     category VARCHAR(100) NOT NULL,
+    sub_category VARCHAR(100),
     brand VARCHAR(100),
     model VARCHAR(100),
-    condition VARCHAR(50) DEFAULT 'New' CHECK (condition IN ('New', 'Used', 'Refurbished')),
+    condition VARCHAR(50) DEFAULT 'NEW' CHECK (condition IN ('NEW', 'USED', 'REFURBISHED', 'OPEN BOX', 'PRE-OWNED', 'New', 'Used', 'Refurbished')),
     
     -- Pricing
     cost_price DECIMAL(10, 2) NOT NULL, -- For Profit/Loss calculations
@@ -73,6 +74,26 @@ CREATE TABLE IF NOT EXISTS products (
     is_featured BOOLEAN DEFAULT FALSE,
     status VARCHAR(50) DEFAULT 'published' CHECK (status IN ('published', 'draft')),
     variations JSONB, -- Array of ProductVariation objects for nested options
+    
+    -- Upgraded Fields
+    product_type VARCHAR(100) DEFAULT 'PHYSICAL PRODUCT',
+    primary_category VARCHAR(255),
+    secondary_category VARCHAR(255),
+    platform VARCHAR(100),
+    generation VARCHAR(100),
+    categories TEXT[],
+    tags TEXT[],
+    collections TEXT[],
+    reserved_qty INT DEFAULT 0,
+    available_qty INT DEFAULT 0,
+    stock_status VARCHAR(50) DEFAULT 'IN STOCK',
+    warranty VARCHAR(100),
+    weight VARCHAR(100),
+    dimensions VARCHAR(100),
+    related_products TEXT[],
+    compatible_products TEXT[],
+    accessories TEXT[],
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -160,3 +181,30 @@ CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
 CREATE INDEX IF NOT EXISTS idx_repairs_ticket ON repairs(ticket_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_invoice ON transactions(invoice_no);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+
+-- ----------------------------------------------------
+-- 7. DATABASE MIGRATIONS (Alter existing tables)
+-- ----------------------------------------------------
+ALTER TABLE products ADD COLUMN IF NOT EXISTS sub_category VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS product_type VARCHAR(100) DEFAULT 'PHYSICAL PRODUCT';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS primary_category VARCHAR(255);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS secondary_category VARCHAR(255);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS platform VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS generation VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS categories TEXT[];
+ALTER TABLE products ADD COLUMN IF NOT EXISTS tags TEXT[];
+ALTER TABLE products ADD COLUMN IF NOT EXISTS collections TEXT[];
+ALTER TABLE products ADD COLUMN IF NOT EXISTS reserved_qty INT DEFAULT 0;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS available_qty INT DEFAULT 0;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_status VARCHAR(50) DEFAULT 'IN STOCK';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS warranty VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS weight VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS dimensions VARCHAR(100);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS related_products TEXT[];
+ALTER TABLE products ADD COLUMN IF NOT EXISTS compatible_products TEXT[];
+ALTER TABLE products ADD COLUMN IF NOT EXISTS accessories TEXT[];
+
+-- Update condition checks to allow pre-owned and uppercase codes
+ALTER TABLE products DROP CONSTRAINT IF EXISTS products_condition_check;
+ALTER TABLE products ADD CONSTRAINT products_condition_check 
+CHECK (condition IN ('NEW', 'USED', 'REFURBISHED', 'OPEN BOX', 'PRE-OWNED', 'New', 'Used', 'Refurbished'));
