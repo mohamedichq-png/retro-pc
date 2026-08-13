@@ -1,0 +1,72 @@
+// RETRO Qatar — Product Types
+
+export interface ProductVariation {
+  id: string;
+  sku: string;
+  condition: 'NEW' | 'USED' | 'REFURBISHED' | 'OPEN BOX' | 'PRE-OWNED' | 'New' | 'Used' | 'Refurbished';
+  edition: string;
+  costPrice: number;
+  sellingPrice: number;
+  salePrice?: number;
+  stockQty: number;
+  imageUrl?: string;
+}
+
+export interface Product {
+  id: string;
+  sku: string;
+  barcode: string;
+  nameEn: string;
+  nameAr: string;
+  descriptionEn?: string;
+  descriptionAr?: string;
+  category: string;
+  subCategory?: string;
+  brand: string;
+  model: string;
+  condition: 'NEW' | 'USED' | 'REFURBISHED' | 'OPEN BOX' | 'PRE-OWNED' | 'New' | 'Used' | 'Refurbished';
+  costPrice: number;
+  sellingPrice: number;
+  salePrice?: number;
+  stockQty: number;
+  lowStockThreshold: number;
+  serialNumbers?: string[];
+  imageUrl: string;
+  galleryUrls?: string[];
+  specs: Record<string, any>;
+  isDigital?: boolean;
+  isFeatured?: boolean;
+  status?: 'published' | 'draft';
+  variations?: ProductVariation[];
+  slug?: string;
+
+  // Extended Catalog Metadata
+  productType?: 'PHYSICAL PRODUCT' | 'DIGITAL PRODUCT' | 'SERVICE' | 'CUSTOM PC' | 'PRE-BUILT PC' | 'USED / PRE-OWNED' | 'RETRO PRODUCT';
+  primaryCategory?: string;
+  secondaryCategory?: string;
+  platform?: string;
+  generation?: string;
+  categories?: string[];
+  tags?: string[];
+  collections?: string[];
+  reservedQty?: number;
+  availableQty?: number;
+  stockStatus?: 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK' | 'PRE-ORDER';
+  warranty?: string;
+  weight?: string;
+  dimensions?: string;
+  relatedProducts?: string[];
+  compatibleProducts?: string[];
+  accessories?: string[];
+}
+
+export interface ProductFilter {
+  category?: string;
+  brand?: string;
+  priceMin?: number;
+  priceMax?: number;
+  condition?: string;
+  inStock?: boolean;
+  search?: string;
+  sortBy?: 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc' | 'newest';
+}

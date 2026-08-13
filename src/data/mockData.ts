@@ -4,7 +4,7 @@
 export interface ProductVariation {
   id: string;
   sku: string;
-  condition: 'New' | 'Used' | 'Refurbished';
+  condition: 'NEW' | 'USED' | 'REFURBISHED' | 'OPEN BOX' | 'PRE-OWNED' | 'New' | 'Used' | 'Refurbished';
   edition: string;
   costPrice: number;
   sellingPrice: number;
@@ -25,7 +25,7 @@ export interface Product {
   subCategory?: string;
   brand: string;
   model: string;
-  condition: 'New' | 'Used' | 'Refurbished';
+  condition: 'NEW' | 'USED' | 'REFURBISHED' | 'OPEN BOX' | 'PRE-OWNED' | 'New' | 'Used' | 'Refurbished';
   costPrice: number;
   sellingPrice: number;
   salePrice?: number;
@@ -39,6 +39,25 @@ export interface Product {
   isFeatured?: boolean;
   status?: 'published' | 'draft';
   variations?: ProductVariation[];
+
+  // Extended Catalog Metadata
+  productType?: 'PHYSICAL PRODUCT' | 'DIGITAL PRODUCT' | 'SERVICE' | 'CUSTOM PC' | 'PRE-BUILT PC' | 'USED / PRE-OWNED' | 'RETRO PRODUCT';
+  primaryCategory?: string;
+  secondaryCategory?: string;
+  platform?: string;
+  generation?: string;
+  categories?: string[];
+  tags?: string[];
+  collections?: string[];
+  reservedQty?: number;
+  availableQty?: number;
+  stockStatus?: 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK' | 'PRE-ORDER';
+  warranty?: string;
+  weight?: string;
+  dimensions?: string;
+  relatedProducts?: string[];
+  compatibleProducts?: string[];
+  accessories?: string[];
 }
 
 export interface RepairTicket {
@@ -1444,17 +1463,29 @@ export const initialProducts: Product[] = [
     nameAr: 'ذراع تحكم بلايستيشن 2 دوال شوك',
     descriptionEn: 'Official Sony PlayStation 2 DualShock Analog Controller - Classic Black.',
     descriptionAr: 'ذراع تحكم سوني بلايستيشن 2 أنالوج الأصلي - أسود كلاسيكي.',
-    category: 'Consoles & Accessories',
-    subCategory: 'Sony',
+    category: 'Controllers',
+    subCategory: 'PlayStation Controllers',
     brand: 'Sony',
     model: 'DualShock 2',
-    condition: 'Refurbished',
+    condition: 'REFURBISHED',
     costPrice: 45,
     sellingPrice: 89,
     stockQty: 15,
     lowStockThreshold: 3,
     imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
-    specs: { type: 'Wired Controller', compatibility: 'PS2 / PS1' }
+    specs: { 
+      type: 'Wired Controller', 
+      compatibility: 'PS2 / PS1',
+      platform: 'PlayStation',
+      generation: 'PS2',
+      tested: 'Yes',
+      warranty: '3 Months'
+    },
+    productType: 'RETRO PRODUCT',
+    primaryCategory: 'GAMING',
+    secondaryCategory: 'RETRO GAMING',
+    categories: ['GAMING', 'RETRO GAMING'],
+    tags: ['PS2', 'Sony', 'Controller', 'Retro', 'DualShock']
   },
   {
     id: 'p-ctrl-ps3',
@@ -2079,19 +2110,34 @@ export const initialProducts: Product[] = [
     nameAr: 'سوني بلايستيشن 2',
     descriptionEn: 'High-quality Sony PlayStation 2 console. Choose from available variations for edition and condition.',
     descriptionAr: 'جهاز سوني بلايستيشن 2 عالي الجودة. اختر من الخيارات المتاحة للإصدار والحالة.',
-    category: 'Consoles & Accessories',
-    subCategory: 'Sony',
+    category: 'Consoles',
+    subCategory: 'PlayStation',
     brand: 'Sony',
     model: 'PS2',
-    condition: 'New',
+    condition: 'PRE-OWNED',
     costPrice: 337.5,
     sellingPrice: 450,
     stockQty: 10,
     lowStockThreshold: 2,
     imageUrl: '/media/consoles/ps2.png',
-    specs: {},
+    specs: {
+      platform: 'PlayStation',
+      generation: 'PS2',
+      model: 'SCPH-90004',
+      condition: 'USED — EXCELLENT CONDITION',
+      region: 'PAL (EUR/Middle East)',
+      included: ['Console', '1x Controller', 'Power Cable', 'AV Cable'],
+      tested: 'Yes',
+      warranty: '6 Months'
+    },
     isFeatured: true,
     status: 'published',
+    productType: 'RETRO PRODUCT',
+    primaryCategory: 'GAMING',
+    secondaryCategory: 'RETRO GAMING',
+    categories: ['GAMING', 'RETRO GAMING'],
+    tags: ['PS2', 'Sony', 'Retro', 'Console', 'Pre-Owned'],
+    collections: ['RETRO PICKS', 'PRE-OWNED'],
     variations: [
       {
         id: 'v-1786212830841-pfvci',

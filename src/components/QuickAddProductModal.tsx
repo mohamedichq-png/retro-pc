@@ -24,17 +24,18 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
 
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
-  const [category, setCategory] = useState('PC Components');
-  const [brand, setBrand] = useState('RETRO');
+  const [category, setCategory] = useState('Gaming');
+  const [brand, setBrand] = useState('Sony');
   const [sellingPrice, setSellingPrice] = useState<number | ''>('');
   const [salePrice, setSalePrice] = useState<number | ''>('');
   const [stockQty, setStockQty] = useState<number | ''>(10);
   const [lowStockThreshold, setLowStockThreshold] = useState<number>(3);
-  const [condition, setCondition] = useState<'New' | 'Refurbished' | 'Used'>('New');
+  const [condition, setCondition] = useState<'NEW' | 'USED' | 'REFURBISHED' | 'OPEN BOX' | 'PRE-OWNED'>('NEW');
   const [status, setStatus] = useState<'published' | 'draft'>('published');
   const [imageUrl, setImageUrl] = useState(SAMPLE_IMAGES[0].url);
   const [descriptionAr, setDescriptionAr] = useState('');
   const [descriptionEn, setDescriptionEn] = useState('');
+  const [productType, setProductType] = useState<'PHYSICAL PRODUCT' | 'DIGITAL PRODUCT' | 'SERVICE' | 'CUSTOM PC' | 'PRE-BUILT PC' | 'USED / PRE-OWNED' | 'RETRO PRODUCT'>('PHYSICAL PRODUCT');
   const [isSuccess, setIsSuccess] = useState(false);
 
   if (!isOpen) return null;
@@ -56,6 +57,33 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
     e.preventDefault();
     if (!nameAr.trim() || !sellingPrice) return;
 
+    // Smart Suggest Category scan
+    let suggestedPrimary = 'Gaming';
+    const textScan = (nameEn + ' ' + nameAr).toLowerCase();
+    if (
+      textScan.includes('rtx') || textScan.includes('geforce') || textScan.includes('radeon') ||
+      textScan.includes('ryzen') || textScan.includes('core i') || textScan.includes('ddr5') ||
+      textScan.includes('ddr4') || textScan.includes('nvme') || textScan.includes('ssd') ||
+      textScan.includes('motherboard') || textScan.includes('psu') || textScan.includes('cooler') ||
+      textScan.includes('chassis')
+    ) {
+      suggestedPrimary = 'PC';
+    } else if (
+      textScan.includes('ps1') || textScan.includes('ps2') || textScan.includes('ps3') ||
+      textScan.includes('game boy') || textScan.includes('sega') || textScan.includes('atari') ||
+      textScan.includes('gamecube') || textScan.includes('n64') || textScan.includes('nes')
+    ) {
+      suggestedPrimary = 'Retro Gaming';
+    } else if (textScan.includes('monitor') || textScan.includes('screen')) {
+      suggestedPrimary = 'Monitors';
+    } else if (textScan.includes('laptop') || textScan.includes('notebook')) {
+      suggestedPrimary = 'Laptops';
+    } else if (textScan.includes('repair') || textScan.includes('service') || textScan.includes('fix')) {
+      suggestedPrimary = 'Repair Hub';
+    }
+
+    const finalCategory = category;
+
     const newProduct: Product = {
       id: `prod_${Date.now()}`,
       sku: `RET-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -63,7 +91,7 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
       model: nameEn.trim() || nameAr.trim(),
       nameEn: nameEn.trim() || nameAr.trim(),
       nameAr: nameAr.trim(),
-      category,
+      category: finalCategory,
       brand: brand.trim() || 'RETRO',
       sellingPrice: Number(sellingPrice),
       salePrice: salePrice ? Number(salePrice) : undefined,
@@ -79,7 +107,12 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
         'Warranty': '2 Years Official',
         'Condition': condition,
         'Origin': 'Original Sealed'
-      }
+      },
+      productType: finalCategory === 'Retro Gaming' ? 'RETRO PRODUCT' : productType,
+      primaryCategory: finalCategory,
+      categories: [finalCategory],
+      tags: [brand, finalCategory],
+      stockStatus: (Number(stockQty) || 1) > 0 ? 'IN STOCK' : 'OUT OF STOCK',
     };
 
     addProduct(newProduct);
@@ -229,19 +262,20 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
               {/* Category */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-300">
-                  {isRtl ? "القسم (Category)" : "Category"}
+                  {isRtl ? "الفئة الرئيسية (Category)" : "Primary Category"}
                 </label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
                 >
-                  <option value="PC Components">PC Components (قطع غيار)</option>
-                  <option value="Gaming PCs">Gaming PCs (حواسيب قيمنق)</option>
-                  <option value="Monitors">Monitors (شاشات)</option>
-                  <option value="Retro Consoles">Retro Consoles (أجهزة ألعاب)</option>
-                  <option value="Accessories">Accessories (ملحقات ومستلزمات)</option>
-                  <option value="Handhelds">Handhelds (أجهزة محمولة)</option>
+                  <option value="Gaming">Gaming (الألعاب والمنصات)</option>
+                  <option value="Retro Gaming">Retro Gaming (ألعاب ريترو الكلاسيكية)</option>
+                  <option value="PC">PC Hardware (أجهزة الكمبيوتر والقطع)</option>
+                  <option value="Monitors">Monitors (الشاشات)</option>
+                  <option value="Accessories">Accessories (الملحقات والأكسسوارات)</option>
+                  <option value="Laptops">Laptops (اللابتوبات)</option>
+                  <option value="Repair Hub">Repair Hub (خدمات الصيانة)</option>
                 </select>
               </div>
 
@@ -314,9 +348,11 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
                   onChange={(e) => setCondition(e.target.value as any)}
                   className="w-full rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
                 >
-                  <option value="New">{isRtl ? "جديد (New)" : "New"}</option>
-                  <option value="Refurbished">{isRtl ? "مُجدد مع ضمان (Refurbished)" : "Refurbished"}</option>
-                  <option value="Used">{isRtl ? "مستعمل (Used)" : "Used"}</option>
+                  <option value="NEW">{isRtl ? "جديد (NEW)" : "NEW"}</option>
+                  <option value="USED">{isRtl ? "مستعمل (USED)" : "USED"}</option>
+                  <option value="REFURBISHED">{isRtl ? "مجدد (REFURBISHED)" : "REFURBISHED"}</option>
+                  <option value="OPEN BOX">{isRtl ? "صندوق مفتوح (OPEN BOX)" : "OPEN BOX"}</option>
+                  <option value="PRE-OWNED">{isRtl ? "مقتنى سابقاً (PRE-OWNED)" : "PRE-OWNED"}</option>
                 </select>
               </div>
 
