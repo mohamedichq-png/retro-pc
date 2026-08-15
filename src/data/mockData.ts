@@ -1352,7 +1352,7 @@ export const initialProducts: Product[] = [
     salePrice: 1899,
     stockQty: 25,
     lowStockThreshold: 5,
-    imageUrl: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=400&q=80',
+    imageUrl: '/media/consoles/ps5.png',
     specs: {
       storage: '1TB SSD',
       region: 'MEA / Qatari',
@@ -1376,7 +1376,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 1299,
     stockQty: 15,
     lowStockThreshold: 3,
-    imageUrl: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=400&q=80',
+    imageUrl: '/media/consoles/switch-oled.png',
     specs: {
       storage: '64GB',
       screen: '7" OLED',
@@ -1399,7 +1399,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 450,
     stockQty: 3,
     lowStockThreshold: 1,
-    imageUrl: 'https://images.unsplash.com/photo-1531525645387-7f14be1bdbbd?auto=format&fit=crop&w=400&q=80',
+    imageUrl: '/media/consoles/super famicom.png',
     specs: {
       condition: 'Restored Retro',
       controllers: 2,
@@ -1425,7 +1425,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 799,
     stockQty: 20,
     lowStockThreshold: 4,
-    imageUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=400&q=80',
+    imageUrl: '/media/consoles/ps5.png',
     specs: {
       compatibility: 'PS5, PC',
       features: 'Haptic feedback, Adaptive triggers, Back buttons',
@@ -1452,7 +1452,7 @@ export const initialProducts: Product[] = [
     salePrice: 749,
     stockQty: 8,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/ps vita.png',
     specs: { display: '5.0-inch OLED', memory: '16GB Card Included', region: 'Global' }
   },
   {
@@ -1472,7 +1472,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 89,
     stockQty: 15,
     lowStockThreshold: 3,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/ps2.png',
     specs: { 
       type: 'Wired Controller', 
       compatibility: 'PS2 / PS1',
@@ -1504,7 +1504,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 129,
     stockQty: 12,
     lowStockThreshold: 3,
-    imageUrl: 'https://images.unsplash.com/photo-1526509867162-5b0c0d1b4b33?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/ps3.png',
     specs: { connectivity: 'Bluetooth Wireless', battery: 'Built-in Lithium Ion' }
   },
   {
@@ -1524,7 +1524,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 219,
     stockQty: 20,
     lowStockThreshold: 4,
-    imageUrl: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/ps4.png',
     specs: { connectivity: 'Bluetooth V2.1', feature: 'Touchpad & Light Bar' }
   },
   {
@@ -1544,7 +1544,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 299,
     stockQty: 25,
     lowStockThreshold: 5,
-    imageUrl: 'https://images.unsplash.com/photo-1607853202273-797f1c22a38e?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/ps5.png',
     specs: { features: 'Haptic Feedback, Adaptive Triggers, USB-C' }
   },
 
@@ -1566,7 +1566,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 650,
     stockQty: 5,
     lowStockThreshold: 1,
-    imageUrl: 'https://images.unsplash.com/photo-1621259182978-fbf93132d53d?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/xbox original.png',
     specs: { storage: '8GB Internal HDD', processor: 'Intel Pentium III 733MHz' }
   },
   {
@@ -1586,7 +1586,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 550,
     stockQty: 10,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/xbox 360.png',
     specs: { storage: '250GB HDD', videoOutput: 'HDMI 1080p' }
   },
   {
@@ -1606,7 +1606,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 899,
     stockQty: 7,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1605901309584-818e25960a8f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/xbox one.png',
     specs: { storage: '1TB HDD', features: '4K Ultra HD Blu-ray & HDR' }
   },
 
@@ -1628,7 +1628,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 750,
     stockQty: 6,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/nintendo 64.png',
     specs: { resolution: '240p / 480i', media: 'N64 Game Cartridges' }
   },
   {
@@ -1648,7 +1648,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 999,
     stockQty: 9,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/switch.png',
     specs: { display: '6.2-inch LCD', storage: '32GB Internal' }
   },
   {
@@ -1669,7 +1669,7 @@ export const initialProducts: Product[] = [
     salePrice: 1299,
     stockQty: 14,
     lowStockThreshold: 3,
-    imageUrl: 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/switch-oled.png',
     specs: { display: '7.0-inch OLED', storage: '64GB Internal' }
   },
   {
@@ -1689,7 +1689,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 799,
     stockQty: 11,
     lowStockThreshold: 3,
-    imageUrl: 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/switch lite.png',
     specs: { display: '5.5-inch Touchscreen', mode: 'Handheld Only' }
   },
   {
@@ -1709,7 +1709,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 499,
     stockQty: 8,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/wii.png',
     specs: { motionControl: 'Wii Remote Plus', backwardsCompatible: 'GameCube Games' }
   },
   {
@@ -1729,7 +1729,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 699,
     stockQty: 4,
     lowStockThreshold: 1,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/wii u.png',
     specs: { storage: '32GB Flash', gamepadScreen: '6.2-inch Touchscreen' }
   },
   {
@@ -1749,7 +1749,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 850,
     stockQty: 5,
     lowStockThreshold: 1,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/gamecube.png',
     specs: { media: 'Mini Optical Discs', ports: '4 Controller Ports' }
   },
   {
@@ -1769,7 +1769,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 699,
     stockQty: 6,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/snes.png',
     specs: { bitArchitecture: '16-Bit Processor', controllers: '2 Included' }
   },
   {
@@ -1789,7 +1789,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 499,
     stockQty: 7,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1531525645387-7f14be1bbe97?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/game boy.png',
     specs: { screen: 'Monochrome Dot Matrix', power: '4 AA Batteries' }
   },
   {
@@ -1809,7 +1809,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 599,
     stockQty: 9,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1531525645387-7f14be1bbe97?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/game boy-advance.png',
     specs: { screen: 'Reflective TFT Color LCD', design: 'Clamshell Foldable' }
   },
   {
@@ -1829,7 +1829,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 399,
     stockQty: 10,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/ds family.png',
     specs: { screens: 'Dual 3.0-inch TFT LCD', features: 'Touch Screen & Stylus' }
   },
   {
@@ -1849,7 +1849,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 449,
     stockQty: 6,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/2ds family.png',
     specs: { screen: 'Dual LCD Display', audio: 'Monaural Speaker' }
   },
   {
@@ -1869,7 +1869,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 749,
     stockQty: 7,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/3ds family.png',
     specs: { display: '4.88-inch 3D LCD Upper Screen', mode3D: 'Glasses-Free 3D' }
   },
   {
@@ -1889,7 +1889,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 899,
     stockQty: 5,
     lowStockThreshold: 1,
-    imageUrl: 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/3ds family.png',
     specs: { processor: 'Enhanced Quad-Core CPU', features: 'Super-Stable 3D & NFC' }
   },
   {
@@ -1909,7 +1909,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 599,
     stockQty: 8,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/famicom.png',
     specs: { bitArchitecture: '8-Bit Ricoh CPU', audio: '5-Channel Sound' }
   },
 
@@ -1931,7 +1931,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 649,
     stockQty: 5,
     lowStockThreshold: 1,
-    imageUrl: 'https://images.unsplash.com/photo-1531525645387-7f14be1bbe97?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/sega-game-gear.png',
     specs: { display: '3.2-inch Color Backlit LCD', sound: 'Stereo Headphone Jack' }
   },
   {
@@ -1951,7 +1951,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 799,
     stockQty: 4,
     lowStockThreshold: 1,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/sega-saturn.png',
     specs: { architecture: 'Dual SH-2 32-Bit RISC', media: 'CD-ROM Drive' }
   },
   {
@@ -1971,7 +1971,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 899,
     stockQty: 6,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/sega-dreamcast.png',
     specs: { graphics: 'NEC PowerVR2', media: '1.2GB GD-ROM' }
   },
   {
@@ -1991,7 +1991,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 549,
     stockQty: 7,
     lowStockThreshold: 2,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/sega-mega-drive.png',
     specs: { processor: 'Motorola 68000 16-Bit', sound: 'Yamaha YM2612' }
   },
 
@@ -2013,7 +2013,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 1899,
     stockQty: 3,
     lowStockThreshold: 1,
-    imageUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/neo-geo-aes.png',
     specs: { memory: 'MAX 330 MEGA Pro-Gear Spec', controller: 'Arcade Stick Included' }
   },
   {
@@ -2033,7 +2033,7 @@ export const initialProducts: Product[] = [
     sellingPrice: 1499,
     stockQty: 2,
     lowStockThreshold: 1,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80',
+    imageUrl: '/media/consoles/panasonic-3do.png',
     specs: { cpu: '32-Bit ARM60 12.5MHz', media: 'Double-Speed CD-ROM' }
   }
 ,

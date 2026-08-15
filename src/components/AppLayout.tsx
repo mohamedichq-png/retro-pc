@@ -6,6 +6,7 @@ import Footer from "../components/Footer";
 import AiAssistant from "../components/AiAssistant";
 import { useEffect, useState } from "react";
 import { CartIcon, TrashIcon, CheckIcon, CloseIcon } from "./Icons";
+import { supabase } from "../lib/supabase";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { 
@@ -35,6 +36,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     e.preventDefault();
     if (!custPhone.trim()) return;
 
+    const randomId = 'RT-ORD-' + Math.floor(100000 + Math.random() * 900000);
+    setOrderInvoice(randomId);
+
     // Construct WhatsApp message
     let message = "";
     if (language === 'ar') {
@@ -45,8 +49,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       message += `💳 طريقة الدفع المفضلة: ${checkoutMethod === 'Card' ? 'بطاقة ائتمان / مدى' : checkoutMethod === 'Apple Pay' ? 'Apple Pay' : 'نقداً'}\n\n`;
       message += `📦 المنتجات المطلوبة:\n`;
       cart.forEach((item, index) => {
-        const price = item.product.salePrice ?? item.product.sellingPrice;
-        message += `${index + 1}. ${item.product.nameAr} (${item.qty} × ${price} ر.ق)\n`;
+        const price = item.variation ? (item.variation.salePrice ?? item.variation.sellingPrice) : (item.product.salePrice ?? item.product.sellingPrice);
+        const name = item.product.nameAr;
+        const variationText = item.variation ? ` (${item.variation.edition})` : '';
+        message += `${index + 1}. ${name}${variationText} (${item.qty} × ${price} ر.ق)\n`;
       });
       message += `\n💵 المجموع الكلي: ${cartTotal} ر.ق`;
     } else {
@@ -57,20 +63,136 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       message += `💳 Preferred Payment: ${checkoutMethod}\n\n`;
       message += `📦 Ordered Items:\n`;
       cart.forEach((item, index) => {
-        const price = item.product.salePrice ?? item.product.sellingPrice;
-        message += `${index + 1}. ${item.product.nameEn} (${item.qty} x ${price} QAR)\n`;
+        const price = item.variation ? (item.variation.salePrice ?? item.variation.sellingPrice) : (item.product.salePrice ?? item.product.sellingPrice);
+        const name = item.product.nameEn;
+        const variationText = item.variation ? ` (${item.variation.edition})` : '';
+        message += `${index + 1}. ${name}${variationText} (${item.qty} x ${price} QAR)\n`;
       });
       message += `\n💵 Order Total: ${cartTotal} QAR`;
     }
 
     const whatsappUrl = `https://wa.me/97466223445?text=${encodeURIComponent(message)}`;
     
-    // Redirect current tab to WhatsApp to avoid popup blockers
-    window.location.href = whatsappUrl;
+    // Open WhatsApp to send order details
+    try {
+      window.open(whatsappUrl, '_blank');
+    } catch (openErr) {
+      console.error("WhatsApp redirect blocked:", openErr);
+      window.location.href = whatsappUrl;
+    }
 
-    // Clear cart and close modal
+    // Sync transaction to Supabase if configured
+    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (isSupabaseConfigured) {
+      const syncCheckout = async () => {
+        try {
+          // 1. Check or upsert customer loyalty profile
+          let customerId = null;
+          if (custPhone) {
+            const { data: existingCust } = await supabase
+              .from('customers')
+              .select('*')
+              .eq('phone', custPhone)
+              .maybeSingle();
+
+            const pointsEarned = Math.floor(cartTotal / 10);
+
+            if (existingCust) {
+              customerId = existingCust.id;
+              const nextPoints = (existingCust.loyalty_points || 0) + pointsEarned;
+              let level = existingCust.membership_level || 'Bronze';
+              if (nextPoints > 3000) level = 'Platinum';
+              else if (nextPoints > 1500) level = 'Gold';
+              else if (nextPoints > 500) level = 'Silver';
+
+              await supabase
+                .from('customers')
+                .update({
+                  name: custName,
+                  loyalty_points: nextPoints,
+                  membership_level: level
+                })
+                .eq('phone', custPhone);
+            } else {
+              const { data: newCust, error: insertCustErr } = await supabase
+                .from('customers')
+                .insert({
+                  name: custName || 'Online Customer',
+                  phone: custPhone,
+                  loyalty_points: pointsEarned,
+                  membership_level: pointsEarned > 500 ? 'Silver' : 'Bronze',
+                  store_credit: 0,
+                  outstanding_balance: 0
+                })
+                .select()
+                .single();
+              
+              if (!insertCustErr && newCust) {
+                customerId = newCust.id;
+              }
+            }
+          }
+
+          // 2. Insert transaction
+          const totalCost = cart.reduce((acc, item) => {
+            const cost = item.variation ? item.variation.costPrice : item.product.costPrice;
+            return acc + (cost * item.qty);
+          }, 0);
+
+          const dbTx = {
+            invoice_no: randomId,
+            customer_id: customerId,
+            customer_name: custName || 'Online Customer',
+            customer_phone: custPhone,
+            employee_name: 'Online System',
+            source: 'E-Commerce',
+            branch: 'Online Store',
+            subtotal: cartTotal,
+            discount_amount: 0,
+            vat_amount: 0,
+            total_amount: cartTotal,
+            profit_amount: cartTotal - totalCost,
+            payment_method: checkoutMethod === 'Card' ? 'Card' : checkoutMethod === 'Apple Pay' ? 'Apple Pay' : 'Cash',
+            payment_status: 'Unpaid',
+            items: cart.map(item => ({
+              productId: item.product.id,
+              sku: item.variation?.sku ?? item.product.sku,
+              nameEn: item.variation ? `${item.product.nameEn} - ${item.variation.edition} (${item.variation.condition})` : item.product.nameEn,
+              nameAr: item.variation ? `${item.product.nameAr} - ${item.variation.edition} (${item.variation.condition})` : item.product.nameAr,
+              qty: item.qty,
+              price: item.variation ? (item.variation.salePrice ?? item.variation.sellingPrice) : (item.product.salePrice ?? item.product.sellingPrice),
+              cost: item.variation ? item.variation.costPrice : item.product.costPrice
+            })),
+            created_at: new Date().toISOString()
+          };
+
+          const { error: txError } = await supabase.from('transactions').insert(dbTx);
+          if (txError) throw txError;
+
+          // 3. Update stock quantities in DB
+          for (const item of cart) {
+            if (item.variation) {
+              const { data: pData } = await supabase.from('products').select('variations').eq('id', item.product.id).single();
+              if (pData && pData.variations) {
+                const updatedVariations = (pData.variations as any[]).map(v => 
+                  v.sku === item.variation!.sku ? { ...v, stockQty: Math.max(0, v.stockQty - item.qty) } : v
+                );
+                await supabase.from('products').update({ variations: updatedVariations }).eq('id', item.product.id);
+              }
+            } else {
+              const nextStock = Math.max(0, item.product.stockQty - item.qty);
+              await supabase.from('products').update({ stock_qty: nextStock }).eq('id', item.product.id);
+            }
+          }
+        } catch (err) {
+          console.error("Supabase AppLayout checkout sync failed:", err);
+        }
+      };
+      syncCheckout();
+    }
+
+    // Clear cart and reset inputs
     clearCart();
-    setCheckoutModalOpen(false);
     setCustName('');
     setCustPhone('');
   };

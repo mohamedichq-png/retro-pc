@@ -409,7 +409,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       // Version-based cache invalidation for products
       // Increment this version string whenever initialProducts is updated
-      const PRODUCTS_VERSION = 'v2026-08-03-b';
+      const PRODUCTS_VERSION = 'v2026-08-15-consoles-hd-final';
       const storedVersion = localStorage.getItem('retro_products_version');
       if (storedVersion !== PRODUCTS_VERSION) {
         // Clear old cached products and reset to latest initialProducts

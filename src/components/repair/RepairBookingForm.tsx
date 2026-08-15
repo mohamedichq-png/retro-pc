@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useUIStore } from '@/stores/useUIStore';
 import type { Dictionary, Locale } from '@/i18n/dictionaries';
+import { BUSINESS_INFO } from '@/lib/constants';
 
 interface RepairBookingFormProps {
   dict: Dictionary;
@@ -40,7 +41,7 @@ Device: ${formData.deviceType} (${formData.deviceModel})
 Issue: ${formData.issue}`;
 
     const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/97412345678?text=${encodedMessage}`; // Mock phone number
+    const whatsappUrl = `https://wa.me/${BUSINESS_INFO.repairWhatsApp}?text=${encodedMessage}`;
     
     showToast(isRtl ? 'جاري تحويلك إلى واتساب...' : 'Redirecting to WhatsApp...', 'success');
     

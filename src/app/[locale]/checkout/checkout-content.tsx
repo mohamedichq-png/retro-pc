@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import type { Dictionary, Locale } from '@/i18n/dictionaries';
+import { BUSINESS_INFO } from '@/lib/constants';
+import { supabase } from '@/lib/supabase';
 
 interface CheckoutContentProps {
   dict: Dictionary;
@@ -52,7 +54,7 @@ export function CheckoutContent({ dict, locale }: CheckoutContentProps) {
     setIsSuccess(true);
     showToast(isRtl ? 'تم تسجيل طلبك بنجاح!' : 'Order placed successfully!', 'success');
 
-    // Generate WhatsApp text for optional order follow up
+    // Generate WhatsApp text for order details
     const orderItemsText = items.map(item => {
       const name = isRtl ? item.product.nameAr : item.product.nameEn;
       const variationText = item.variation ? ` (${item.variation.edition})` : '';
@@ -70,8 +72,127 @@ ${orderItemsText}
 
 *Total:* ${grandTotal.toLocaleString()} QAR`;
 
-    // Save this WhatsApp URL on the client to redirect if they click the WhatsApp button
-    (window as any)._pendingWhatsappUrl = `https://wa.me/97412345678?text=${encodeURIComponent(whatsappMessage)}`;
+    const whatsappUrl = `https://wa.me/${BUSINESS_INFO.salesWhatsApp}?text=${encodeURIComponent(whatsappMessage)}`;
+    (window as any)._pendingWhatsappUrl = whatsappUrl;
+
+    // Automatically open WhatsApp to send order details
+    try {
+      window.open(whatsappUrl, '_blank');
+    } catch (openErr) {
+      console.error("WhatsApp auto-open blocked by browser:", openErr);
+    }
+
+    // Sync transaction to Supabase if configured
+    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (isSupabaseConfigured) {
+      const syncCheckout = async () => {
+        try {
+          // 1. Check or upsert customer loyalty profile
+          let customerId = null;
+          if (formData.phone) {
+            const { data: existingCust } = await supabase
+              .from('customers')
+              .select('*')
+              .eq('phone', formData.phone)
+              .maybeSingle();
+
+            const pointsEarned = Math.floor(grandTotal / 10);
+
+            if (existingCust) {
+              customerId = existingCust.id;
+              const nextPoints = (existingCust.loyalty_points || 0) + pointsEarned;
+              let level = existingCust.membership_level || 'Bronze';
+              if (nextPoints > 3000) level = 'Platinum';
+              else if (nextPoints > 1500) level = 'Gold';
+              else if (nextPoints > 500) level = 'Silver';
+
+              await supabase
+                .from('customers')
+                .update({
+                  name: formData.name,
+                  email: formData.email,
+                  loyalty_points: nextPoints,
+                  membership_level: level
+                })
+                .eq('phone', formData.phone);
+            } else {
+              const { data: newCust, error: insertCustErr } = await supabase
+                .from('customers')
+                .insert({
+                  name: formData.name,
+                  phone: formData.phone,
+                  email: formData.email,
+                  loyalty_points: pointsEarned,
+                  membership_level: pointsEarned > 500 ? 'Silver' : 'Bronze',
+                  store_credit: 0,
+                  outstanding_balance: 0
+                })
+                .select()
+                .single();
+              
+              if (!insertCustErr && newCust) {
+                customerId = newCust.id;
+              }
+            }
+          }
+
+          // 2. Insert transaction
+          const totalCost = items.reduce((acc, item) => {
+            const cost = item.variation ? item.variation.costPrice : item.product.costPrice;
+            return acc + (cost * item.qty);
+          }, 0);
+
+          const dbTx = {
+            invoice_no: randomId,
+            customer_id: customerId,
+            customer_name: formData.name,
+            customer_phone: formData.phone,
+            employee_name: 'Online System',
+            source: 'E-Commerce',
+            branch: 'Online Store',
+            subtotal: totalPrice,
+            discount_amount: 0,
+            vat_amount: 0,
+            total_amount: grandTotal,
+            profit_amount: grandTotal - totalCost,
+            payment_method: formData.paymentMethod === 'cod' ? 'Cash' : 'Card',
+            payment_status: 'Unpaid',
+            items: items.map(item => ({
+              productId: item.product.id,
+              sku: item.variation?.sku ?? item.product.sku,
+              nameEn: item.variation ? `${item.product.nameEn} - ${item.variation.edition} (${item.variation.condition})` : item.product.nameEn,
+              nameAr: item.variation ? `${item.product.nameAr} - ${item.variation.edition} (${item.variation.condition})` : item.product.nameAr,
+              qty: item.qty,
+              price: item.variation ? (item.variation.salePrice ?? item.variation.sellingPrice) : (item.product.salePrice ?? item.product.sellingPrice),
+              cost: item.variation ? item.variation.costPrice : item.product.costPrice
+            })),
+            created_at: new Date().toISOString()
+          };
+
+          const { error: txError } = await supabase.from('transactions').insert(dbTx);
+          if (txError) throw txError;
+
+          // 3. Update stock quantities in DB
+          for (const item of items) {
+            if (item.variation) {
+              const { data: pData } = await supabase.from('products').select('variations').eq('id', item.product.id).single();
+              if (pData && pData.variations) {
+                const updatedVariations = (pData.variations as any[]).map(v => 
+                  v.sku === item.variation!.sku ? { ...v, stockQty: Math.max(0, v.stockQty - item.qty) } : v
+                );
+                await supabase.from('products').update({ variations: updatedVariations }).eq('id', item.product.id);
+              }
+            } else {
+              const nextStock = Math.max(0, item.product.stockQty - item.qty);
+              await supabase.from('products').update({ stock_qty: nextStock }).eq('id', item.product.id);
+            }
+          }
+        } catch (err) {
+          console.error("Supabase checkout sync failed:", err);
+        }
+      };
+      syncCheckout();
+    }
     
     // Clear cart state
     clearCart();
@@ -92,7 +213,7 @@ ${orderItemsText}
         <span className="text-xl font-mono font-black text-retro-cyan bg-retro-bg-card border border-retro-border px-4 py-2 rounded-xl mb-8 block">
           {orderId}
         </span>
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button 
             variant="accent"
             onClick={() => {
