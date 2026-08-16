@@ -18,6 +18,7 @@ interface CartState {
   updateQty: (productId: string, qty: number, variationSku?: string) => void;
   clearCart: () => void;
   getTotal: () => number;
+  getSubtotal: () => number;
   getItemCount: () => number;
 }
 
@@ -71,6 +72,10 @@ export const useCartStore = create<CartState>()(
             : (item.product.salePrice ?? item.product.sellingPrice);
           return total + price * item.qty;
         }, 0);
+      },
+
+      getSubtotal: () => {
+        return get().getTotal();
       },
 
       getItemCount: () => {

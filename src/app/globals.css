@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 /* ============================================
    RETRO Qatar — Design System
-   Premium Dark Gaming E-Commerce Theme
+   Premium Dark Gaming & Retro Storefront
    ============================================ */
 
 @theme {
@@ -12,13 +12,15 @@
   --color-retro-bg-secondary: #07101F;
   --color-retro-bg-card: #0B1224;
   --color-retro-bg-elevated: #10182D;
-  --color-retro-bg-input: #0a0f1e;
+  --color-retro-bg-input: #090e1d;
 
   /* --- Accent Palette --- */
   --color-retro-cyan: #22d3ee;
+  --color-retro-cyan-hover: #06b6d4;
   --color-retro-cyan-muted: #0891b2;
   --color-retro-cyan-dim: #164e63;
   --color-retro-purple: #a855f7;
+  --color-retro-purple-hover: #9333ea;
   --color-retro-purple-muted: #7c3aed;
   --color-retro-purple-dim: #3b0764;
   --color-retro-pink: #ec4899;
@@ -34,11 +36,12 @@
 
   /* --- Borders --- */
   --color-retro-border: rgba(148, 163, 184, 0.08);
-  --color-retro-border-hover: rgba(34, 211, 238, 0.25);
-  --color-retro-border-purple: rgba(168, 85, 247, 0.15);
+  --color-retro-border-hover: rgba(34, 211, 238, 0.3);
+  --color-retro-border-purple: rgba(168, 85, 247, 0.2);
 
   /* --- Typography --- */
-  --font-sans: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Outfit', 'Cairo', system-ui, -apple-system, sans-serif;
+  --font-arabic: 'Cairo', 'IBM Plex Sans Arabic', system-ui, -apple-system, sans-serif;
 
   /* --- Animations --- */
   --animate-spin-slow: spin 12s linear infinite;
@@ -62,55 +65,57 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  overflow-x: hidden;
 }
 
-/* RTL Support */
-html[dir="rtl"] {
+/* RTL Support with Cairo Font */
+html[dir="rtl"], [dir="rtl"] {
   direction: rtl;
   text-align: right;
+  font-family: var(--font-arabic);
 }
 
 /* ============================================
    Glassmorphism Utilities
    ============================================ */
 .glass {
-  background: rgba(11, 18, 36, 0.65);
+  background: rgba(11, 18, 36, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(148, 163, 184, 0.08);
 }
 
 .glass-cyan {
-  background: rgba(11, 18, 36, 0.6);
+  background: rgba(11, 18, 36, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.15);
 }
 
 .glass-purple {
-  background: rgba(11, 18, 36, 0.6);
+  background: rgba(11, 18, 36, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.15);
 }
 
 /* ============================================
-   Glow Effects (used sparingly)
+   Glow Effects
    ============================================ */
 .glow-cyan-sm {
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.15);
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.18);
 }
 
 .glow-cyan {
-  box-shadow: 0 0 24px rgba(34, 211, 238, 0.2);
+  box-shadow: 0 0 28px rgba(34, 211, 238, 0.22);
 }
 
 .glow-purple-sm {
-  box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.18);
 }
 
 .glow-purple {
-  box-shadow: 0 0 24px rgba(168, 85, 247, 0.2);
+  box-shadow: 0 0 28px rgba(168, 85, 247, 0.22);
 }
 
 /* ============================================
@@ -125,15 +130,15 @@ html[dir="rtl"] {
 }
 
 .scrollbar-thin::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 .scrollbar-thin::-webkit-scrollbar-track {
   background: #050817;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background: #1e293b;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: #22d3ee;
@@ -155,31 +160,12 @@ html[dir="rtl"] {
   background: linear-gradient(
     90deg,
     rgba(11, 18, 36, 0.8) 25%,
-    rgba(16, 24, 45, 0.9) 50%,
+    rgba(22, 36, 68, 0.6) 50%,
     rgba(11, 18, 36, 0.8) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 2s infinite;
+  animation: shimmer 1.8s infinite;
   border-radius: 8px;
-}
-
-/* ============================================
-   Product Image Placeholder
-   ============================================ */
-.product-placeholder {
-  background: linear-gradient(135deg, #0B1224 0%, #10182D 50%, #0B1224 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.product-placeholder::after {
-  content: '';
-  width: 48px;
-  height: 48px;
-  border: 2px solid rgba(34, 211, 238, 0.15);
-  border-radius: 12px;
-  display: block;
 }
 
 /* ============================================
@@ -190,26 +176,27 @@ html[dir="rtl"] {
   color: #050817;
   font-weight: 700;
   border-radius: 12px;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(34, 211, 238, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(34, 211, 238, 0.35);
 }
 
 .btn-secondary {
-  background: rgba(34, 211, 238, 0.1);
-  border: 1px solid rgba(34, 211, 238, 0.2);
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.25);
   color: #22d3ee;
   font-weight: 600;
   border-radius: 12px;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-secondary:hover {
   background: rgba(34, 211, 238, 0.15);
-  border-color: rgba(34, 211, 238, 0.4);
+  border-color: rgba(34, 211, 238, 0.5);
+  transform: translateY(-1px);
 }
 
 .btn-accent {
@@ -217,12 +204,12 @@ html[dir="rtl"] {
   color: white;
   font-weight: 700;
   border-radius: 12px;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-accent:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(168, 85, 247, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(168, 85, 247, 0.35);
 }
 
 /* ============================================
@@ -256,3 +243,60 @@ html[dir="rtl"] {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* ============================================
+   Unified Card System & Glass Cards
+   ============================================ */
+.glass-card {
+  background: rgba(11, 18, 36, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(34, 211, 238, 0.3);
+  box-shadow: 0 10px 30px -10px rgba(34, 211, 238, 0.15);
+  transform: translateY(-2px);
+}
+
+.glass-portal {
+  background: linear-gradient(145deg, rgba(16, 24, 45, 0.85) 0%, rgba(11, 18, 36, 0.95) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-portal:hover {
+  transform: translateY(-4px);
+}
+
+.glass-portal-cyan:hover {
+  border-color: rgba(34, 211, 238, 0.4);
+  box-shadow: 0 12px 35px -5px rgba(34, 211, 238, 0.2);
+}
+
+.glass-portal-purple:hover {
+  border-color: rgba(168, 85, 247, 0.4);
+  box-shadow: 0 12px 35px -5px rgba(168, 85, 247, 0.2);
+}
+
+.glass-portal-pink:hover {
+  border-color: rgba(236, 72, 153, 0.4);
+  box-shadow: 0 12px 35px -5px rgba(236, 72, 153, 0.2);
+}
+
+.glass-portal-amber:hover {
+  border-color: rgba(251, 191, 36, 0.4);
+  box-shadow: 0 12px 35px -5px rgba(251, 191, 36, 0.2);
+}
+
+.card-uniform {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: 1.25rem;
+}
+

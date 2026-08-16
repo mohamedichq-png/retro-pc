@@ -1,5 +1,5 @@
 // RETRO Qatar — Main Header Component
-// Professional e-commerce header with search, account, wishlist, cart, and language toggle
+// Professional e-commerce header with search, account, wishlist, compare, cart with subtotal, and language toggle
 
 'use client';
 
@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/stores/useCartStore';
 import { useWishlistStore } from '@/stores/useWishlistStore';
+import { useCompareStore } from '@/stores/useCompareStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Logo } from './Logo';
@@ -30,8 +31,10 @@ export function Header({ dict, locale }: HeaderProps) {
   const isRtl = locale === 'ar';
 
   const cartItemCount = useCartStore((s) => s.getItemCount());
+  const cartSubtotal = useCartStore((s) => s.getSubtotal());
   const wishlistCount = useWishlistStore((s) => s.items.length);
-  const { setCartDrawerOpen, setSearchOverlayOpen, toggleMobileMenu, activeDepartment, setActiveDepartment } = useUIStore();
+  const compareCount = useCompareStore((s) => s.items.length);
+  const { setCartDrawerOpen, setSearchOverlayOpen, toggleMobileMenu, setActiveDepartment } = useUIStore();
   const user = useAuthStore((s) => s.user);
 
   const oppositeLocale = locale === 'en' ? 'ar' : 'en';
@@ -61,7 +64,6 @@ export function Header({ dict, locale }: HeaderProps) {
   };
 
   const handleHomeClick = () => {
-    // Reset branding to general when returning to home
     setActiveDepartment('general');
   };
 
@@ -70,14 +72,13 @@ export function Header({ dict, locale }: HeaderProps) {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return { products: [], brands: [], categories: [] };
 
-    // 1. Matched Products (nameEn, nameAr, brand, SKU, model)
+    // 1. Matched Products
     const matchedProducts = (initialProducts as unknown as Product[])
       .filter((p) => 
         p.nameEn.toLowerCase().includes(query) ||
         p.nameAr.includes(query) ||
-        p.brand.toLowerCase().includes(query) ||
-        p.sku.toLowerCase().includes(query) ||
-        p.model.toLowerCase().includes(query)
+        p.brand?.toLowerCase().includes(query) ||
+        p.sku?.toLowerCase().includes(query)
       )
       .slice(0, 5);
 
@@ -114,8 +115,8 @@ export function Header({ dict, locale }: HeaderProps) {
     suggestions.categories.length > 0;
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-retro-border bg-retro-bg/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
+    <header className="sticky top-0 z-40 w-full border-b border-retro-border bg-retro-bg/95 backdrop-blur-xl">
+      <div className="mx-auto flex h-[74px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
 
         {/* ── Logo ── */}
         <Link 
@@ -137,8 +138,8 @@ export function Header({ dict, locale }: HeaderProps) {
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder={dict.search.placeholder}
-              className="w-full rounded-xl bg-retro-bg-input border border-retro-border py-2.5 text-sm text-retro-text placeholder-retro-text-dim focus:border-retro-cyan/40 focus:outline-none focus:ring-1 focus:ring-retro-cyan/20 transition-all ltr:pl-11 ltr:pr-4 rtl:pr-11 rtl:pl-4"
+              placeholder={dict.search?.placeholder || 'Search products, GPUs, PCs, Retro...'}
+              className="w-full rounded-2xl bg-retro-bg-input border border-retro-border py-2.5 text-xs sm:text-sm text-retro-text placeholder-retro-text-dim focus:border-retro-cyan/50 focus:outline-none focus:ring-2 focus:ring-retro-cyan/20 transition-all ltr:pl-11 ltr:pr-9 rtl:pr-11 rtl:pl-9 shadow-inner"
             />
             {/* Search Icon */}
             <div className="absolute top-1/2 -translate-y-1/2 ltr:left-3.5 rtl:right-3.5 text-retro-text-muted">
@@ -166,9 +167,9 @@ export function Header({ dict, locale }: HeaderProps) {
 
           {/* Autocomplete Dropdown List */}
           {showSuggestions && searchQuery.trim() && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-retro-bg-card/95 backdrop-blur-2xl border border-retro-border rounded-xl shadow-2xl z-50 overflow-hidden glow-cyan-sm">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-retro-bg-card/98 backdrop-blur-2xl border border-retro-border rounded-2xl shadow-2xl z-50 overflow-hidden glow-cyan-sm">
               {hasSuggestions ? (
-                <div className="p-4 space-y-4 text-left rtl:text-right">
+                <div className="p-4 space-y-4 text-left rtl:text-right max-h-[70vh] overflow-y-auto scrollbar-thin">
                   {/* Category Matches */}
                   {suggestions.categories.length > 0 && (
                     <div>
@@ -181,7 +182,7 @@ export function Header({ dict, locale }: HeaderProps) {
                             key={cat.id}
                             href={`/${locale}/category/${cat.slugEn}`}
                             onClick={() => setShowSuggestions(false)}
-                            className="text-xs bg-retro-bg-elevated hover:bg-retro-cyan/15 text-retro-text hover:text-retro-cyan px-2.5 py-1.5 rounded-lg border border-retro-border hover:border-retro-cyan/30 transition-all font-semibold"
+                            className="text-xs bg-retro-bg-elevated hover:bg-retro-cyan/15 text-retro-text hover:text-retro-cyan px-3 py-1.5 rounded-xl border border-retro-border hover:border-retro-cyan/30 transition-all font-semibold"
                           >
                             {isRtl ? cat.nameAr : cat.nameEn}
                           </Link>
@@ -202,7 +203,7 @@ export function Header({ dict, locale }: HeaderProps) {
                             key={brand}
                             href={`/${locale}/products?search=${encodeURIComponent(brand)}`}
                             onClick={() => setShowSuggestions(false)}
-                            className="text-xs bg-retro-bg-elevated hover:bg-retro-purple/15 text-retro-text-secondary hover:text-retro-purple px-2.5 py-1.5 rounded-lg border border-retro-border hover:border-retro-purple/30 transition-all font-semibold"
+                            className="text-xs bg-retro-bg-elevated hover:bg-retro-purple/15 text-retro-text-secondary hover:text-retro-purple px-3 py-1.5 rounded-xl border border-retro-border hover:border-retro-purple/30 transition-all font-semibold"
                           >
                             {brand}
                           </Link>
@@ -228,14 +229,14 @@ export function Header({ dict, locale }: HeaderProps) {
                               key={p.id}
                               href={`/${locale}/product/${p.slug || p.id}`}
                               onClick={() => setShowSuggestions(false)}
-                              className="flex items-center gap-3 py-2.5 hover:bg-white/5 transition-all group first:pt-0 last:pb-0"
+                              className="flex items-center gap-3 py-2.5 hover:bg-white/5 transition-all group first:pt-0 last:pb-0 px-1 rounded-lg"
                             >
-                              <div className="w-10 h-10 rounded-lg bg-retro-bg border border-retro-border overflow-hidden shrink-0 flex items-center justify-center relative">
+                              <div className="w-11 h-11 rounded-xl bg-retro-bg-input border border-retro-border overflow-hidden shrink-0 flex items-center justify-center relative p-1">
                                 {p.imageUrl ? (
                                   <img
                                     src={p.imageUrl}
                                     alt={name}
-                                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform"
+                                    className="w-full h-full object-cover object-center rounded-lg group-hover:scale-105 transition-transform"
                                   />
                                 ) : (
                                   <div className="w-4 h-4 border border-retro-cyan/30 rounded" />
@@ -263,11 +264,11 @@ export function Header({ dict, locale }: HeaderProps) {
                               <div className="text-right rtl:text-left shrink-0">
                                 {hasSale && (
                                   <div className="text-[10px] text-retro-text-muted line-through">
-                                    {p.sellingPrice} {dict.common.currency || 'QAR'}
+                                    {p.sellingPrice} {dict.common?.currency || 'QAR'}
                                   </div>
                                 )}
                                 <div className="text-xs font-black text-retro-cyan">
-                                  {price} {dict.common.currency || 'QAR'}
+                                  {price} {dict.common?.currency || 'QAR'}
                                 </div>
                               </div>
                             </Link>
@@ -278,7 +279,7 @@ export function Header({ dict, locale }: HeaderProps) {
                   )}
                 </div>
               ) : (
-                <div className="p-6 text-center text-sm text-retro-text-dim">
+                <div className="p-6 text-center text-xs text-retro-text-dim">
                   {isRtl ? 'لا توجد نتائج مطابقة' : 'No suggestions found'}
                 </div>
               )}
@@ -288,16 +289,17 @@ export function Header({ dict, locale }: HeaderProps) {
 
         {/* ── Right Actions (Desktop) ── */}
         <div className="hidden lg:flex items-center gap-2">
+          
           {/* Account */}
           <Link
             href={user ? `/${locale}/account` : `/${locale}/auth/login`}
             className="flex items-center gap-2 rounded-xl px-3 py-2 text-retro-text-secondary hover:text-retro-text hover:bg-white/5 transition-all"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
-            <span className="text-xs font-semibold">
+            <span className="text-xs font-bold">
               {user ? user.name : dict.nav.account}
             </span>
           </Link>
@@ -308,32 +310,57 @@ export function Header({ dict, locale }: HeaderProps) {
             className="relative rounded-xl p-2.5 text-retro-text-secondary hover:text-retro-pink hover:bg-retro-pink/5 transition-all"
             title={dict.nav.wishlist}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
             {wishlistCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-retro-pink text-[9px] font-bold text-white">
+              <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-retro-pink text-[9px] font-black text-white shadow-md shadow-retro-pink/30">
                 {wishlistCount}
               </span>
             )}
           </Link>
 
-          {/* Cart */}
-          <button
-            onClick={() => setCartDrawerOpen(true)}
-            className="relative rounded-xl p-2.5 text-retro-text-secondary hover:text-retro-cyan hover:bg-retro-cyan/5 transition-all cursor-pointer"
-            title={dict.nav.cart}
+          {/* Compare */}
+          <Link
+            href={`/${locale}/compare`}
+            className="relative rounded-xl p-2.5 text-retro-text-secondary hover:text-retro-cyan hover:bg-retro-cyan/5 transition-all"
+            title={dict.nav.compare || 'Compare'}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-              <line x1="3" x2="21" y1="6" y2="6" />
-              <path d="M16 10a4 4 0 0 1-8 0" />
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>
             </svg>
-            {cartItemCount > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-retro-cyan text-[10px] font-bold text-retro-bg shadow-md shadow-retro-cyan/30">
-                {cartItemCount}
+            {compareCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-retro-cyan text-[9px] font-black text-retro-bg shadow-md shadow-retro-cyan/30">
+                {compareCount}
               </span>
             )}
+          </Link>
+
+          {/* Cart with Subtotal */}
+          <button
+            onClick={() => setCartDrawerOpen(true)}
+            className="flex items-center gap-2.5 rounded-2xl bg-retro-bg-card border border-retro-border hover:border-retro-cyan/40 px-3 py-2 text-retro-text transition-all cursor-pointer group shadow-sm hover:shadow-retro-cyan/10"
+            title={dict.nav.cart}
+          >
+            <div className="relative">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="group-hover:text-retro-cyan transition-colors">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                <line x1="3" x2="21" y1="6" y2="6" />
+                <path d="M16 10a4 4 0 0 1-8 0" />
+              </svg>
+              {cartItemCount > 0 && (
+                <span className="absolute -top-2 -right-2 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-retro-cyan text-[9px] font-black text-retro-bg shadow-sm">
+                  {cartItemCount}
+                </span>
+              )}
+            </div>
+            
+            <div className="hidden xl:flex flex-col text-left rtl:text-right leading-none">
+              <span className="text-[9px] text-retro-text-muted font-bold uppercase">{dict.nav.cart}</span>
+              <span className="text-xs font-black text-retro-cyan mt-0.5">
+                {cartSubtotal} {dict.common?.currency || 'QAR'}
+              </span>
+            </div>
           </button>
 
           {/* Language Toggle */}
@@ -350,9 +377,9 @@ export function Header({ dict, locale }: HeaderProps) {
           {/* Mobile Search */}
           <button
             onClick={() => setSearchOverlayOpen(true)}
-            className="rounded-lg p-2 text-retro-text-secondary hover:text-retro-cyan cursor-pointer"
+            className="rounded-xl p-2 text-retro-text-secondary hover:text-retro-cyan bg-retro-bg-card border border-retro-border cursor-pointer"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
@@ -361,15 +388,15 @@ export function Header({ dict, locale }: HeaderProps) {
           {/* Mobile Cart */}
           <button
             onClick={() => setCartDrawerOpen(true)}
-            className="relative rounded-lg p-2 text-retro-text-secondary hover:text-retro-cyan cursor-pointer"
+            className="relative rounded-xl p-2 text-retro-text-secondary hover:text-retro-cyan bg-retro-bg-card border border-retro-border cursor-pointer"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
               <line x1="3" x2="21" y1="6" y2="6" />
               <path d="M16 10a4 4 0 0 1-8 0" />
             </svg>
             {cartItemCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-retro-cyan text-[9px] font-bold text-retro-bg">
+              <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-retro-cyan text-[9px] font-black text-retro-bg">
                 {cartItemCount}
               </span>
             )}
@@ -378,7 +405,7 @@ export function Header({ dict, locale }: HeaderProps) {
           {/* Language Toggle Mobile */}
           <button
             onClick={switchLocale}
-            className="rounded-lg border border-retro-cyan/20 bg-retro-cyan/5 px-2 py-1.5 text-[10px] font-bold text-retro-cyan cursor-pointer"
+            className="rounded-xl border border-retro-cyan/20 bg-retro-cyan/5 px-2.5 py-1.5 text-[11px] font-bold text-retro-cyan cursor-pointer"
           >
             {dict.nav.language}
           </button>
@@ -386,9 +413,9 @@ export function Header({ dict, locale }: HeaderProps) {
           {/* Hamburger Menu */}
           <button
             onClick={toggleMobileMenu}
-            className="rounded-lg p-2 text-retro-text-secondary hover:text-retro-text cursor-pointer"
+            className="rounded-xl p-2 text-retro-text-secondary hover:text-retro-text bg-retro-bg-card border border-retro-border cursor-pointer"
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="3" y1="6" x2="21" y2="6" />
               <line x1="3" y1="12" x2="21" y2="12" />
               <line x1="3" y1="18" x2="21" y2="18" />
@@ -400,3 +427,4 @@ export function Header({ dict, locale }: HeaderProps) {
     </header>
   );
 }
+

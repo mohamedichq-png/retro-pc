@@ -58,6 +58,17 @@ export interface Product {
   relatedProducts?: string[];
   compatibleProducts?: string[];
   accessories?: string[];
+  retroInspection?: {
+    cosmeticCondition?: 'Mint' | 'Very Good' | 'Good' | 'Fair' | string;
+    operationalCondition?: string;
+    testedCleaned?: boolean;
+    includedAccessories?: string[];
+    region?: 'PAL' | 'NTSC-U' | 'NTSC-J' | 'Region Free' | string;
+    modifications?: string[];
+    warrantyMonths?: number;
+    inspectionNotesAr?: string;
+    inspectionNotesEn?: string;
+  };
 }
 
 export interface ProductFilter {

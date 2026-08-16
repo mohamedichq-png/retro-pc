@@ -19,19 +19,22 @@ interface CategoryNavProps {
 // Map category IDs to their nav dictionary keys
 const categoryNavKeys: Record<string, keyof Dictionary['nav']> = {
   'all': 'allCategories',
-  'gaming': 'consolesGames', // Maps to Games & Consoles translation
-  'retro-gaming': 'retroGaming',
+  'computers': 'computers',
   'pc': 'pcComponents',
+  'gaming': 'consolesGames',
+  'retro-gaming': 'retroGaming',
   'monitors': 'monitors',
   'accessories': 'accessories',
   'laptops': 'laptops',
+  'deals': 'deals',
   'repair-hub': 'repairHub',
 };
 
 const categoriesWithMegaMenu = [
+  'computers',
+  'pc',
   'gaming',
   'retro-gaming',
-  'pc',
   'accessories',
   'laptops',
 ];

@@ -8,7 +8,7 @@ interface PriceTagProps {
   price: number;
   originalPrice?: number;
   currency?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
@@ -20,6 +20,7 @@ export function PriceTag({ price, originalPrice, currency = 'QAR', size = 'md', 
     sm: { price: 'text-sm', original: 'text-[10px]', badge: 'text-[9px] px-1.5 py-0.5' },
     md: { price: 'text-base', original: 'text-xs', badge: 'text-[10px] px-2 py-0.5' },
     lg: { price: 'text-xl', original: 'text-sm', badge: 'text-xs px-2.5 py-1' },
+    xl: { price: 'text-2xl sm:text-3xl', original: 'text-base', badge: 'text-xs px-3 py-1' },
   };
 
   const s = sizeClasses[size];

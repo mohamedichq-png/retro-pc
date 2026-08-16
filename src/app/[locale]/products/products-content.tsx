@@ -29,6 +29,7 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
     priceRange: [0, 50000] as [number, number],
     inStock: false,
     condition: [] as string[],
+    platforms: [] as string[],
     sockets: [] as string[],
     vram: [] as string[],
     refreshRates: [] as string[],
@@ -119,9 +120,36 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
       });
     }
 
-    // 3.8 Refresh Rate Spec Filter
-    if (filters.refreshRates.length > 0) {
-      result = result.filter(p => p.specs && p.specs.refreshRate && filters.refreshRates.includes(p.specs.refreshRate));
+    // 3.8 Condition Filter
+    if (filters.condition.length > 0) {
+      result = result.filter(p => filters.condition.includes(p.condition));
+    }
+
+    // 3.9 Platform Filter
+    if (filters.platforms.length > 0) {
+      result = result.filter(p => {
+        const text = `${p.category} ${p.nameEn} ${p.brand}`.toLowerCase();
+        return filters.platforms.some(plat => {
+          if (plat === 'PC') return text.includes('pc') || text.includes('gpu') || text.includes('cpu') || text.includes('ram');
+          if (plat === 'PlayStation') return text.includes('playstation') || text.includes('ps5') || text.includes('ps4');
+          if (plat === 'Xbox') return text.includes('xbox');
+          if (plat === 'Nintendo') return text.includes('nintendo') || text.includes('switch');
+          if (plat === 'Retro') return text.includes('retro') || p.id.startsWith('p-retro-');
+          return false;
+        });
+      });
+    }
+
+    // 3.10 Sale Query Param Filter
+    const saleParam = searchParams.get('sale');
+    if (saleParam === 'true') {
+      result = result.filter(p => p.salePrice && p.salePrice < p.sellingPrice);
+    }
+
+    // 3.11 Condition Query Param Filter
+    const conditionParam = searchParams.get('condition');
+    if (conditionParam) {
+      result = result.filter(p => p.condition?.toLowerCase() === conditionParam.toLowerCase());
     }
 
     // 4. Brands

@@ -29,13 +29,15 @@ export const LOYALTY_POINTS_PER_QAR = 0.1; // 1 point per 10 QAR
 // Navigation Categories
 export const MAIN_CATEGORIES = [
   { id: 'all', slugEn: 'all-categories', nameEn: 'All Categories', nameAr: 'جميع الأقسام', icon: 'grid' },
-  { id: 'gaming', slugEn: 'gaming', nameEn: 'Gaming', nameAr: 'الألعاب والمنصات', icon: 'controller' },
-  { id: 'retro-gaming', slugEn: 'retro-gaming', nameEn: 'Retro Gaming', nameAr: 'ألعاب ريترو الكلاسيكية', icon: 'retro' },
-  { id: 'pc', slugEn: 'pc', nameEn: 'PC Hardware', nameAr: 'أجهزة الكمبيوتر والقطع', icon: 'cpu' },
+  { id: 'computers', slugEn: 'gaming-pcs', nameEn: 'Computers', nameAr: 'أجهزة الكمبيوتر', icon: 'cpu' },
+  { id: 'pc', slugEn: 'pc-components', nameEn: 'PC Components', nameAr: 'مكونات الحاسوب', icon: 'cpu' },
+  { id: 'gaming', slugEn: 'gaming', nameEn: 'Consoles & Games', nameAr: 'أجهزة وألعاب', icon: 'controller' },
+  { id: 'retro-gaming', slugEn: 'retro-gaming', nameEn: 'Retro Gaming', nameAr: 'Retro Gaming', icon: 'retro' },
   { id: 'monitors', slugEn: 'monitors', nameEn: 'Monitors', nameAr: 'الشاشات', icon: 'monitor' },
-  { id: 'accessories', slugEn: 'accessories', nameEn: 'Accessories', nameAr: 'الملحقات والأكسسوارات', icon: 'headset' },
+  { id: 'accessories', slugEn: 'accessories', nameEn: 'Accessories', nameAr: 'الملحقات', icon: 'headset' },
   { id: 'laptops', slugEn: 'laptops', nameEn: 'Laptops', nameAr: 'اللابتوبات', icon: 'laptop' },
-  { id: 'repair-hub', slugEn: 'repair-hub', nameEn: 'Repair Hub', nameAr: 'مركز الصيانة', icon: 'wrench' },
+  { id: 'deals', slugEn: 'deals', nameEn: 'Deals', nameAr: 'العروض', icon: 'tag' },
+  { id: 'repair-hub', slugEn: 'repair', nameEn: 'Repair', nameAr: 'الصيانة', icon: 'wrench' },
 ] as const;
 
 // Subcategories lists for category verification
