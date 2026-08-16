@@ -16,6 +16,8 @@ import { QuickViewModal } from './QuickViewModal';
 import type { Product } from '@/types';
 import type { Dictionary, Locale } from '@/i18n/dictionaries';
 
+import { BUSINESS_INFO } from '@/lib/constants';
+
 interface ProductCardProps {
   product: Product;
   dict: Dictionary;
@@ -25,6 +27,7 @@ interface ProductCardProps {
 export function ProductCard({ product, dict, locale }: ProductCardProps) {
   const isRtl = locale === 'ar';
   const name = isRtl ? product.nameAr : product.nameEn;
+  const secondaryName = isRtl ? product.nameEn : product.nameAr;
   const href = `/${locale}/product/${product.slug || product.id}`;
   
   const [isHovered, setIsHovered] = useState(false);
@@ -39,40 +42,48 @@ export function ProductCard({ product, dict, locale }: ProductCardProps) {
   const isWishlisted = wishlistItems.includes(product.id);
   const isCompared = compareItems.some(p => p.id === product.id);
   const isOutOfStock = product.stockQty <= 0;
+  const isPriceOnDemand = Boolean(product.priceOnDemand || !product.sellingPrice || product.sellingPrice <= 0);
+
+  // WhatsApp direct link for on-demand inquiry
+  const whatsappUrl = React.useMemo(() => {
+    const msg = isRtl
+      ? `مرحباً Retro Qatar، أود الاستفسار عن سعر هذا المنتج:\nالاسم: ${product.nameAr}\nSKU: ${product.sku}`
+      : `Hello RETRO Qatar, I would like to inquire about the price of:\nName: ${product.nameEn}\nSKU: ${product.sku}`;
+    return `https://wa.me/${BUSINESS_INFO.salesWhatsApp}?text=${encodeURIComponent(msg)}`;
+  }, [product.nameAr, product.nameEn, product.sku, isRtl]);
 
   // Discount percentage calculation
-  const hasSale = product.salePrice && product.salePrice < product.sellingPrice;
+  const hasSale = !isPriceOnDemand && product.salePrice && product.salePrice < product.sellingPrice;
   const discountPercent = hasSale 
     ? Math.round(((product.sellingPrice - product.salePrice!) / product.sellingPrice) * 100) 
     : 0;
 
   // Extract 2-3 key specs cleanly
   const keySpecs = React.useMemo(() => {
-    if (!product.specs) return [];
     const specsList: string[] = [];
 
-    if (product.specs.gpu || product.specs.GPU) specsList.push(String(product.specs.gpu || product.specs.GPU));
-    if (product.specs.cpu || product.specs.CPU) specsList.push(String(product.specs.cpu || product.specs.CPU));
-    if (product.specs.ram || product.specs.RAM) specsList.push(String(product.specs.ram || product.specs.RAM));
-    if (product.specs.storage || product.specs.Storage) specsList.push(String(product.specs.storage || product.specs.Storage));
-    
-    // Retro specific specs
-    if (product.specs.region) specsList.push(`Region: ${product.specs.region}`);
-    if (product.specs.tested === 'Yes' || product.specs.tested === true) specsList.push(isRtl ? 'مفحوص 100%' : 'Tested 100%');
+    if (product.region && product.region !== 'Not visible') {
+      specsList.push(`${product.region}`);
+    }
+    if (product.packaging) {
+      specsList.push(isRtl ? (product.packagingAr || product.packaging) : product.packaging);
+    }
+    if (product.storage) {
+      specsList.push(isRtl ? (product.storageAr || product.storage) : product.storage);
+    }
 
-    if (specsList.length === 0) {
-      const genericKeys = Object.entries(product.specs).slice(0, 2);
-      genericKeys.forEach(([k, v]) => {
-        if (typeof v === 'string' || typeof v === 'number') specsList.push(`${v}`);
-      });
+    if (specsList.length === 0 && product.specs) {
+      if (product.specs.gpu || product.specs.GPU) specsList.push(String(product.specs.gpu || product.specs.GPU));
+      if (product.specs.cpu || product.specs.CPU) specsList.push(String(product.specs.cpu || product.specs.CPU));
+      if (product.specs.storage || product.specs.Storage) specsList.push(String(product.specs.storage || product.specs.Storage));
     }
 
     return specsList.slice(0, 3);
-  }, [product.specs, isRtl]);
+  }, [product, isRtl]);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (isOutOfStock) return;
+    if (isOutOfStock || isPriceOnDemand) return;
     addItem(product, 1);
     showToast(isRtl ? `تمت إضافة ${name} إلى السلة!` : `Added ${name} to cart!`, 'success');
   };
@@ -101,10 +112,21 @@ export function ProductCard({ product, dict, locale }: ProductCardProps) {
     );
   };
 
+  const handleWhatsAppClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const isSpecialOrLimited = product.edition && (
+    product.edition.toLowerCase().includes('limited') || 
+    product.edition.toLowerCase().includes('special') || 
+    product.edition.toLowerCase().includes('collector')
+  );
+
   return (
     <Link 
       href={href}
-      className="group relative flex flex-col h-full overflow-hidden rounded-2xl border border-retro-border bg-retro-bg-card/75 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-retro-cyan/40 hover:shadow-[0_8px_30px_rgba(34,211,238,0.12)] select-none"
+      className="group relative flex flex-col h-full overflow-hidden rounded-2xl border border-retro-border bg-retro-bg-card/85 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-retro-cyan/40 hover:shadow-[0_8px_30px_rgba(34,211,238,0.15)] select-none"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -120,8 +142,9 @@ export function ProductCard({ product, dict, locale }: ProductCardProps) {
           <img 
             src={product.imageUrl} 
             alt={name}
+            loading="lazy"
             onLoad={() => setImageLoaded(true)}
-            className={`h-full w-full object-cover object-center rounded-xl transition-all duration-500 group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`h-full w-full object-contain object-center rounded-xl transition-all duration-500 group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-retro-text-dim">
@@ -141,8 +164,10 @@ export function ProductCard({ product, dict, locale }: ProductCardProps) {
                 -{discountPercent}%
               </span>
             )}
-            {product.isFeatured && !hasSale && (
-              <Badge variant="purple" size="sm">{dict.common?.hot || 'HOT'}</Badge>
+            {isSpecialOrLimited && (
+              <span className="inline-flex items-center rounded-lg bg-amber-500/90 text-retro-bg text-[9.5px] font-black px-2 py-0.5 shadow-md">
+                {product.edition?.includes('Collector') ? 'Collector’s' : 'Limited Edition'}
+              </span>
             )}
             <StockBadge qty={product.stockQty} />
           </div>
@@ -186,26 +211,33 @@ export function ProductCard({ product, dict, locale }: ProductCardProps) {
       {/* ── Content ── */}
       <div className="flex flex-1 flex-col p-4 sm:p-5 justify-between">
         <div>
-          {/* Brand & Condition */}
+          {/* Brand & SKU / Condition */}
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-retro-cyan bg-retro-cyan/10 px-2 py-0.5 rounded-md border border-retro-cyan/20 truncate max-w-[120px]">
               {product.brand}
             </span>
-            <ConditionBadge condition={product.condition} />
+            <span className="text-[10px] font-mono text-retro-text-dim">
+              {product.sku}
+            </span>
           </div>
           
-          {/* Title (Clamped to 2 lines with consistent min-height) */}
-          <h3 className="mb-2.5 line-clamp-2 h-[38px] text-xs sm:text-sm font-bold leading-snug text-retro-text group-hover:text-retro-cyan transition-colors">
-            {name}
-          </h3>
+          {/* Titles: Line 1 Arabic, Line 2 English */}
+          <div className="mb-2.5 min-h-[44px]">
+            <h3 className="text-xs sm:text-sm font-bold text-retro-text line-clamp-1 group-hover:text-retro-cyan transition-colors" dir="rtl">
+              {product.nameAr}
+            </h3>
+            <p className="text-[11px] text-retro-text-muted line-clamp-1 mt-0.5 font-medium" dir="ltr">
+              {product.nameEn}
+            </p>
+          </div>
           
-          {/* Key Specs Pills */}
+          {/* Key Specs / Badges */}
           {keySpecs.length > 0 && (
-            <div className="mb-4 flex flex-wrap gap-1">
+            <div className="mb-3 flex flex-wrap gap-1">
               {keySpecs.map((spec, i) => (
                 <span 
                   key={i} 
-                  className="text-[9.5px] font-medium text-retro-text-muted bg-retro-bg-elevated border border-retro-border px-2 py-0.5 rounded-md line-clamp-1 max-w-full"
+                  className="text-[9.5px] font-medium text-retro-text-muted bg-retro-bg-elevated border border-retro-border px-2 py-0.5 rounded-md line-clamp-1"
                 >
                   {spec}
                 </span>
@@ -214,22 +246,40 @@ export function ProductCard({ product, dict, locale }: ProductCardProps) {
           )}
         </div>
 
-        {/* Pricing & Cart Action */}
-        <div className="pt-3.5 mt-2 border-t border-retro-border flex items-center justify-between gap-2">
+        {/* Pricing & Actions */}
+        <div className="pt-3 border-t border-retro-border flex items-center justify-between gap-2">
           <PriceTag 
-            price={product.salePrice ?? product.sellingPrice} 
-            originalPrice={product.salePrice ? product.sellingPrice : undefined} 
-            size="md" 
-          />
-          <Button 
+            price={isPriceOnDemand ? null : (product.salePrice ?? product.sellingPrice)} 
+            originalPrice={isPriceOnDemand ? null : (product.salePrice ? product.sellingPrice : undefined)} 
+            isPriceOnDemand={isPriceOnDemand}
+            locale={locale}
             size="sm" 
-            variant={isOutOfStock ? "ghost" : "primary"}
-            onClick={handleAddToCart}
-            disabled={isOutOfStock}
-            className="shrink-0 text-xs px-3.5 py-1.5 font-black"
-          >
-            {isOutOfStock ? (dict.product?.outOfStock || 'نفذت') : (dict.product?.addToCart || 'أضف للسلة')}
-          </Button>
+          />
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {isPriceOnDemand ? (
+              <button
+                onClick={handleWhatsAppClick}
+                className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 px-2.5 py-1.5 text-[11px] font-bold transition-all shadow-sm cursor-pointer"
+                title={isRtl ? 'استفسار واتساب' : 'WhatsApp Inquiry'}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                </svg>
+                <span>{isRtl ? 'استفسار' : 'Inquire'}</span>
+              </button>
+            ) : (
+              <Button 
+                size="sm" 
+                variant={isOutOfStock ? "ghost" : "primary"}
+                onClick={handleAddToCart}
+                disabled={isOutOfStock}
+                className="shrink-0 text-[11px] px-3 py-1.5 font-black"
+              >
+                {isOutOfStock ? (dict.product?.outOfStock || 'نفذت') : (dict.product?.addToCart || 'أضف للسلة')}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 

@@ -1,9 +1,6 @@
 // Mock Database for RETRO Enterprise System (Qatar)
 // High-fidelity structures matching the PostgreSQL schemas
 
-import { catalog57Products } from './catalogProducts';
-export { catalog57Products };
-
 export interface ProductVariation {
   id: string;
   sku: string;
@@ -47,26 +44,8 @@ export interface Product {
   productType?: 'PHYSICAL PRODUCT' | 'DIGITAL PRODUCT' | 'SERVICE' | 'CUSTOM PC' | 'PRE-BUILT PC' | 'USED / PRE-OWNED' | 'RETRO PRODUCT';
   primaryCategory?: string;
   secondaryCategory?: string;
-  categoryAr?: string;
-  categoryEn?: string;
-  subCategoryAr?: string;
   platform?: string;
   generation?: string;
-  color?: string;
-  colorAr?: string;
-  storage?: string;
-  storageAr?: string;
-  edition?: string;
-  editionAr?: string;
-  region?: string;
-  regionAr?: string;
-  packaging?: string;
-  packagingAr?: string;
-  priceOnDemand?: boolean;
-  notesAr?: string;
-  notesEn?: string;
-  catalogNotes?: string;
-  catalogStatus?: 'preliminary_ready' | 'needs_review';
   categories?: string[];
   tags?: string[];
   collections?: string[];
@@ -157,7 +136,6 @@ export interface Transaction {
 
 // 1. Initial Products List
 export const initialProducts: Product[] = [
-  ...catalog57Products,
   {
     id: 'p-new-1',
     sku: 'RAM-COR-101',

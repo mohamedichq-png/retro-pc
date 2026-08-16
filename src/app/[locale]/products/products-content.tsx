@@ -39,9 +39,14 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
 
   // Category mapping constants to group subcategories under parent routes
   const CATEGORY_MAP = useMemo<Record<string, string[]>>(() => ({
+    'playstation': ['PlayStation', 'playstation', 'PS1', 'PS2', 'PS3', 'PS4', 'PS5', 'PlayStation 1', 'PlayStation 2', 'PlayStation 3'],
+    'psp': ['PSP', 'psp', 'PlayStation Portable', 'PS Vita'],
+    'xbox': ['Xbox', 'xbox', 'Classic Xbox', 'Xbox 360', 'Xbox One', 'Xbox Series'],
+    'nintendo': ['Nintendo', 'nintendo', 'Classic Nintendo', 'Nintendo 64', 'GameCube', 'Game Boy', 'Game Boy Advance', 'Nintendo DS', 'Nintendo 3DS', 'Wii', 'Wii U', 'Nintendo Switch'],
+    'retro-gaming-classics': ['Retro Gaming Classics', 'retro-gaming-classics', 'Retro Gaming', 'Sega', 'Atari', 'SNK', 'Neo Geo', 'Arcade', 'Retro Consoles & Games'],
     'pc': ['CPU', 'CPUs', 'GPU', 'GPUs', 'Motherboards', 'RAM', 'Storage', 'SSD', 'PSU', 'PSUs', 'PC Cases', 'Cases', 'Cooling', 'Fans', 'Thermal Products', 'Cables', 'Networking', 'Gaming PCs'],
     'gaming': ['Consoles', 'Games', 'Controllers', 'Gaming Accessories', 'PlayStation', 'Nintendo', 'Consoles & Accessories'],
-    'retro-gaming': ['PlayStation 1', 'PlayStation 2', 'PlayStation 3', 'Classic Xbox', 'Classic Nintendo', 'Nintendo 64', 'GameCube', 'Game Boy', 'PSP', 'PS Vita', 'Sega', 'Atari', 'Arcade', 'Retro Handhelds', 'Retro Controllers', 'Retro Games', 'Retro Accessories', 'Collectibles', 'Pre-Owned Retro', 'Retro Consoles & Games'],
+    'retro-gaming': ['PlayStation', 'PSP', 'Xbox', 'Nintendo', 'Retro Gaming Classics', 'PlayStation 1', 'PlayStation 2', 'PlayStation 3', 'Classic Xbox', 'Classic Nintendo', 'Nintendo 64', 'GameCube', 'Game Boy', 'PS Vita', 'Sega', 'Atari', 'Arcade', 'Retro Handhelds', 'Retro Controllers', 'Retro Games', 'Retro Accessories', 'Collectibles', 'Pre-Owned Retro', 'Retro Consoles & Games'],
     'monitors': ['Monitors'],
     'accessories': ['Accessories', 'Gaming Keyboards', 'Gaming Mice', 'Mousepads', 'Headsets', 'Microphones', 'Webcams', 'Streaming', 'RGB Lighting', 'Gaming Chairs', 'Gaming Desks', 'Monitor Arms', 'Cables', 'Adapters'],
     'laptops': ['Laptops', 'Gaming Laptops', 'Business Laptops', 'Student Laptops']
@@ -54,7 +59,7 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
       counts[p.category] = (counts[p.category] || 0) + 1;
     });
     return Object.entries(counts).map(([id, count]) => {
-      const cat = MAIN_CATEGORIES.find(c => c.id === id);
+      const cat = MAIN_CATEGORIES.find(c => c.id === id || c.slugEn === id);
       const label = cat ? (locale === 'ar' ? cat.nameAr : cat.nameEn) : id;
       return { id, label, count };
     }).sort((a, b) => b.count - a.count);
@@ -80,7 +85,9 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
       result = result.filter(p => 
         p.nameEn.toLowerCase().includes(q) || 
         p.nameAr.includes(q) || 
-        p.brand?.toLowerCase().includes(q)
+        p.brand?.toLowerCase().includes(q) ||
+        p.sku?.toLowerCase().includes(q) ||
+        p.model?.toLowerCase().includes(q)
       );
     }
 
@@ -88,16 +95,25 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
     if (categorySlug) {
       const allowedCategories = CATEGORY_MAP[categorySlug];
       if (allowedCategories) {
-        result = result.filter(p => allowedCategories.includes(p.category));
+        result = result.filter(p => 
+          allowedCategories.some(c => c.toLowerCase() === p.category?.toLowerCase()) || 
+          allowedCategories.some(c => c.toLowerCase() === p.categoryEn?.toLowerCase()) ||
+          allowedCategories.some(c => c.toLowerCase() === p.platform?.toLowerCase()) ||
+          (categorySlug === 'playstation' && p.sku?.startsWith('PLAY-')) ||
+          (categorySlug === 'psp' && p.sku?.startsWith('PSP-')) ||
+          (categorySlug === 'xbox' && p.sku?.startsWith('XBOX-')) ||
+          (categorySlug === 'nintendo' && p.sku?.startsWith('NIN-')) ||
+          (categorySlug === 'retro-gaming-classics' && p.sku?.startsWith('RETRO-'))
+        );
       } else {
         const categoryId = MAIN_CATEGORIES.find(c => c.slugEn === categorySlug)?.id;
         if (categoryId) {
-          result = result.filter(p => p.category === categoryId);
+          result = result.filter(p => p.category === categoryId || p.categoryEn === categoryId);
         }
       }
     } else if (filters.categories.length > 0) {
       // 3. Sidebar Categories (only if not forced by route)
-      result = result.filter(p => filters.categories.includes(p.category));
+      result = result.filter(p => filters.categories.includes(p.category) || filters.categories.includes(p.categoryEn || ''));
     }
 
     // 3.5 SubCategory Query Param Filter (from Mega Menu clicks)
@@ -128,13 +144,13 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
     // 3.9 Platform Filter
     if (filters.platforms.length > 0) {
       result = result.filter(p => {
-        const text = `${p.category} ${p.nameEn} ${p.brand}`.toLowerCase();
+        const text = `${p.category} ${p.nameEn} ${p.brand} ${p.platform || ''}`.toLowerCase();
         return filters.platforms.some(plat => {
           if (plat === 'PC') return text.includes('pc') || text.includes('gpu') || text.includes('cpu') || text.includes('ram');
-          if (plat === 'PlayStation') return text.includes('playstation') || text.includes('ps5') || text.includes('ps4');
-          if (plat === 'Xbox') return text.includes('xbox');
-          if (plat === 'Nintendo') return text.includes('nintendo') || text.includes('switch');
-          if (plat === 'Retro') return text.includes('retro') || p.id.startsWith('p-retro-');
+          if (plat === 'PlayStation') return text.includes('playstation') || text.includes('ps5') || text.includes('ps4') || text.includes('ps3') || text.includes('ps2') || text.includes('ps1') || p.sku?.startsWith('PLAY-') || p.sku?.startsWith('PSP-');
+          if (plat === 'Xbox') return text.includes('xbox') || p.sku?.startsWith('XBOX-');
+          if (plat === 'Nintendo') return text.includes('nintendo') || text.includes('switch') || p.sku?.startsWith('NIN-');
+          if (plat === 'Retro') return text.includes('retro') || p.id.startsWith('p-retro-') || p.sku?.startsWith('RETRO-');
           return false;
         });
       });
@@ -163,10 +179,13 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
     }
 
     // 6. Price Range
-    result = result.filter(p => {
-      const price = p.salePrice ?? p.sellingPrice;
-      return price >= filters.priceRange[0] && price <= filters.priceRange[1];
-    });
+    if (filters.priceRange[0] > 0 || filters.priceRange[1] < 50000) {
+      result = result.filter(p => {
+        const price = p.salePrice ?? p.sellingPrice;
+        if (!price || price <= 0 || p.priceOnDemand) return false;
+        return price >= filters.priceRange[0] && price <= filters.priceRange[1];
+      });
+    }
 
     // 7. Sort
     result.sort((a, b) => {

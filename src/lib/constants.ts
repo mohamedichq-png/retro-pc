@@ -29,6 +29,11 @@ export const LOYALTY_POINTS_PER_QAR = 0.1; // 1 point per 10 QAR
 // Navigation Categories
 export const MAIN_CATEGORIES = [
   { id: 'all', slugEn: 'all-categories', nameEn: 'All Categories', nameAr: 'جميع الأقسام', icon: 'grid' },
+  { id: 'playstation', slugEn: 'playstation', nameEn: 'PlayStation', nameAr: 'بلايستيشن', icon: 'controller' },
+  { id: 'psp', slugEn: 'psp', nameEn: 'PSP', nameAr: 'بي إس بي', icon: 'gamepad' },
+  { id: 'xbox', slugEn: 'xbox', nameEn: 'Xbox', nameAr: 'إكس بوكس', icon: 'controller' },
+  { id: 'nintendo', slugEn: 'nintendo', nameEn: 'Nintendo', nameAr: 'نينتندو', icon: 'controller' },
+  { id: 'retro-gaming-classics', slugEn: 'retro-gaming-classics', nameEn: 'Retro Gaming Classics', nameAr: 'الألعاب الكلاسيكية والريترو', icon: 'retro' },
   { id: 'computers', slugEn: 'gaming-pcs', nameEn: 'Computers', nameAr: 'أجهزة الكمبيوتر', icon: 'cpu' },
   { id: 'pc', slugEn: 'pc-components', nameEn: 'PC Components', nameAr: 'مكونات الحاسوب', icon: 'cpu' },
   { id: 'gaming', slugEn: 'gaming', nameEn: 'Consoles & Games', nameAr: 'أجهزة وألعاب', icon: 'controller' },
@@ -38,6 +43,14 @@ export const MAIN_CATEGORIES = [
   { id: 'laptops', slugEn: 'laptops', nameEn: 'Laptops', nameAr: 'اللابتوبات', icon: 'laptop' },
   { id: 'deals', slugEn: 'deals', nameEn: 'Deals', nameAr: 'العروض', icon: 'tag' },
   { id: 'repair-hub', slugEn: 'repair', nameEn: 'Repair', nameAr: 'الصيانة', icon: 'wrench' },
+] as const;
+
+export const CATALOG_5_CATEGORIES = [
+  { id: 'playstation', slugEn: 'playstation', nameEn: 'PlayStation', nameAr: 'بلايستيشن', expectedCount: 17 },
+  { id: 'psp', slugEn: 'psp', nameEn: 'PSP', nameAr: 'بي إس بي', expectedCount: 2 },
+  { id: 'xbox', slugEn: 'xbox', nameEn: 'Xbox', nameAr: 'إكس بوكس', expectedCount: 7 },
+  { id: 'nintendo', slugEn: 'nintendo', nameEn: 'Nintendo', nameAr: 'نينتندو', expectedCount: 21 },
+  { id: 'retro-gaming-classics', slugEn: 'retro-gaming-classics', nameEn: 'Retro Gaming Classics', nameAr: 'الألعاب الكلاسيكية والريترو', expectedCount: 10 },
 ] as const;
 
 // Subcategories lists for category verification
