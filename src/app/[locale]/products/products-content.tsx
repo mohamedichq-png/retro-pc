@@ -39,17 +39,24 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
 
   // Category mapping constants to group subcategories under parent routes
   const CATEGORY_MAP = useMemo<Record<string, string[]>>(() => ({
-    'playstation': ['PlayStation', 'playstation', 'PS1', 'PS2', 'PS3', 'PS4', 'PS5', 'PlayStation 1', 'PlayStation 2', 'PlayStation 3'],
-    'psp': ['PSP', 'psp', 'PlayStation Portable', 'PS Vita'],
-    'xbox': ['Xbox', 'xbox', 'Classic Xbox', 'Xbox 360', 'Xbox One', 'Xbox Series'],
-    'nintendo': ['Nintendo', 'nintendo', 'Classic Nintendo', 'Nintendo 64', 'GameCube', 'Game Boy', 'Game Boy Advance', 'Nintendo DS', 'Nintendo 3DS', 'Wii', 'Wii U', 'Nintendo Switch'],
-    'retro-gaming-classics': ['Retro Gaming Classics', 'retro-gaming-classics', 'Retro Gaming', 'Sega', 'Atari', 'SNK', 'Neo Geo', 'Arcade', 'Retro Consoles & Games'],
-    'pc': ['CPU', 'CPUs', 'GPU', 'GPUs', 'Motherboards', 'RAM', 'Storage', 'SSD', 'PSU', 'PSUs', 'PC Cases', 'Cases', 'Cooling', 'Fans', 'Thermal Products', 'Cables', 'Networking', 'Gaming PCs'],
-    'gaming': ['Consoles', 'Games', 'Controllers', 'Gaming Accessories', 'PlayStation', 'Nintendo', 'Consoles & Accessories'],
-    'retro-gaming': ['PlayStation', 'PSP', 'Xbox', 'Nintendo', 'Retro Gaming Classics', 'PlayStation 1', 'PlayStation 2', 'PlayStation 3', 'Classic Xbox', 'Classic Nintendo', 'Nintendo 64', 'GameCube', 'Game Boy', 'PS Vita', 'Sega', 'Atari', 'Arcade', 'Retro Handhelds', 'Retro Controllers', 'Retro Games', 'Retro Accessories', 'Collectibles', 'Pre-Owned Retro', 'Retro Consoles & Games'],
-    'monitors': ['Monitors'],
-    'accessories': ['Accessories', 'Gaming Keyboards', 'Gaming Mice', 'Mousepads', 'Headsets', 'Microphones', 'Webcams', 'Streaming', 'RGB Lighting', 'Gaming Chairs', 'Gaming Desks', 'Monitor Arms', 'Cables', 'Adapters'],
-    'laptops': ['Laptops', 'Gaming Laptops', 'Business Laptops', 'Student Laptops']
+    // 5 Main Catalog Sections
+    'playstation': ['playstation', 'PlayStation', 'PS1', 'PS2', 'PS3', 'PS4', 'PS5', 'PlayStation 1', 'PlayStation 2', 'PlayStation 3'],
+    'psp': ['psp', 'PSP', 'PlayStation Portable', 'PS Vita'],
+    'xbox': ['xbox', 'Xbox', 'Classic Xbox', 'Xbox 360', 'Xbox One', 'Xbox Series'],
+    'nintendo': ['nintendo', 'Nintendo', 'Classic Nintendo', 'Nintendo 64', 'GameCube', 'Game Boy', 'Game Boy Advance', 'Nintendo DS', 'Nintendo 3DS', 'Wii', 'Wii U', 'Nintendo Switch'],
+    'retro-gaming-classics': ['retro-gaming-classics', 'Retro Gaming Classics', 'Retro Gaming', 'Sega', 'Atari', 'SNK', 'Neo Geo', 'Arcade', 'Retro Consoles & Games'],
+
+    // Header & CategoryNav routes
+    'retro-gaming': ['retro-gaming', 'retro-gaming-classics', 'Retro Gaming', 'Retro Gaming Classics', 'playstation', 'psp', 'xbox', 'nintendo', 'PlayStation 1', 'PlayStation 2', 'PlayStation 3', 'Classic Xbox', 'Classic Nintendo', 'Nintendo 64', 'GameCube', 'Game Boy', 'PS Vita', 'Sega', 'Atari', 'Arcade', 'Retro Handhelds', 'Retro Controllers', 'Retro Games', 'Retro Accessories', 'Collectibles', 'Pre-Owned Retro', 'Retro Consoles & Games'],
+    'gaming': ['gaming', 'Consoles', 'Games', 'Controllers', 'Gaming Accessories', 'PlayStation', 'Nintendo', 'Consoles & Accessories', 'playstation', 'psp', 'xbox', 'nintendo', 'retro-gaming-classics'],
+    'consoles-games': ['gaming', 'Consoles', 'Games', 'Controllers', 'Gaming Accessories', 'PlayStation', 'Nintendo', 'Consoles & Accessories', 'playstation', 'psp', 'xbox', 'nintendo', 'retro-gaming-classics'],
+    'computers': ['computers', 'gaming-pcs', 'Gaming PCs', 'PC Cases', 'Cases', 'Cooling', 'Pre-Built PC', 'Custom PC'],
+    'gaming-pcs': ['computers', 'gaming-pcs', 'Gaming PCs', 'PC Cases', 'Cases', 'Cooling', 'Pre-Built PC', 'Custom PC'],
+    'pc': ['pc', 'pc-components', 'CPU', 'CPUs', 'GPU', 'GPUs', 'Motherboards', 'Motherboard', 'RAM', 'Storage', 'SSD', 'PSU', 'PSUs', 'PC Cases', 'Cases', 'Cooling', 'Fans', 'Thermal Products', 'Cables', 'Networking', 'Gaming PCs'],
+    'pc-components': ['pc', 'pc-components', 'CPU', 'CPUs', 'GPU', 'GPUs', 'Motherboards', 'Motherboard', 'RAM', 'Storage', 'SSD', 'PSU', 'PSUs', 'PC Cases', 'Cases', 'Cooling', 'Fans', 'Thermal Products', 'Cables', 'Networking', 'Gaming PCs'],
+    'monitors': ['monitors', 'Monitors', 'Monitor'],
+    'accessories': ['accessories', 'Accessories', 'Controllers', 'Gaming Accessories', 'Consoles & Accessories', 'Gaming Keyboards', 'Gaming Mice', 'Mousepads', 'Headsets', 'Microphones', 'Webcams', 'Streaming', 'RGB Lighting', 'Gaming Chairs', 'Gaming Desks', 'Monitor Arms', 'Cables', 'Adapters'],
+    'laptops': ['laptops', 'Laptops', 'Gaming Laptops', 'Business Laptops', 'Student Laptops', 'Laptop'],
   }), []);
 
   // Derive available categories and brands for the sidebar based on the *current* dataset
@@ -91,25 +98,62 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
       );
     }
 
-    // 2. Category Route Override (if on a specific category page)
-    if (categorySlug) {
-      const allowedCategories = CATEGORY_MAP[categorySlug];
+    // 2. Category Route or Query Param Filter
+    const activeCategoryParam = categorySlug || searchParams.get('category') || '';
+    if (activeCategoryParam && activeCategoryParam !== 'all' && activeCategoryParam !== 'all-categories') {
+      const allowedCategories = CATEGORY_MAP[activeCategoryParam] || CATEGORY_MAP[activeCategoryParam.toLowerCase()];
       if (allowedCategories) {
-        result = result.filter(p => 
-          allowedCategories.some(c => c.toLowerCase() === p.category?.toLowerCase()) || 
-          allowedCategories.some(c => c.toLowerCase() === p.categoryEn?.toLowerCase()) ||
-          allowedCategories.some(c => c.toLowerCase() === p.platform?.toLowerCase()) ||
-          (categorySlug === 'playstation' && p.sku?.startsWith('PLAY-')) ||
-          (categorySlug === 'psp' && p.sku?.startsWith('PSP-')) ||
-          (categorySlug === 'xbox' && p.sku?.startsWith('XBOX-')) ||
-          (categorySlug === 'nintendo' && p.sku?.startsWith('NIN-')) ||
-          (categorySlug === 'retro-gaming-classics' && p.sku?.startsWith('RETRO-'))
-        );
+        result = result.filter(p => {
+          const pCat = (p.category || '').toLowerCase();
+          const pCatEn = (p.categoryEn || '').toLowerCase();
+          const pPlat = (p.platform || '').toLowerCase();
+          const pType = (p.productType || '').toLowerCase();
+          const pSku = (p.sku || '').toLowerCase();
+          const pId = (p.id || '').toLowerCase();
+
+          // 1. Direct allowed category / platform match
+          if (allowedCategories.some(c => c.toLowerCase() === pCat || c.toLowerCase() === pCatEn || c.toLowerCase() === pPlat)) {
+            return true;
+          }
+
+          // 2. Specific Section SKU mappings
+          if (activeCategoryParam === 'playstation') return pSku.startsWith('play-') || pPlat.includes('playstation') || pCat.includes('playstation');
+          if (activeCategoryParam === 'psp') return pSku.startsWith('psp-') || pPlat.includes('psp') || pCat.includes('psp');
+          if (activeCategoryParam === 'xbox') return pSku.startsWith('xbox-') || pPlat.includes('xbox') || pCat.includes('xbox');
+          if (activeCategoryParam === 'nintendo') return pSku.startsWith('nin-') || pPlat.includes('nintendo') || pCat.includes('nintendo');
+          if (activeCategoryParam === 'retro-gaming-classics') return pSku.startsWith('retro-') || pId.startsWith('p-retro-') || pPlat.includes('retro') || pCat.includes('retro');
+          
+          if (activeCategoryParam === 'retro-gaming') {
+            return pSku.startsWith('play-') || pSku.startsWith('psp-') || pSku.startsWith('xbox-') || pSku.startsWith('nin-') || pSku.startsWith('retro-') || pId.startsWith('p-retro-') || pType.includes('retro') || pCat.includes('retro');
+          }
+          if (activeCategoryParam === 'gaming' || activeCategoryParam === 'consoles-games') {
+            return pSku.startsWith('play-') || pSku.startsWith('psp-') || pSku.startsWith('xbox-') || pSku.startsWith('nin-') || pSku.startsWith('retro-') || pId.startsWith('p-retro-') || ['playstation', 'nintendo', 'xbox', 'consoles', 'controllers', 'consoles & accessories'].includes(pCat);
+          }
+          if (activeCategoryParam === 'pc-components' || activeCategoryParam === 'pc') {
+            return ['cpus', 'gpus', 'motherboards', 'ram', 'ssd', 'psus', 'cooling', 'cases'].includes(pCat);
+          }
+          if (activeCategoryParam === 'gaming-pcs' || activeCategoryParam === 'computers') {
+            return pType.includes('pc') || ['cases', 'cooling', 'gaming pcs'].includes(pCat);
+          }
+          if (activeCategoryParam === 'monitors') {
+            return pCat.includes('monitor');
+          }
+          if (activeCategoryParam === 'accessories') {
+            return ['accessories', 'controllers', 'consoles & accessories'].includes(pCat);
+          }
+          if (activeCategoryParam === 'laptops') {
+            return pCat.includes('laptop');
+          }
+
+          return false;
+        });
       } else {
-        const categoryId = MAIN_CATEGORIES.find(c => c.slugEn === categorySlug)?.id;
-        if (categoryId) {
-          result = result.filter(p => p.category === categoryId || p.categoryEn === categoryId);
-        }
+        const catObj = MAIN_CATEGORIES.find(c => c.slugEn === activeCategoryParam || c.id === activeCategoryParam);
+        const targetId = catObj ? catObj.id.toLowerCase() : activeCategoryParam.toLowerCase();
+        result = result.filter(p => 
+          (p.category || '').toLowerCase() === targetId || 
+          (p.categoryEn || '').toLowerCase() === targetId
+        );
       }
     } else if (filters.categories.length > 0) {
       // 3. Sidebar Categories (only if not forced by route)
@@ -119,7 +163,50 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
     // 3.5 SubCategory Query Param Filter (from Mega Menu clicks)
     const subCategoryParam = searchParams.get('subCategory') || '';
     if (subCategoryParam) {
-      result = result.filter(p => p.subCategory?.toLowerCase() === subCategoryParam.toLowerCase());
+      const subNorm = subCategoryParam.toLowerCase().replace(/-/g, ' ');
+      result = result.filter(p => {
+        const pSub = (p.subCategory || '').toLowerCase();
+        const pCat = (p.category || '').toLowerCase();
+        const pPlat = (p.platform || '').toLowerCase();
+        const pName = `${p.nameEn} ${p.nameAr}`.toLowerCase();
+        const pSku = (p.sku || '').toLowerCase();
+
+        if (pSub === subCategoryParam.toLowerCase() || pSub.includes(subNorm)) return true;
+        if (pCat === subCategoryParam.toLowerCase() || pCat.includes(subNorm)) return true;
+        if (pPlat.includes(subNorm) || pName.includes(subNorm)) return true;
+
+        if (subCategoryParam.includes('playstation') || subCategoryParam.includes('ps1') || subCategoryParam.includes('ps2') || subCategoryParam.includes('ps3') || subCategoryParam.includes('ps4') || subCategoryParam.includes('ps5')) {
+          return pSku.startsWith('play-') || pPlat.includes('playstation') || pName.includes('playstation') || pName.includes('ps');
+        }
+        if (subCategoryParam.includes('psp') || subCategoryParam.includes('vita')) {
+          return pSku.startsWith('psp-') || pPlat.includes('psp') || pName.includes('psp');
+        }
+        if (subCategoryParam.includes('xbox')) {
+          return pSku.startsWith('xbox-') || pPlat.includes('xbox') || pName.includes('xbox');
+        }
+        if (subCategoryParam.includes('nintendo') || subCategoryParam.includes('switch') || subCategoryParam.includes('3ds') || subCategoryParam.includes('gamecube') || subCategoryParam.includes('wii') || subCategoryParam.includes('pokemon') || subCategoryParam.includes('zelda')) {
+          return pSku.startsWith('nin-') || pPlat.includes('nintendo') || pName.includes('nintendo') || pName.includes('switch') || pName.includes('pokemon');
+        }
+        if (subCategoryParam.includes('retro') || subCategoryParam.includes('sega') || subCategoryParam.includes('atari') || subCategoryParam.includes('arcade')) {
+          return pSku.startsWith('retro-') || pPlat.includes('sega') || pPlat.includes('atari') || pPlat.includes('commodore') || pPlat.includes('amiga') || pName.includes('saturn') || pName.includes('c64');
+        }
+        if (subCategoryParam.includes('gpu') || subCategoryParam.includes('gpus')) {
+          return pCat === 'gpus' || pCat === 'gpu' || pName.includes('rtx') || pName.includes('radeon') || pName.includes('geforce');
+        }
+        if (subCategoryParam.includes('cpu') || subCategoryParam.includes('cpus')) {
+          return pCat === 'cpus' || pCat === 'cpu' || pName.includes('intel') || pName.includes('ryzen') || pName.includes('core i');
+        }
+        if (subCategoryParam.includes('ram')) return pCat === 'ram' || pName.includes('ram') || pName.includes('ddr');
+        if (subCategoryParam.includes('ssd') || subCategoryParam.includes('storage')) return pCat === 'ssd' || pCat === 'storage' || pName.includes('ssd') || pName.includes('nvme');
+        if (subCategoryParam.includes('motherboard')) return pCat === 'motherboards' || pName.includes('motherboard') || pName.includes('z790') || pName.includes('b650');
+        if (subCategoryParam.includes('cooling') || subCategoryParam.includes('fan')) return pCat === 'cooling' || pName.includes('cooler') || pName.includes('aio');
+        if (subCategoryParam.includes('case') || subCategoryParam.includes('chassis')) return pCat === 'cases' || pName.includes('case');
+        if (subCategoryParam.includes('psu') || subCategoryParam.includes('power')) return pCat === 'psus' || pName.includes('power supply') || pName.includes('psu');
+        if (subCategoryParam.includes('monitor')) return pCat === 'monitors' || pName.includes('monitor') || pName.includes('oled') || pName.includes('hz');
+        if (subCategoryParam.includes('controller')) return pCat === 'controllers' || pName.includes('controller') || pName.includes('dualshock') || pName.includes('dualsense') || pName.includes('gamepad');
+
+        return false;
+      });
     }
 
     // 3.6 Sockets Spec Filter
