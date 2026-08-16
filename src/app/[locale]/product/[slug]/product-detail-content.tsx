@@ -82,13 +82,35 @@ export function ProductDetailContent({ dict, locale, product, relatedProducts }:
     window.open(whatsappInquiryUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const catName = MAIN_CATEGORIES.find(c => c.id === product.category || c.slugEn === product.category);
-  const categoryLabel = isRtl ? (product.categoryAr || catName?.nameAr || product.category) : (product.categoryEn || catName?.nameEn || product.category);
-  
+  // 3-Level Taxonomy Breadcrumb Generation
+  const mainCatId = product.mainCategory || (product.sku?.startsWith('PLAY-') ? 'playstation' : product.sku?.startsWith('PSP-') ? 'playstation' : product.sku?.startsWith('XBOX-') ? 'xbox' : product.sku?.startsWith('NIN-') ? 'nintendo' : product.sku?.startsWith('RETRO-') ? 'retro-games' : 'pc');
+  const subCatId = product.subCategory || product.category;
+  const sectionId = product.section || (product.productType === 'RETRO PRODUCT' ? 'consoles' : 'general');
+
+  const mainCategoryLabels: Record<string, { ar: string; en: string }> = {
+    'playstation': { ar: 'بلايستيشن', en: 'PlayStation' },
+    'nintendo': { ar: 'نينتندو', en: 'Nintendo' },
+    'xbox': { ar: 'إكس بوكس', en: 'Xbox' },
+    'retro-games': { ar: 'الألعاب الكلاسيكية والريترو', en: 'Retro Games' },
+    'consoles-accessories': { ar: 'أجهزة الألعاب والإكسسوارات', en: 'Consoles & Accessories' },
+    'pc': { ar: 'الكمبيوتر ومكوناته', en: 'PC / Computer' },
+  };
+
+  const sectionLabels: Record<string, { ar: string; en: string }> = {
+    'consoles': { ar: 'أجهزة الألعاب', en: 'Consoles' },
+    'accessories': { ar: 'الإكسسوارات', en: 'Accessories' },
+    'games-cds': { ar: 'الألعاب / الأقراص', en: 'Games / CDs' },
+  };
+
+  const mainCatLabel = mainCategoryLabels[mainCatId]?.[isRtl ? 'ar' : 'en'] || (isRtl ? (product.categoryAr || product.category) : (product.categoryEn || product.category));
+  const subCatLabel = isRtl ? (product.subCategoryAr || subCatId?.toUpperCase()) : subCatId?.toUpperCase();
+  const sectionLabel = sectionLabels[sectionId]?.[isRtl ? 'ar' : 'en'];
+
   const breadcrumbs = [
-    { label: dict.nav?.home || 'Home', href: `/${locale}` },
-    { label: dict.nav?.shop || 'Shop', href: `/${locale}/products` },
-    catName && { label: categoryLabel, href: `/${locale}/category/${catName.slugEn}` },
+    { label: dict.nav?.home || (isRtl ? 'الرئيسية' : 'Home'), href: `/${locale}` },
+    { label: mainCatLabel, href: `/${locale}/products?category=${mainCatId}` },
+    subCatId ? { label: subCatLabel, href: `/${locale}/products?category=${mainCatId}&subCategory=${subCatId}` } : undefined,
+    sectionLabel ? { label: sectionLabel, href: `/${locale}/products?category=${mainCatId}&subCategory=${subCatId}&section=${sectionId}` } : undefined,
     { label: name },
   ].filter(Boolean) as { label: string; href?: string }[];
 

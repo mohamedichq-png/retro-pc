@@ -40,6 +40,13 @@ export interface Product {
   variations?: ProductVariation[];
   slug?: string;
 
+  // 3-Level Taxonomy & Classification
+  mainCategory?: string;
+  section?: 'consoles' | 'accessories' | 'games-cds' | string;
+  taxonomyConfidence?: number;
+  needsClassification?: boolean;
+  source?: 'POS' | 'PC';
+
   // Extended Catalog Metadata
   productType?: 'PHYSICAL PRODUCT' | 'DIGITAL PRODUCT' | 'SERVICE' | 'CUSTOM PC' | 'PRE-BUILT PC' | 'USED / PRE-OWNED' | 'RETRO PRODUCT';
   primaryCategory?: string;
@@ -47,6 +54,7 @@ export interface Product {
   categoryAr?: string;
   categoryEn?: string;
   subCategoryAr?: string;
+  sectionAr?: string;
   platform?: string;
   generation?: string;
   color?: string;

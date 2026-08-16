@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { Product } from '@/data/mockData';
+import type { Product } from '@/types';
 import { 
   SearchIcon, 
   PlusIcon, 
@@ -18,7 +18,8 @@ import {
 } from '@/components/Icons';
 import QuickAddProductModal from '@/components/QuickAddProductModal';
 import { useOffersStore } from '@/stores/useOffersStore';
-
+import { classifyAllProducts, classifyProduct } from '@/lib/classificationEngine';
+import { FULL_TAXONOMY_TREE } from '@/lib/taxonomy';
 
 const SAMPLE_IMAGES = [
   { label: 'Gaming PC Tower', url: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=600&auto=format&fit=crop&q=80' },
@@ -47,8 +48,22 @@ export default function AdminDashboard() {
   const [authError, setAuthError] = useState('');
 
   // Dashboard Filters States
-  const [activeTab, setActiveTab] = useState<'published' | 'draft' | 'banners'>('published');
+  const [activeTab, setActiveTab] = useState<'published' | 'draft' | 'banners' | 'taxonomy'>('published');
   const [searchQuery, setSearchQuery] = useState('');
+  const [taxonomyFilter, setTaxonomyFilter] = useState<'all' | 'needs-review' | 'pos' | 'pc' | 'playstation' | 'nintendo' | 'xbox' | 'retro' | 'pc-parts'>('all');
+
+  // Quick Taxonomy Modal State
+  const [taxonomyEditProduct, setTaxonomyEditProduct] = useState<Product | null>(null);
+  const [taxMainCategory, setTaxMainCategory] = useState('');
+  const [taxSubCategory, setTaxSubCategory] = useState('');
+  const [taxSection, setTaxSection] = useState('');
+  const [taxPlatform, setTaxPlatform] = useState('');
+  const [taxBrand, setTaxBrand] = useState('');
+
+  // Batch classification analysis
+  const { classified: classifiedProducts, summary: taxonomySummary } = useMemo(() => {
+    return classifyAllProducts(products);
+  }, [products]);
 
   // Slides list & creators from offers store
   const slides = useOffersStore((s) => s.slides);
@@ -517,6 +532,23 @@ export default function AdminDashboard() {
                 {slides.length}
               </span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('taxonomy')}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'taxonomy'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md shadow-purple-500/20'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>🗂️</span>
+              <span>{isRtl ? "تصنيف وإدارة المنتجات" : "Taxonomy & POS Review"}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                activeTab === 'taxonomy' ? 'bg-slate-950/40 text-white' : 'bg-slate-800 text-purple-400'
+              }`}>
+                {taxonomySummary.needsClassification > 0 ? `⚠️ ${taxonomySummary.needsClassification}` : `✓ ${taxonomySummary.totalProducts}`}
+              </span>
+            </button>
           </div>
 
           {/* Search and Category filters */}
@@ -524,7 +556,7 @@ export default function AdminDashboard() {
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder={isRtl ? "ابحث بالاسم أو SKU..." : "Search name or SKU..."}
+                placeholder={isRtl ? "ابحث بالاسم أو SKU أو التصنيف..." : "Search name, SKU, or category..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full rounded-xl bg-slate-900 py-2.5 pl-10 pr-4 text-xs text-slate-100 border border-slate-800 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
@@ -547,8 +579,338 @@ export default function AdminDashboard() {
 
         </div>
 
-        {/* Loading Skeletons vs Data Table vs Banners Panel */}
-        {activeTab === 'banners' ? (
+        {/* Loading Skeletons vs Data Table vs Banners vs Taxonomy Panel */}
+        {activeTab === 'taxonomy' ? (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            {/* ── Taxonomy Summary Cards ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isRtl ? "إجمالي المنتجات" : "Total Products"}</span>
+                <p className="text-xl font-black text-white">{taxonomySummary.totalProducts}</p>
+                <span className="text-[10px] text-cyan-400">{isRtl ? "في قاعدة البيانات" : "In Database"}</span>
+              </div>
+              <div className="rounded-2xl border border-blue-500/20 bg-blue-950/20 p-4 space-y-1">
+                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">{isRtl ? "مخزون POS الكونسول" : "POS Inventory"}</span>
+                <p className="text-xl font-black text-blue-300">{taxonomySummary.totalPosProducts}</p>
+                <span className="text-[10px] text-blue-400/80">{isRtl ? "كونسول / ريترو / ألعاب" : "Consoles & Retro"}</span>
+              </div>
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-4 space-y-1">
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">{isRtl ? "مخزون حواسيب PC" : "PC Database"}</span>
+                <p className="text-xl font-black text-emerald-300">{taxonomySummary.totalPcProducts}</p>
+                <span className="text-[10px] text-emerald-400/80">{isRtl ? "قطع وتجميعات مستقلة" : "PC Components"}</span>
+              </div>
+              <div className="rounded-2xl border border-purple-500/20 bg-purple-950/20 p-4 space-y-1">
+                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">{isRtl ? "مصنفة بنجاح" : "Categorized"}</span>
+                <p className="text-xl font-black text-purple-300">{taxonomySummary.successfullyClassified}</p>
+                <span className="text-[10px] text-purple-400/80">{isRtl ? "ثقة عالية > 80%" : "High Confidence"}</span>
+              </div>
+              <div className={`rounded-2xl border p-4 space-y-1 ${taxonomySummary.needsClassification > 0 ? 'border-amber-500/40 bg-amber-950/30' : 'border-slate-800 bg-slate-900/50'}`}>
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">{isRtl ? "تحتاج مراجعة" : "Needs Review"}</span>
+                <p className="text-xl font-black text-amber-300">{taxonomySummary.needsClassification}</p>
+                <span className="text-[10px] text-amber-400/80">{isRtl ? "مراجعة يدوية مطلوبة" : "Manual Review"}</span>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{isRtl ? "تكرار SKU" : "Duplicate SKUs"}</span>
+                <p className="text-xl font-black text-slate-300">{taxonomySummary.duplicatesCount}</p>
+                <span className="text-[10px] text-slate-500">{isRtl ? "تم التحقق 100%" : "Verified"}</span>
+              </div>
+            </div>
+
+            {/* ── Taxonomy Quick Filters ── */}
+            <div className="flex flex-wrap items-center gap-2 border-b border-slate-800/80 pb-4">
+              {[
+                { id: 'all', labelAr: 'جميع المنتجات', labelEn: 'All Products' },
+                { id: 'needs-review', labelAr: `تحتاج مراجعة (${taxonomySummary.needsClassification})`, labelEn: `Needs Review (${taxonomySummary.needsClassification})` },
+                { id: 'pos', labelAr: `مخزون POS (${taxonomySummary.totalPosProducts})`, labelEn: `POS Only (${taxonomySummary.totalPosProducts})` },
+                { id: 'pc', labelAr: `مخزون PC (${taxonomySummary.totalPcProducts})`, labelEn: `PC Only (${taxonomySummary.totalPcProducts})` },
+                { id: 'playstation', labelAr: 'PlayStation', labelEn: 'PlayStation' },
+                { id: 'nintendo', labelAr: 'Nintendo', labelEn: 'Nintendo' },
+                { id: 'xbox', labelAr: 'Xbox', labelEn: 'Xbox' },
+                { id: 'retro', labelAr: 'Retro Games', labelEn: 'Retro Games' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setTaxonomyFilter(tab.id as any)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    taxonomyFilter === tab.id
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md shadow-cyan-500/20'
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700 hover:text-white'
+                  }`}
+                >
+                  {isRtl ? tab.labelAr : tab.labelEn}
+                </button>
+              ))}
+            </div>
+
+            {/* ── Taxonomy Products Table ── */}
+            <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/30">
+              <table className="w-full text-xs text-left border-collapse border-spacing-0">
+                <thead>
+                  <tr className="border-b border-slate-800 bg-slate-950 text-slate-400 font-bold uppercase tracking-wider">
+                    <th className="p-4 text-right">{isRtl ? "المنتج" : "Product"}</th>
+                    <th className="p-4 text-center">SKU</th>
+                    <th className="p-4 text-center">{isRtl ? "المصدر" : "Source"}</th>
+                    <th className="p-4 text-center">{isRtl ? "القسم الرئيسي (L1)" : "Main Category (L1)"}</th>
+                    <th className="p-4 text-center">{isRtl ? "القسم الفرعي (L2)" : "Subcategory (L2)"}</th>
+                    <th className="p-4 text-center">{isRtl ? "نوع المنتج (L3)" : "Section (L3)"}</th>
+                    <th className="p-4 text-center">{isRtl ? "نسبة الثقة" : "Confidence"}</th>
+                    <th className="p-4 text-center">{isRtl ? "الإجراءات" : "Actions"}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {classifiedProducts
+                    .filter(p => {
+                      if (searchQuery) {
+                        const q = searchQuery.toLowerCase();
+                        const match = p.nameEn.toLowerCase().includes(q) || p.nameAr.includes(q) || p.sku?.toLowerCase().includes(q) || (p.mainCategory || '').toLowerCase().includes(q) || (p.subCategory || '').toLowerCase().includes(q);
+                        if (!match) return false;
+                      }
+                      if (taxonomyFilter === 'needs-review') return p.needsClassification;
+                      if (taxonomyFilter === 'pos') return p.source === 'POS';
+                      if (taxonomyFilter === 'pc') return p.source === 'PC';
+                      if (taxonomyFilter === 'playstation') return p.mainCategory === 'playstation';
+                      if (taxonomyFilter === 'nintendo') return p.mainCategory === 'nintendo';
+                      if (taxonomyFilter === 'xbox') return p.mainCategory === 'xbox';
+                      if (taxonomyFilter === 'retro') return p.mainCategory === 'retro-games';
+                      return true;
+                    })
+                    .map(p => {
+                      const confidencePct = Math.round((p.taxonomyConfidence || 0.95) * 100);
+                      const isPos = p.source === 'POS';
+
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-800/20 transition-colors">
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <img 
+                                src={p.imageUrl} 
+                                alt={p.nameEn} 
+                                className="h-10 w-10 rounded-lg object-cover bg-slate-950 border border-slate-800 shrink-0"
+                              />
+                              <div>
+                                <div className="font-bold text-white line-clamp-1 max-w-[240px]">
+                                  {isRtl ? p.nameAr : p.nameEn}
+                                </div>
+                                <div className="text-[10px] text-slate-400 line-clamp-1 max-w-[240px]">
+                                  {isRtl ? p.nameEn : p.nameAr}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="p-4 text-center font-mono text-[11px] text-slate-300">
+                            {p.sku || '-'}
+                          </td>
+
+                          <td className="p-4 text-center">
+                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                              isPos 
+                                ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' 
+                                : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                            }`}>
+                              {p.source || (isPos ? 'POS' : 'PC')}
+                            </span>
+                          </td>
+
+                          <td className="p-4 text-center">
+                            <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-slate-200 border border-slate-800 text-[11px] font-bold">
+                              {p.mainCategory || p.category}
+                            </span>
+                          </td>
+
+                          <td className="p-4 text-center font-bold text-cyan-400 text-[11px]">
+                            {p.subCategory || '-'}
+                          </td>
+
+                          <td className="p-4 text-center">
+                            <span className="px-2 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/30 text-[10px] font-bold uppercase">
+                              {p.section || 'General'}
+                            </span>
+                          </td>
+
+                          <td className="p-4 text-center">
+                            <div className="inline-flex items-center gap-1.5">
+                              <span className={`text-[11px] font-mono font-bold ${
+                                confidencePct >= 90 ? 'text-emerald-400' : confidencePct >= 75 ? 'text-amber-400' : 'text-rose-400'
+                              }`}>
+                                {confidencePct}%
+                              </span>
+                              {p.needsClassification && (
+                                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">
+                                  {isRtl ? "مراجعة" : "Review"}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              {p.needsClassification ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateProduct(p.id, { needsClassification: false });
+                                    alert(isRtl ? 'تم اعتماد التصنيف بنجاح!' : 'Classification approved successfully!');
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 text-[10px] font-black hover:bg-emerald-400 transition-colors cursor-pointer"
+                                  title={isRtl ? "اعتماد التصنيف المقترح" : "Approve Suggested Taxonomy"}
+                                >
+                                  {isRtl ? "اعتماد" : "Approve"}
+                                </button>
+                              ) : (
+                                <span className="text-emerald-400 text-xs font-bold">✓</span>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTaxonomyEditProduct(p);
+                                  setTaxMainCategory(p.mainCategory || 'playstation');
+                                  setTaxSubCategory(p.subCategory || '');
+                                  setTaxSection(p.section || 'consoles');
+                                  setTaxPlatform(p.platform || '');
+                                  setTaxBrand(p.brand || '');
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 text-[10px] font-bold hover:bg-cyan-500 hover:text-slate-950 transition-colors cursor-pointer"
+                              >
+                                {isRtl ? "تعديل" : "Edit"}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── Quick Taxonomy Edit Modal ── */}
+            {taxonomyEditProduct && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+                <div className="w-full max-w-lg rounded-3xl border border-slate-800 bg-slate-900 p-6 space-y-6 shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div>
+                      <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">{isRtl ? "تعديل تصنيف المنتج" : "Modify Taxonomy Hierarchy"}</span>
+                      <h3 className="text-sm font-black text-white">{isRtl ? taxonomyEditProduct.nameAr : taxonomyEditProduct.nameEn}</h3>
+                      <p className="text-[10px] text-slate-400 font-mono">SKU: {taxonomyEditProduct.sku}</p>
+                    </div>
+                    <button
+                      onClick={() => setTaxonomyEditProduct(null)}
+                      className="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
+                    >
+                      <CloseIcon size={18} />
+                    </button>
+                  </div>
+
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      updateProduct(taxonomyEditProduct.id, {
+                        mainCategory: taxMainCategory,
+                        subCategory: taxSubCategory,
+                        section: taxSection as any,
+                        platform: taxPlatform,
+                        brand: taxBrand,
+                        needsClassification: false,
+                      });
+                      setTaxonomyEditProduct(null);
+                      alert(isRtl ? 'تم تحديث التصنيف بنجاح بدون المساس بالسعر أو المخزون!' : 'Taxonomy updated successfully without altering price or stock!');
+                    }}
+                    className="space-y-4 text-xs"
+                  >
+                    <div className="space-y-1">
+                      <label className="text-slate-300 font-bold">{isRtl ? "القسم الرئيسي (Level 1)" : "Main Category (Level 1)"}</label>
+                      <select
+                        value={taxMainCategory}
+                        onChange={(e) => setTaxMainCategory(e.target.value)}
+                        className="w-full rounded-xl bg-slate-950 p-2.5 text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
+                      >
+                        <option value="playstation">PlayStation (بلايستيشن)</option>
+                        <option value="nintendo">Nintendo (نينتندو)</option>
+                        <option value="xbox">Xbox (إكس بوكس)</option>
+                        <option value="retro-games">Retro Games (ألعاب وأجهزة ريترو)</option>
+                        <option value="consoles-accessories">Consoles & Accessories (أجهزة وإكسسوارات)</option>
+                        <option value="pc">PC / Computer (الكمبيوتر ومكوناته)</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-slate-300 font-bold">{isRtl ? "القسم الفرعي / المنصة (Level 2)" : "Subcategory / Platform (Level 2)"}</label>
+                        <input
+                          type="text"
+                          required
+                          value={taxSubCategory}
+                          onChange={(e) => setTaxSubCategory(e.target.value)}
+                          placeholder="e.g. ps1, ps5, switch, cpus, gpus"
+                          className="w-full rounded-xl bg-slate-950 p-2.5 text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-slate-300 font-bold">{isRtl ? "نوع المنتج (Level 3 Section)" : "Section (Level 3)"}</label>
+                        <select
+                          value={taxSection}
+                          onChange={(e) => setTaxSection(e.target.value)}
+                          className="w-full rounded-xl bg-slate-950 p-2.5 text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
+                        >
+                          <option value="consoles">Consoles (أجهزة الألعاب)</option>
+                          <option value="accessories">Accessories (الإكسسوارات والمحولات)</option>
+                          <option value="games-cds">Games / CDs (الألعاب والأقراص)</option>
+                          <option value="general">General (قطع ومكونات عامة)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-slate-300 font-bold">{isRtl ? "المنصة (Platform)" : "Platform"}</label>
+                        <input
+                          type="text"
+                          value={taxPlatform}
+                          onChange={(e) => setTaxPlatform(e.target.value)}
+                          placeholder="e.g. PlayStation 4, Game Boy, PC"
+                          className="w-full rounded-xl bg-slate-950 p-2.5 text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-slate-300 font-bold">{isRtl ? "العلامة التجارية (Brand)" : "Brand"}</label>
+                        <input
+                          type="text"
+                          value={taxBrand}
+                          onChange={(e) => setTaxBrand(e.target.value)}
+                          placeholder="e.g. Sony, Nintendo, Microsoft, ASUS"
+                          className="w-full rounded-xl bg-slate-950 p-2.5 text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl bg-slate-950 p-3 text-[11px] text-slate-400 border border-slate-800">
+                      ℹ️ {isRtl ? "السعر (Selling Price) والمخزون ورمز الـ SKU محمية تماماً ولن تتأثر بعملية تعديل التصنيف." : "Selling Price, Stock Quantity, SKU, and Barcode are protected and will remain unchanged."}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setTaxonomyEditProduct(null)}
+                        className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700"
+                      >
+                        {isRtl ? "إلغاء" : "Cancel"}
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all"
+                      >
+                        {isRtl ? "حفظ التصنيف" : "Save Classification"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'banners' ? (
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Slide List */}
             <div className="space-y-4">

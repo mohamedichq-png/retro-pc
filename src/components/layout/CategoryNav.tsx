@@ -17,8 +17,13 @@ interface CategoryNavProps {
 }
 
 // Map category IDs to their nav dictionary keys
-const categoryNavKeys: Record<string, keyof Dictionary['nav']> = {
+const categoryNavKeys: Record<string, keyof Dictionary['nav'] | string> = {
   'all': 'allCategories',
+  'playstation': 'playstation',
+  'psp': 'psp',
+  'xbox': 'xbox',
+  'nintendo': 'nintendo',
+  'retro-gaming-classics': 'retroGaming',
   'computers': 'computers',
   'pc': 'pcComponents',
   'gaming': 'consolesGames',
@@ -31,10 +36,14 @@ const categoryNavKeys: Record<string, keyof Dictionary['nav']> = {
 };
 
 const categoriesWithMegaMenu = [
+  'playstation',
+  'nintendo',
+  'xbox',
+  'retro-gaming-classics',
+  'retro-gaming',
   'computers',
   'pc',
   'gaming',
-  'retro-gaming',
   'accessories',
   'laptops',
 ];
@@ -63,7 +72,9 @@ export function CategoryNav({ dict, locale }: CategoryNavProps) {
           <div className="flex items-center gap-1">
             {MAIN_CATEGORIES.map((cat) => {
               const navKey = categoryNavKeys[cat.id];
-              const label = navKey ? (dict.nav[navKey] as string) : (isRtl ? cat.nameAr : cat.nameEn);
+              const label = navKey && (dict.nav as Record<string, string>)[navKey]
+                ? (dict.nav as Record<string, string>)[navKey] 
+                : (isRtl ? cat.nameAr : cat.nameEn);
               const hasMenu = categoriesWithMegaMenu.includes(cat.id);
 
               return (

@@ -30,6 +30,7 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
     inStock: false,
     condition: [] as string[],
     platforms: [] as string[],
+    sections: [] as string[],
     sockets: [] as string[],
     vram: [] as string[],
     refreshRates: [] as string[],
@@ -206,6 +207,80 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
         if (subCategoryParam.includes('controller')) return pCat === 'controllers' || pName.includes('controller') || pName.includes('dualshock') || pName.includes('dualsense') || pName.includes('gamepad');
 
         return false;
+      });
+    }
+
+    // 3.55 Section Query Param Filter (Level 3 - Consoles vs Accessories vs Games/CDs)
+    const sectionParam = searchParams.get('section') || '';
+    const activeSections = filters.sections.length > 0 ? filters.sections : (sectionParam ? [sectionParam] : []);
+    
+    if (activeSections.length > 0) {
+      result = result.filter(p => {
+        const pSec = (p.section || '').toLowerCase();
+        const pName = `${p.nameEn} ${p.nameAr}`.toLowerCase();
+        const pCat = (p.category || '').toLowerCase();
+        const pSku = (p.sku || '').toLowerCase();
+
+        return activeSections.some(sec => {
+          const s = sec.toLowerCase();
+          if (pSec === s) return true;
+
+          if (s === 'consoles') {
+            return (
+              pSec === 'consoles' ||
+              pName.includes('console') ||
+              pName.includes('system') ||
+              pName.includes('جهاز') ||
+              pName.includes('منصة') ||
+              pSku.startsWith('play-') ||
+              pSku.startsWith('psp-') ||
+              pSku.startsWith('xbox-') ||
+              pSku.startsWith('nin-') ||
+              pSku.startsWith('retro-')
+            ) && !pName.includes('controller') && !pName.includes('cable') && !pName.includes('adapter') && !pName.includes('game') && !pName.includes('cd');
+          }
+
+          if (s === 'accessories') {
+            return (
+              pSec === 'accessories' ||
+              pCat.includes('accessories') ||
+              pCat.includes('controller') ||
+              pName.includes('controller') ||
+              pName.includes('gamepad') ||
+              pName.includes('cable') ||
+              pName.includes('adapter') ||
+              pName.includes('dock') ||
+              pName.includes('stand') ||
+              pName.includes('memory card') ||
+              pName.includes('يد') ||
+              pName.includes('كابل') ||
+              pName.includes('محول') ||
+              pName.includes('شاحن')
+            );
+          }
+
+          if (s === 'games-cds' || s === 'games') {
+            return (
+              pSec === 'games-cds' ||
+              pCat.includes('game') ||
+              pCat.includes('cd') ||
+              pCat.includes('disc') ||
+              pName.includes('game') ||
+              pName.includes('cd') ||
+              pName.includes('disc') ||
+              pName.includes('cartridge') ||
+              pName.includes('vhs') ||
+              pName.includes('لعبة') ||
+              pName.includes('قرص') ||
+              pName.includes('assassin') ||
+              pName.includes('mario') ||
+              pName.includes('zelda') ||
+              pName.includes('crysis')
+            );
+          }
+
+          return false;
+        });
       });
     }
 

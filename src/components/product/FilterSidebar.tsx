@@ -14,6 +14,7 @@ interface FilterState {
   inStock: boolean;
   condition: string[];
   platforms: string[];
+  sections: string[];
   sockets: string[];
   vram: string[];
   refreshRates: string[];
@@ -32,12 +33,19 @@ interface FilterSidebarProps {
 const SOCKET_OPTIONS = ['AM5', 'LGA1700', 'AM4', 'LGA1200'];
 const VRAM_OPTIONS = ['8GB', '12GB', '16GB', '24GB'];
 const REFRESH_OPTIONS = ['144Hz', '165Hz', '240Hz', '360Hz'];
+
+const SECTION_OPTIONS = [
+  { id: 'consoles', labelEn: 'Consoles / Systems', labelAr: 'أجهزة الألعاب' },
+  { id: 'accessories', labelEn: 'Accessories & Controllers', labelAr: 'الإكسسوارات والملحقات' },
+  { id: 'games-cds', labelEn: 'Games / CDs / Discs', labelAr: 'الألعاب والأقراص' },
+];
+
 const PLATFORM_OPTIONS = [
-  { id: 'PC', labelEn: 'PC Gaming', labelAr: 'كمبيوتر / PC' },
-  { id: 'PlayStation', labelEn: 'PlayStation', labelAr: 'بلايستيشن' },
-  { id: 'Xbox', labelEn: 'Xbox', labelAr: 'إكسبوكس' },
-  { id: 'Nintendo', labelEn: 'Nintendo', labelAr: 'نينتندو' },
-  { id: 'Retro', labelEn: 'Retro Hardware', labelAr: 'أجهزة ريترو' },
+  { id: 'PlayStation', labelEn: 'PlayStation (PS1-PS5 / PSP)', labelAr: 'بلايستيشن (PS1-PS5 / PSP)' },
+  { id: 'Nintendo', labelEn: 'Nintendo (Switch / GB / DS)', labelAr: 'نينتندو (سويتش / جيم بوي)' },
+  { id: 'Xbox', labelEn: 'Xbox (Original / 360 / One / Series)', labelAr: 'إكس بوكس (الأصلي / 360 / ون)' },
+  { id: 'Retro', labelEn: 'Retro (Sega / Atari / Amiga)', labelAr: 'ريترو كلاسيك (سيجا / أتاري)' },
+  { id: 'PC', labelEn: 'PC Hardware & Components', labelAr: 'مكونات وحواسيب PC' },
 ];
 
 export function FilterSidebar({ 
@@ -58,6 +66,7 @@ export function FilterSidebar({
     inStock: false,
     condition: [],
     platforms: [],
+    sections: [],
     sockets: [],
     vram: [],
     refreshRates: [],
@@ -87,6 +96,7 @@ export function FilterSidebar({
       inStock: false,
       condition: [],
       platforms: [],
+      sections: [],
       sockets: [],
       vram: [],
       refreshRates: [],
@@ -149,10 +159,35 @@ export function FilterSidebar({
         </div>
       </div>
 
+      {/* 3-Level Section / Product Type Filter */}
+      <div className="space-y-3 pt-4 border-t border-retro-border">
+        <h4 className="text-xs font-black text-retro-text uppercase tracking-wider">
+          {isRtl ? 'نوع المنتج / القسم (Section)' : 'Product Type (Section)'}
+        </h4>
+        <div className="space-y-2">
+          {SECTION_OPTIONS.map((sec) => {
+            const isSelected = filters.sections.includes(sec.id);
+            return (
+              <label key={sec.id} className="flex items-center justify-between cursor-pointer group select-none">
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-retro-cyan border-retro-cyan text-retro-bg' : 'border-retro-border bg-retro-bg-input group-hover:border-retro-cyan/50'}`}>
+                    {isSelected && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>}
+                  </div>
+                  <span className="font-semibold text-retro-text-secondary group-hover:text-retro-text transition-colors">
+                    {isRtl ? sec.labelAr : sec.labelEn}
+                  </span>
+                </div>
+                <input type="checkbox" className="hidden" checked={isSelected} onChange={() => toggleArrayItem('sections', sec.id)} />
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Platform Filter */}
       <div className="space-y-3 pt-4 border-t border-retro-border">
         <h4 className="text-xs font-black text-retro-text uppercase tracking-wider">
-          {dict.filter?.platform || (isRtl ? 'المنصة' : 'Platform')}
+          {dict.filter?.platform || (isRtl ? 'المنصة (Platform)' : 'Platform')}
         </h4>
         <div className="space-y-2">
           {PLATFORM_OPTIONS.map((plat) => {

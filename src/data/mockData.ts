@@ -2,84 +2,9 @@
 // High-fidelity structures matching the PostgreSQL schemas
 
 import { catalog57Products } from './catalogProducts';
+import type { Product, ProductVariation } from '@/types';
 export { catalog57Products };
-
-export interface ProductVariation {
-  id: string;
-  sku: string;
-  condition: 'NEW' | 'USED' | 'REFURBISHED' | 'OPEN BOX' | 'PRE-OWNED' | 'New' | 'Used' | 'Refurbished';
-  edition: string;
-  costPrice: number;
-  sellingPrice: number;
-  salePrice?: number;
-  stockQty: number;
-  imageUrl?: string;
-}
-
-export interface Product {
-  id: string;
-  sku: string;
-  barcode: string;
-  nameEn: string;
-  nameAr: string;
-  descriptionEn?: string;
-  descriptionAr?: string;
-  category: string;
-  subCategory?: string;
-  brand: string;
-  model: string;
-  condition: 'NEW' | 'USED' | 'REFURBISHED' | 'OPEN BOX' | 'PRE-OWNED' | 'New' | 'Used' | 'Refurbished';
-  costPrice: number;
-  sellingPrice: number;
-  salePrice?: number;
-  stockQty: number;
-  lowStockThreshold: number;
-  serialNumbers?: string[];
-  imageUrl: string;
-  galleryUrls?: string[];
-  specs: Record<string, any>;
-  isDigital?: boolean;
-  isFeatured?: boolean;
-  status?: 'published' | 'draft';
-  variations?: ProductVariation[];
-
-  // Extended Catalog Metadata
-  productType?: 'PHYSICAL PRODUCT' | 'DIGITAL PRODUCT' | 'SERVICE' | 'CUSTOM PC' | 'PRE-BUILT PC' | 'USED / PRE-OWNED' | 'RETRO PRODUCT';
-  primaryCategory?: string;
-  secondaryCategory?: string;
-  categoryAr?: string;
-  categoryEn?: string;
-  subCategoryAr?: string;
-  platform?: string;
-  generation?: string;
-  color?: string;
-  colorAr?: string;
-  storage?: string;
-  storageAr?: string;
-  edition?: string;
-  editionAr?: string;
-  region?: string;
-  regionAr?: string;
-  packaging?: string;
-  packagingAr?: string;
-  priceOnDemand?: boolean;
-  notesAr?: string;
-  notesEn?: string;
-  catalogNotes?: string;
-  catalogStatus?: 'preliminary_ready' | 'needs_review';
-  categories?: string[];
-  tags?: string[];
-  collections?: string[];
-  reservedQty?: number;
-  availableQty?: number;
-  stockStatus?: 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK' | 'PRE-ORDER';
-  warranty?: string;
-  weight?: string;
-  dimensions?: string;
-  relatedProducts?: string[];
-  compatibleProducts?: string[];
-  accessories?: string[];
-}
+export type { Product, ProductVariation };
 
 export interface RepairTicket {
   id: string;
@@ -166,7 +91,11 @@ export const initialProducts: Product[] = [
     nameAr: 'ذاكرة كورسير فينجينس RGB سعة 32 جيجابايت DDR5 تردد 6000',
     descriptionEn: 'High-quality Corsair Vengeance RGB 32GB (2×16GB) DDR5 6000MT/s CL36 Gaming Memory – Black | AMD EXPO & Intel XMP with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة ذاكرة كورسير فينجينس RGB سعة 32 جيجابايت DDR5 تردد 6000 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'RAM',
+    category: 'ram',
+    mainCategory: 'pc',
+    subCategory: 'ram',
+    section: 'general',
+    source: 'PC',
     brand: 'Corsair',
     model: 'Vengeance RGB 32GB DDR5',
     condition: 'New',
@@ -187,7 +116,11 @@ export const initialProducts: Product[] = [
     nameAr: 'ذاكرة كورسير فينجينس RGB سعة 64 جيجابايت DDR5 تردد 6000',
     descriptionEn: 'High-quality CORSAIR VENGEANCE RGB 64GB (2×32GB) DDR5 6000MT/s CL38 Desktop Memory Kit – Black with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة ذاكرة كورسير فينجينس RGB سعة 64 جيجابايت DDR5 تردد 6000 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'RAM',
+    category: 'ram',
+    mainCategory: 'pc',
+    subCategory: 'ram',
+    section: 'general',
+    source: 'PC',
     brand: 'Corsair',
     model: 'Vengeance RGB 64GB DDR5',
     condition: 'New',
@@ -208,7 +141,11 @@ export const initialProducts: Product[] = [
     nameAr: 'معالج رايزن 5 9600X من AMD مقبس AM5',
     descriptionEn: 'High-quality AMD Ryzen™ 5 9600X Desktop Processor | AM5 | Zen 5 Architecture with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة معالج رايزن 5 9600X من AMD مقبس AM5 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'CPUs',
+    category: 'cpus',
+    mainCategory: 'pc',
+    subCategory: 'cpus',
+    section: 'general',
+    source: 'PC',
     brand: 'AMD',
     model: 'Ryzen 5 9600X',
     condition: 'New',
@@ -229,7 +166,11 @@ export const initialProducts: Product[] = [
     nameAr: 'معالج رايزن 7 9700X من AMD مقبس AM5',
     descriptionEn: 'High-quality AMD Ryzen™ 7 9700X Desktop Processor | AM5 | Zen 5 Architecture with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة معالج رايزن 7 9700X من AMD مقبس AM5 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'CPUs',
+    category: 'cpus',
+    mainCategory: 'pc',
+    subCategory: 'cpus',
+    section: 'general',
+    source: 'PC',
     brand: 'AMD',
     model: 'Ryzen 7 9700X',
     condition: 'New',
@@ -250,7 +191,11 @@ export const initialProducts: Product[] = [
     nameAr: 'معالج الألعاب رايزن 7 9800X3D من AMD مقبس AM5',
     descriptionEn: 'High-quality AMD Ryzen™ 7 9800X3D Gaming CPU | AM5 | Zen 5 3D V-Cache with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة معالج الألعاب رايزن 7 9800X3D من AMD مقبس AM5 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'CPUs',
+    category: 'cpus',
+    mainCategory: 'pc',
+    subCategory: 'cpus',
+    section: 'general',
+    source: 'PC',
     brand: 'AMD',
     model: 'Ryzen 7 9800X3D',
     condition: 'New',
@@ -271,7 +216,11 @@ export const initialProducts: Product[] = [
     nameAr: 'معالج رايزن 9 9950X3D الأقوى من AMD مقبس AM5',
     descriptionEn: 'High-quality AMD Ryzen™ 9 9950X3D Processor | AM5 | 3D V-Cache Flagship with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة معالج رايزن 9 9950X3D الأقوى من AMD مقبس AM5 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'CPUs',
+    category: 'cpus',
+    mainCategory: 'pc',
+    subCategory: 'cpus',
+    section: 'general',
+    source: 'PC',
     brand: 'AMD',
     model: 'Ryzen 9 9950X3D',
     condition: 'New',
@@ -292,7 +241,11 @@ export const initialProducts: Product[] = [
     nameAr: 'معالج إنتل كور i7-14700F الجيل الرابع عشر',
     descriptionEn: 'High-quality Intel® Core™ i7-14700F Desktop Processor | 33MB Cache | Up to 5.40GHz with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة معالج إنتل كور i7-14700F الجيل الرابع عشر يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'CPUs',
+    category: 'cpus',
+    mainCategory: 'pc',
+    subCategory: 'cpus',
+    section: 'general',
+    source: 'PC',
     brand: 'Intel',
     model: 'Core i7-14700F',
     condition: 'New',
@@ -313,7 +266,11 @@ export const initialProducts: Product[] = [
     nameAr: 'معالج إنتل كور i7-14700K الجيل الرابع عشر قابل لكسر السرعة',
     descriptionEn: 'High-quality Intel® Core™ i7-14700K Desktop Processor – 33MB Cache, Up to 5.60GHz with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة معالج إنتل كور i7-14700K الجيل الرابع عشر قابل لكسر السرعة يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'CPUs',
+    category: 'cpus',
+    mainCategory: 'pc',
+    subCategory: 'cpus',
+    section: 'general',
+    source: 'PC',
     brand: 'Intel',
     model: 'Core i7-14700K',
     condition: 'New',
@@ -334,7 +291,11 @@ export const initialProducts: Product[] = [
     nameAr: 'لوحة أم إم إس آي MSI X870 جيمنج بلس واي فاي 7 مقبس AM5',
     descriptionEn: 'High-quality MSI X870 GAMING PLUS WIFI7 DDR5 AM5 AMD ATX Gaming Motherboard with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة لوحة أم إم إس آي MSI X870 جيمنج بلس واي فاي 7 مقبس AM5 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Motherboards',
+    category: 'motherboards',
+    mainCategory: 'pc',
+    subCategory: 'motherboards',
+    section: 'general',
+    source: 'PC',
     brand: 'MSI',
     model: 'X870 GAMING PLUS WIFI7',
     condition: 'New',
@@ -355,7 +316,11 @@ export const initialProducts: Product[] = [
     nameAr: 'لوحة أم إم إس آي MSI B850 جيمنج بلس واي فاي مقبس AM5',
     descriptionEn: 'High-quality MSI B850 Gaming Plus WiFi AM5 ATX Motherboard with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة لوحة أم إم إس آي MSI B850 جيمنج بلس واي فاي مقبس AM5 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Motherboards',
+    category: 'motherboards',
+    mainCategory: 'pc',
+    subCategory: 'motherboards',
+    section: 'general',
+    source: 'PC',
     brand: 'MSI',
     model: 'B850 Gaming Plus WiFi',
     condition: 'New',
@@ -376,7 +341,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كرت شاشة بي إن واي PNY RTX 5060 سعة 8 جيجابايت GDDR7',
     descriptionEn: 'High-quality PNY GeForce RTX 5060 Overclocked Dual Fan Graphics Card, 8GB GDDR7 PCI-Express 5.0 with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كرت شاشة بي إن واي PNY RTX 5060 سعة 8 جيجابايت GDDR7 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'GPUs',
+    category: 'gpus',
+    mainCategory: 'pc',
+    subCategory: 'gpus',
+    section: 'general',
+    source: 'PC',
     brand: 'PNY',
     model: 'GeForce RTX 5060 OC',
     condition: 'New',
@@ -397,7 +366,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كرت شاشة بي إن واي PNY RTX 5060 Ti سعة 16 جيجابايت GDDR7',
     descriptionEn: 'High-quality PNY GeForce RTX™ 5060 Ti 16GB DDR7 Dual Fan Graphics Card with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كرت شاشة بي إن واي PNY RTX 5060 Ti سعة 16 جيجابايت GDDR7 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'GPUs',
+    category: 'gpus',
+    mainCategory: 'pc',
+    subCategory: 'gpus',
+    section: 'general',
+    source: 'PC',
     brand: 'PNY',
     model: 'GeForce RTX 5060 Ti',
     condition: 'New',
@@ -418,7 +391,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كرت شاشة بي إن واي PNY RTX 5070 Ti سعة 16 جيجابايت ARGB',
     descriptionEn: 'High-quality PNY GeForce RTX™ 5070 Ti 16GB ARGB Overclocked Triple-Fan Graphics Card with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كرت شاشة بي إن واي PNY RTX 5070 Ti سعة 16 جيجابايت ARGB يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'GPUs',
+    category: 'gpus',
+    mainCategory: 'pc',
+    subCategory: 'gpus',
+    section: 'general',
+    source: 'PC',
     brand: 'PNY',
     model: 'GeForce RTX 5070 Ti XLR8',
     condition: 'New',
@@ -439,7 +416,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كرت شاشة بي إن واي PNY RTX 5070 سعة 12 جيجابايت GDDR7',
     descriptionEn: 'High-quality PNY GeForce RTX™ 5070 12GB Overclocked GDDR7 Triple Fan Graphics Card with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كرت شاشة بي إن واي PNY RTX 5070 سعة 12 جيجابايت GDDR7 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'GPUs',
+    category: 'gpus',
+    mainCategory: 'pc',
+    subCategory: 'gpus',
+    section: 'general',
+    source: 'PC',
     brand: 'PNY',
     model: 'GeForce RTX 5070',
     condition: 'New',
@@ -460,7 +441,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كرت شاشة أسوس برايم ASUS Prime RTX 5070 سعة 12 جيجابايت (أبيض)',
     descriptionEn: 'High-quality ASUS Prime GeForce RTX™ 5070 12GB GDDR7 OC Edition Graphics Card with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كرت شاشة أسوس برايم ASUS Prime RTX 5070 سعة 12 جيجابايت (أبيض) يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'GPUs',
+    category: 'gpus',
+    mainCategory: 'pc',
+    subCategory: 'gpus',
+    section: 'general',
+    source: 'PC',
     brand: 'ASUS',
     model: 'Prime RTX 5070 OC',
     condition: 'New',
@@ -481,7 +466,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كرت شاشة جيجابايت Gigabyte RTX 5070 Ti جيمنج أو سي 16 جيجابايت',
     descriptionEn: 'High-quality Gigabyte GeForce RTX™ 5070 Ti Gaming OC 16GB GDDR7 Graphics Card with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كرت شاشة جيجابايت Gigabyte RTX 5070 Ti جيمنج أو سي 16 جيجابايت يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'GPUs',
+    category: 'gpus',
+    mainCategory: 'pc',
+    subCategory: 'gpus',
+    section: 'general',
+    source: 'PC',
     brand: 'Gigabyte',
     model: 'RTX 5070 Ti Gaming OC',
     condition: 'New',
@@ -502,7 +491,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كرت شاشة أسوس تاف ASUS TUF RTX 5070 Ti جيمنج أو سي 16 جيجابايت',
     descriptionEn: 'High-quality ASUS TUF RTX 5070 Ti Gaming OC 16GB GDDR7 with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كرت شاشة أسوس تاف ASUS TUF RTX 5070 Ti جيمنج أو سي 16 جيجابايت يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'GPUs',
+    category: 'gpus',
+    mainCategory: 'pc',
+    subCategory: 'gpus',
+    section: 'general',
+    source: 'PC',
     brand: 'ASUS',
     model: 'TUF RTX 5070 Ti Gaming OC',
     condition: 'New',
@@ -523,7 +516,11 @@ export const initialProducts: Product[] = [
     nameAr: 'لوحة أم أسوس برايم ASUS Prime B760M-A واي فاي مقبس LGA 1700',
     descriptionEn: 'High-quality Asus Prime B760M-A WiFi LGA 1700 Intel mATX Gaming Motherboard with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة لوحة أم أسوس برايم ASUS Prime B760M-A واي فاي مقبس LGA 1700 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Motherboards',
+    category: 'motherboards',
+    mainCategory: 'pc',
+    subCategory: 'motherboards',
+    section: 'general',
+    source: 'PC',
     brand: 'ASUS',
     model: 'Prime B760M-A WiFi',
     condition: 'New',
@@ -544,7 +541,11 @@ export const initialProducts: Product[] = [
     nameAr: 'لوحة أم أسوس برايم ASUS Prime Z790-P مقبس LGA 1700 دي دي آر 5',
     descriptionEn: 'High-quality ASUS Prime Z790-P LGA 1700 ATX Gaming Motherboard DDR5 with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة لوحة أم أسوس برايم ASUS Prime Z790-P مقبس LGA 1700 دي دي آر 5 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Motherboards',
+    category: 'motherboards',
+    mainCategory: 'pc',
+    subCategory: 'motherboards',
+    section: 'general',
+    source: 'PC',
     brand: 'ASUS',
     model: 'Prime Z790-P',
     condition: 'New',
@@ -565,7 +566,11 @@ export const initialProducts: Product[] = [
     nameAr: 'قرص تخزين أم.2 أباتشر سعة 1 تيرابايت Apacer NVMe',
     descriptionEn: 'High-quality 1TB NVME APACER with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة قرص تخزين أم.2 أباتشر سعة 1 تيرابايت Apacer NVMe يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'SSD',
+    category: 'storage',
+    mainCategory: 'pc',
+    subCategory: 'storage',
+    section: 'general',
+    source: 'PC',
     brand: 'Apacer',
     model: 'AS2280P4U 1TB',
     condition: 'New',
@@ -586,7 +591,11 @@ export const initialProducts: Product[] = [
     nameAr: 'قرص تخزين أم.2 ليكسار سعة 1 تيرابايت Lexar NVMe',
     descriptionEn: 'High-quality 1TB NVME SSD LEXAR with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة قرص تخزين أم.2 ليكسار سعة 1 تيرابايت Lexar NVMe يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'SSD',
+    category: 'storage',
+    mainCategory: 'pc',
+    subCategory: 'storage',
+    section: 'general',
+    source: 'PC',
     brand: 'Lexar',
     model: 'NM610 PRO 1TB',
     condition: 'New',
@@ -607,7 +616,11 @@ export const initialProducts: Product[] = [
     nameAr: 'قرص تخزين أم.2 كينجستون سعة 1 تيرابايت Kingston NV3',
     descriptionEn: 'High-quality 1TB NVME SSD KINGSTON with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة قرص تخزين أم.2 كينجستون سعة 1 تيرابايت Kingston NV3 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'SSD',
+    category: 'storage',
+    mainCategory: 'pc',
+    subCategory: 'storage',
+    section: 'general',
+    source: 'PC',
     brand: 'Kingston',
     model: 'NV3 1TB',
     condition: 'New',
@@ -628,7 +641,11 @@ export const initialProducts: Product[] = [
     nameAr: 'مبرد مائي ثيرمالتيك LA-360 مم أسود',
     descriptionEn: 'High-quality LIQUEID COOLER THERMALTAKE LA-360MM BLACK with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة مبرد مائي ثيرمالتيك LA-360 مم أسود يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Cooling',
+    category: 'cooling',
+    mainCategory: 'pc',
+    subCategory: 'cooling',
+    section: 'general',
+    source: 'PC',
     brand: 'Thermaltake',
     model: 'LA-360MM Black',
     condition: 'New',
@@ -649,7 +666,11 @@ export const initialProducts: Product[] = [
     nameAr: 'معالج إنتل كور i9-14900K الجيل الرابع عشر',
     descriptionEn: 'High-quality PROCESSEUR INTEL I9-14900K with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة معالج إنتل كور i9-14900K الجيل الرابع عشر يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'CPUs',
+    category: 'cpus',
+    mainCategory: 'pc',
+    subCategory: 'cpus',
+    section: 'general',
+    source: 'PC',
     brand: 'Intel',
     model: 'Core i9-14900K',
     condition: 'New',
@@ -670,7 +691,11 @@ export const initialProducts: Product[] = [
     nameAr: 'شاشة ألعاب أسوس تاف ASUS TUF VG27AQ5A بتردد 210 هرتز',
     descriptionEn: 'High-quality ASUS MONITOR TUF VG27AQ5A 210 HZ with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة شاشة ألعاب أسوس تاف ASUS TUF VG27AQ5A بتردد 210 هرتز يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Monitors',
+    category: 'monitors',
+    mainCategory: 'pc',
+    subCategory: 'monitors',
+    section: 'general',
+    source: 'PC',
     brand: 'ASUS',
     model: 'TUF VG27AQ5A',
     condition: 'New',
@@ -691,7 +716,11 @@ export const initialProducts: Product[] = [
     nameAr: 'مزود طاقة كورسير RM750e قوة 750 واط إصدار 2025',
     descriptionEn: 'High-quality 2025 RMe SERIES RM750e 750 WATT ATX 3.1 PCIE 5.1 CYBENE with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة مزود طاقة كورسير RM750e قوة 750 واط إصدار 2025 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'PSUs',
+    category: 'psus',
+    mainCategory: 'pc',
+    subCategory: 'psus',
+    section: 'general',
+    source: 'PC',
     brand: 'Corsair',
     model: 'RM750e (2025)',
     condition: 'New',
@@ -712,7 +741,11 @@ export const initialProducts: Product[] = [
     nameAr: 'مزود طاقة كورسير RM850e قوة 850 واط إصدار 2025',
     descriptionEn: 'High-quality 2025 RMe SERIES RM850e 850 WATT ATX 3.1 PCIE 5.1 CYBENETICS with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة مزود طاقة كورسير RM850e قوة 850 واط إصدار 2025 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'PSUs',
+    category: 'psus',
+    mainCategory: 'pc',
+    subCategory: 'psus',
+    section: 'general',
+    source: 'PC',
     brand: 'Corsair',
     model: 'RM850e (2025)',
     condition: 'New',
@@ -733,7 +766,11 @@ export const initialProducts: Product[] = [
     nameAr: 'مزود طاقة كورسير RM1000e قوة 1000 واط إصدار 2025',
     descriptionEn: 'High-quality 2025 RMe SERIES RM1000e 1000 WATT ATX 3.1 PCIE 5.1 CYBENE with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة مزود طاقة كورسير RM1000e قوة 1000 واط إصدار 2025 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'PSUs',
+    category: 'psus',
+    mainCategory: 'pc',
+    subCategory: 'psus',
+    section: 'general',
+    source: 'PC',
     brand: 'Corsair',
     model: 'RM1000e (2025)',
     condition: 'New',
@@ -754,7 +791,11 @@ export const initialProducts: Product[] = [
     nameAr: 'مزود طاقة كورسير RM850e أبيض قوة 850 واط بالكامل',
     descriptionEn: 'High-quality CORSAIR RM850e White 850W 80 PLUS Gold Fully Modular ATX 3.1 PCIe 5.1 Power Supply with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة مزود طاقة كورسير RM850e أبيض قوة 850 واط بالكامل يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'PSUs',
+    category: 'psus',
+    mainCategory: 'pc',
+    subCategory: 'psus',
+    section: 'general',
+    source: 'PC',
     brand: 'Corsair',
     model: 'RM850e White',
     condition: 'New',
@@ -775,7 +816,11 @@ export const initialProducts: Product[] = [
     nameAr: 'مزود طاقة كورسير RM1000e أبيض قوة 1000 واط بالكامل',
     descriptionEn: 'High-quality RMe White Series, RM1000e White, 1000 Watt, ATX 3.1, Cybenet with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة مزود طاقة كورسير RM1000e أبيض قوة 1000 واط بالكامل يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'PSUs',
+    category: 'psus',
+    mainCategory: 'pc',
+    subCategory: 'psus',
+    section: 'general',
+    source: 'PC',
     brand: 'Corsair',
     model: 'RM1000e White',
     condition: 'New',
@@ -796,7 +841,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كيس كمبيوتر ثيرمالتيك TR100 كورالي ميني تاور',
     descriptionEn: 'High-quality TR100 Koralie Edition Mini Tower Chassis with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كيس كمبيوتر ثيرمالتيك TR100 كورالي ميني تاور يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Cases',
+    category: 'pc-cases',
+    mainCategory: 'pc',
+    subCategory: 'pc-cases',
+    section: 'general',
+    source: 'PC',
     brand: 'Thermaltake',
     model: 'TR100 Koralie Edition',
     condition: 'New',
@@ -817,7 +866,11 @@ export const initialProducts: Product[] = [
     nameAr: 'مبرد معالج هوائي ثيرمالتيك Astria 200 ARGB',
     descriptionEn: 'High-quality Thermaltake ASTRIA 200 ARGB CPU Cooler, Compatible with Latest Intel LGA 1700 and AMD AM5 CPU, Single Tower with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة مبرد معالج هوائي ثيرمالتيك Astria 200 ARGB يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Cooling',
+    category: 'cooling',
+    mainCategory: 'pc',
+    subCategory: 'cooling',
+    section: 'general',
+    source: 'PC',
     brand: 'Thermaltake',
     model: 'Astria 200 ARGB',
     condition: 'New',
@@ -838,7 +891,11 @@ export const initialProducts: Product[] = [
     nameAr: 'مزود طاقة ثيرمالتيك Toughpower GT بقوة 850 واط',
     descriptionEn: 'High-quality Thermaltake Toughpower GT 850 Watt Fully Modular 80+ Gold PCIE 5.1 Power Supply ATX3.1 with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة مزود طاقة ثيرمالتيك Toughpower GT بقوة 850 واط يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'PSUs',
+    category: 'psus',
+    mainCategory: 'pc',
+    subCategory: 'psus',
+    section: 'general',
+    source: 'PC',
     brand: 'Thermaltake',
     model: 'Toughpower GT 850W',
     condition: 'New',
@@ -859,7 +916,11 @@ export const initialProducts: Product[] = [
     nameAr: 'مزود طاقة ثيرمالتيك Toughpower GF3 بقوة 1000 واط ذهبي بالكامل',
     descriptionEn: 'High-quality Thermaltake TOUGHPOWER GF3 1000W Gold ATX 3.0 Fully Modular Power Supply - TT Premium Edition with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة مزود طاقة ثيرمالتيك Toughpower GF3 بقوة 1000 واط ذهبي بالكامل يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'PSUs',
+    category: 'psus',
+    mainCategory: 'pc',
+    subCategory: 'psus',
+    section: 'general',
+    source: 'PC',
     brand: 'Thermaltake',
     model: 'Toughpower GF3 1000W',
     condition: 'New',
@@ -880,7 +941,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كيس كمبيوتر دارك فلاش DS900 أسود',
     descriptionEn: 'High-quality DARKFLASH DS900 Air ATX Mid-Tower Gaming Case – Black with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كيس كمبيوتر دارك فلاش DS900 أسود يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Cases',
+    category: 'pc-cases',
+    mainCategory: 'pc',
+    subCategory: 'pc-cases',
+    section: 'general',
+    source: 'PC',
     brand: 'Darkflash',
     model: 'DS900 Air Black',
     condition: 'New',
@@ -901,7 +966,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كيس كمبيوتر دارك فلاش DS900 أبيض',
     descriptionEn: 'High-quality CASE DARKFLASH DS-900 WHITE with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كيس كمبيوتر دارك فلاش DS900 أبيض يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Cases',
+    category: 'pc-cases',
+    mainCategory: 'pc',
+    subCategory: 'pc-cases',
+    section: 'general',
+    source: 'PC',
     brand: 'Darkflash',
     model: 'DS900 Air White',
     condition: 'New',
@@ -922,7 +991,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كيس كمبيوتر ميركوري R425 أسود',
     descriptionEn: 'High-quality MERCURY CASE R425 BLACK with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كيس كمبيوتر ميركوري R425 أسود يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Cases',
+    category: 'pc-cases',
+    mainCategory: 'pc',
+    subCategory: 'pc-cases',
+    section: 'general',
+    source: 'PC',
     brand: 'Mercury',
     model: 'R425 Black',
     condition: 'New',
@@ -943,7 +1016,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كيس كمبيوتر ميركوري R425 أبيض',
     descriptionEn: 'High-quality MERCURY CASE R425 WHAITE with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كيس كمبيوتر ميركوري R425 أبيض يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Cases',
+    category: 'pc-cases',
+    mainCategory: 'pc',
+    subCategory: 'pc-cases',
+    section: 'general',
+    source: 'PC',
     brand: 'Mercury',
     model: 'R425 White',
     condition: 'New',
@@ -964,7 +1041,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كيس كمبيوتر إيروكول P500C أبيض',
     descriptionEn: 'High-quality CASE AEROCOOL P500C WHITE with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كيس كمبيوتر إيروكول P500C أبيض يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Cases',
+    category: 'pc-cases',
+    mainCategory: 'pc',
+    subCategory: 'pc-cases',
+    section: 'general',
+    source: 'PC',
     brand: 'Aerocool',
     model: 'P500C White',
     condition: 'New',
@@ -985,7 +1066,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كيس كمبيوتر ثيرمالتيك Ceres 370 TG أسود',
     descriptionEn: 'High-quality CA-11J-00M1WN-00CS370 WS/Black/Win/SPCC/TG/CT120mm with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كيس كمبيوتر ثيرمالتيك Ceres 370 TG أسود يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Cases',
+    category: 'pc-cases',
+    mainCategory: 'pc',
+    subCategory: 'pc-cases',
+    section: 'general',
+    source: 'PC',
     brand: 'Thermaltake',
     model: 'Ceres 370 TG Black',
     condition: 'New',
@@ -1006,7 +1091,11 @@ export const initialProducts: Product[] = [
     nameAr: 'كيس كمبيوتر ثيرمالتيك TR100 كورالي ميني تاور إصدار CA-11A',
     descriptionEn: 'High-quality TR100 Koralie Edition Mini Tower Chassis CA-11A-00SPNN-AR with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة كيس كمبيوتر ثيرمالتيك TR100 كورالي ميني تاور إصدار CA-11A يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Cases',
+    category: 'pc-cases',
+    mainCategory: 'pc',
+    subCategory: 'pc-cases',
+    section: 'general',
+    source: 'PC',
     brand: 'Thermaltake',
     model: 'TR100 Koralie Chassis',
     condition: 'New',
@@ -1027,7 +1116,11 @@ export const initialProducts: Product[] = [
     nameAr: 'مبرد معالج هوائي ثيرمالتيك Astria 200',
     descriptionEn: 'High-quality ASTRIA 200 with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة مبرد معالج هوائي ثيرمالتيك Astria 200 يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'Cooling',
+    category: 'cooling',
+    mainCategory: 'pc',
+    subCategory: 'cooling',
+    section: 'general',
+    source: 'PC',
     brand: 'Thermaltake',
     model: 'Astria 200',
     condition: 'New',
@@ -1048,7 +1141,11 @@ export const initialProducts: Product[] = [
     nameAr: 'مزود طاقة ثيرمالتيك Toughpower GT بقوة 850 واط إصدار الاتحاد الأوروبي',
     descriptionEn: 'High-quality Toughpower GT/0850W/Fully Modular/Non Light/Full Range/Analog/80 Plus Gold/EU with excellent performance and reliable build.',
     descriptionAr: 'منتج عالي الجودة مزود طاقة ثيرمالتيك Toughpower GT بقوة 850 واط إصدار الاتحاد الأوروبي يتميز بأداء ممتاز وجودة تصنيع عالية.',
-    category: 'PSUs',
+    category: 'psus',
+    mainCategory: 'pc',
+    subCategory: 'psus',
+    section: 'general',
+    source: 'PC',
     brand: 'Thermaltake',
     model: 'Toughpower GT 850W EU',
     condition: 'New',

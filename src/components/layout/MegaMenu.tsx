@@ -1,5 +1,5 @@
 // RETRO Qatar — Mega Menu Component
-// Displays dynamic multi-column grids for subcategories with premium hover animations and RTL support
+// Displays dynamic 3-level taxonomy multi-column grids (Main Category -> Subcategory -> Section)
 
 'use client';
 
@@ -15,229 +15,302 @@ interface MegaMenuProps {
   onClose: () => void;
 }
 
-interface SubCategory {
+interface SubCategoryItem {
   nameEn: string;
   nameAr: string;
-  slug: string;
+  category: string;
+  subCategory?: string;
+  section?: string;
 }
 
 interface MegaColumn {
   titleEn: string;
   titleAr: string;
-  items: SubCategory[];
+  items: SubCategoryItem[];
 }
 
-// Subcategories mapping matching products structure
-const MEGA_MENU_DATA: Record<string, { columns: MegaColumn[]; promo?: { titleEn: string; titleAr: string; descEn: string; descAr: string; ctaEn: string; ctaAr: string; href: string; image: string } }> = {
-  'gaming': {
+// Full 3-Level Mega Menu Configuration
+const MEGA_MENU_DATA: Record<string, { 
+  columns: MegaColumn[]; 
+  promo?: { 
+    titleEn: string; 
+    titleAr: string; 
+    descEn: string; 
+    descAr: string; 
+    ctaEn: string; 
+    ctaAr: string; 
+    href: string; 
+    image: string 
+  } 
+}> = {
+  // ── PLAYSTATION ──
+  'playstation': {
     columns: [
       {
-        titleEn: 'Consoles',
-        titleAr: 'أجهزة الكونسول',
+        titleEn: 'PlayStation Generations',
+        titleAr: 'أجيال بلايستيشن',
         items: [
-          { nameEn: 'PlayStation', nameAr: 'بلايستيشن', slug: 'playstation' },
-          { nameEn: 'Xbox', nameAr: 'إكس بوكس', slug: 'xbox' },
-          { nameEn: 'Nintendo', nameAr: 'نينتندو', slug: 'nintendo' },
-          { nameEn: 'Handheld Consoles', nameAr: 'أجهزة محمولة', slug: 'handheld-consoles' },
-          { nameEn: 'Other Consoles', nameAr: 'منصات أخرى', slug: 'other-consoles' },
+          { nameEn: 'PlayStation 1 (PS1)', nameAr: 'بلايستيشن 1 (PS1)', category: 'playstation', subCategory: 'ps1' },
+          { nameEn: 'PlayStation 2 (PS2)', nameAr: 'بلايستيشن 2 (PS2)', category: 'playstation', subCategory: 'ps2' },
+          { nameEn: 'PlayStation 3 (PS3)', nameAr: 'بلايستيشن 3 (PS3)', category: 'playstation', subCategory: 'ps3' },
+          { nameEn: 'PlayStation 4 (PS4)', nameAr: 'بلايستيشن 4 (PS4)', category: 'playstation', subCategory: 'ps4' },
+          { nameEn: 'PlayStation 5 (PS5)', nameAr: 'بلايستيشن 5 (PS5)', category: 'playstation', subCategory: 'ps5' },
+          { nameEn: 'PSP / Handhelds', nameAr: 'بي إس بي / الأجهزة المحمولة', category: 'playstation', subCategory: 'psp' },
         ],
       },
       {
-        titleEn: 'Games',
-        titleAr: 'الألعاب',
+        titleEn: 'Shop by Type (Sections)',
+        titleAr: 'تسوق حسب النوع (الأقسام)',
         items: [
-          { nameEn: 'PlayStation Games', nameAr: 'ألعاب بلايستيشن', slug: 'playstation-games' },
-          { nameEn: 'Xbox Games', nameAr: 'ألعاب إكس بوكس', slug: 'xbox-games' },
-          { nameEn: 'Nintendo Games', nameAr: 'ألعاب نينتندو', slug: 'nintendo-games' },
-          { nameEn: 'PC Games', nameAr: 'ألعاب كمبيوتر', slug: 'pc-games' },
-          { nameEn: 'Retro Games', nameAr: 'ألعاب كلاسيكية ريترو', slug: 'retro-games' },
+          { nameEn: 'PlayStation Consoles', nameAr: 'أجهزة بلايستيشن', category: 'playstation', section: 'consoles' },
+          { nameEn: 'Controllers & Accessories', nameAr: 'أذرع التحكم والإكسسوارات', category: 'playstation', section: 'accessories' },
+          { nameEn: 'Games, Discs & CDs', nameAr: 'الألعاب والأقراص الأصلية', category: 'playstation', section: 'games-cds' },
+          { nameEn: 'Memory Cards & Adapters', nameAr: 'كروت الذاكرة والمحولات', category: 'playstation', section: 'accessories' },
+          { nameEn: 'Special & Limited Editions', nameAr: 'الإصدارات الخاصة والمحدودة', category: 'playstation', section: 'consoles' },
         ],
       },
       {
-        titleEn: 'Controllers',
-        titleAr: 'أذرع التحكم',
+        titleEn: 'Popular PS Categories',
+        titleAr: 'أقسام بلايستيشن المميزة',
         items: [
-          { nameEn: 'PlayStation Controllers', nameAr: 'أذرع بلايستيشن', slug: 'playstation-controllers' },
-          { nameEn: 'Xbox Controllers', nameAr: 'أذرع إكس بوكس', slug: 'xbox-controllers' },
-          { nameEn: 'Nintendo Controllers', nameAr: 'أذرع نينتندو', slug: 'nintendo-controllers' },
-          { nameEn: 'Retro Controllers', nameAr: 'أذرع ريترو', slug: 'retro-controllers' },
-          { nameEn: 'Other Controllers', nameAr: 'أذرع تحكم أخرى', slug: 'other-controllers' },
-        ],
-      },
-      {
-        titleEn: 'Gaming Accessories',
-        titleAr: 'إكسسوارات الألعاب',
-        items: [
-          { nameEn: 'Charging Stations', nameAr: 'قواعد شحن', slug: 'charging-stations' },
-          { nameEn: 'Cables & Adapters', nameAr: 'كابلات ومحولات', slug: 'cables-adapters' },
-          { nameEn: 'Storage Expand', nameAr: 'توسعة التخزين', slug: 'storage' },
-          { nameEn: 'Console Accessories', nameAr: 'ملحقات أجهزة الألعاب', slug: 'console-accessories' },
+          { nameEn: 'PS4 Pro Limited Editions', nameAr: 'إصدارات PS4 Pro المحدودة', category: 'playstation', subCategory: 'ps4' },
+          { nameEn: 'PS3 Fat & Slim Systems', nameAr: 'أجهزة PS3 الأصلية وسليم', category: 'playstation', subCategory: 'ps3', section: 'consoles' },
+          { nameEn: 'PS2 Classic Black & Slim', nameAr: 'أجهزة PS2 الكلاسيكية', category: 'playstation', subCategory: 'ps2', section: 'consoles' },
+          { nameEn: 'PlayStation Classic Mini', nameAr: 'بلايستيشن كلاسيك ميني', category: 'playstation', subCategory: 'ps1', section: 'consoles' },
+          { nameEn: 'PSP 3000 Series', nameAr: 'سلسلة PSP 3000', category: 'playstation', subCategory: 'psp' },
         ],
       },
     ],
     promo: {
-      titleEn: 'Next-Gen VR & Pro Gear',
-      titleAr: 'أجهزة الواقع الافتراضي',
-      descEn: 'Step into the future. Discover PS VR2 and custom esports controllers.',
-      descAr: 'ادخل المستقبل. تصفح أجهزة نظارات PS VR2 والتحكم الاحترافية.',
-      ctaEn: 'Explore Gear',
-      ctaAr: 'تصفح العتاد',
-      href: '/products?category=gaming&subCategory=console-accessories',
-      image: 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-retro-cyan/20 via-retro-bg-card to-retro-bg-card',
+      titleEn: 'Sony PlayStation Vault',
+      titleAr: 'خزينة سوني بلايستيشن',
+      descEn: 'Tested original consoles, boxed collector editions, and retro discs certified by RETRO Qatar.',
+      descAr: 'أجهزة كونسول أصلية مفحوصة 100% وإصدارات خاصة معتمدة من ريترو قطر.',
+      ctaEn: 'View PlayStation',
+      ctaAr: 'تصفح بلايستيشن',
+      href: '/playstation',
+      image: 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-600/25 via-retro-bg-card to-retro-bg-card',
     },
   },
+
+  // ── NINTENDO ──
+  'nintendo': {
+    columns: [
+      {
+        titleEn: 'Nintendo Platforms',
+        titleAr: 'منصات نينتندو',
+        items: [
+          { nameEn: 'NES / SNES / Famicom', nameAr: 'إن إي إس / سوبر نينتندو / فاميلي', category: 'nintendo', subCategory: 'nes-snes' },
+          { nameEn: 'Game Boy (GBA / GBC)', nameAr: 'جيم بوي (GBA / GBC)', category: 'nintendo', subCategory: 'game-boy' },
+          { nameEn: 'Nintendo DS / 3DS', nameAr: 'نينتندو دي إس / 3DS', category: 'nintendo', subCategory: 'ds-3ds' },
+          { nameEn: 'Wii / Wii U / GameCube', nameAr: 'وي / وي يو / جيم كيوب', category: 'nintendo', subCategory: 'wii-wiiu-gamecube' },
+          { nameEn: 'Nintendo Switch', nameAr: 'نينتندو سويتش', category: 'nintendo', subCategory: 'switch' },
+        ],
+      },
+      {
+        titleEn: 'Shop by Type (Sections)',
+        titleAr: 'تسوق حسب النوع (الأقسام)',
+        items: [
+          { nameEn: 'Nintendo Consoles', nameAr: 'أجهزة نينتندو', category: 'nintendo', section: 'consoles' },
+          { nameEn: 'Controllers & Accessories', nameAr: 'أذرع التحكم والإكسسوارات', category: 'nintendo', section: 'accessories' },
+          { nameEn: 'Games, Cartridges & CDs', nameAr: 'الأشرطة والألعاب الأصلية', category: 'nintendo', section: 'games-cds' },
+          { nameEn: 'Collector Packs & VHS', nameAr: 'إصدارات المقتنين والأشرطة', category: 'nintendo', section: 'accessories' },
+        ],
+      },
+      {
+        titleEn: 'Legendary Franchises',
+        titleAr: 'سلاسل نينتندو الأسطورية',
+        items: [
+          { nameEn: 'The Legend of Zelda', nameAr: 'ذا ليجند أوف زيلدا', category: 'nintendo', subCategory: 'switch' },
+          { nameEn: 'Pokémon Collections', nameAr: 'مقتنيات بوكيمون', category: 'nintendo', subCategory: 'game-boy' },
+          { nameEn: 'Super Mario Bros', nameAr: 'سوبر ماريو بروس', category: 'nintendo', subCategory: 'nes-snes' },
+          { nameEn: 'Nintendo 64 Classic', nameAr: 'نينتندو 64 كلاسيك', category: 'nintendo', subCategory: 'wii-wiiu-gamecube' },
+        ],
+      },
+    ],
+    promo: {
+      titleEn: 'Nintendo Heritage Hub',
+      titleAr: 'تراث نينتندو الكلاسيكي',
+      descEn: 'From Famicom and Game Boy to OLED Switch Limited Editions.',
+      descAr: 'من الفاميلي كمبيوتر والجيم بوي حتى إصدارات سويتش زيلدا المحدودة.',
+      ctaEn: 'Explore Nintendo',
+      ctaAr: 'تصفح نينتندو',
+      href: '/nintendo',
+      image: 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-red-600/25 via-retro-bg-card to-retro-bg-card',
+    },
+  },
+
+  // ── XBOX ──
+  'xbox': {
+    columns: [
+      {
+        titleEn: 'Xbox Generations',
+        titleAr: 'أجيال إكس بوكس',
+        items: [
+          { nameEn: 'Original Xbox (Classic)', nameAr: 'إكس بوكس الأصلي', category: 'xbox', subCategory: 'xbox-original' },
+          { nameEn: 'Xbox 360', nameAr: 'إكس بوكس 360', category: 'xbox', subCategory: 'xbox-360' },
+          { nameEn: 'Xbox One', nameAr: 'إكس بوكس ون', category: 'xbox', subCategory: 'xbox-one' },
+          { nameEn: 'Xbox Series X / Series S', nameAr: 'إكس بوكس سيريس X / S', category: 'xbox', subCategory: 'xbox-series' },
+          { nameEn: 'Xbox Accessories & Other', nameAr: 'إكسسوارات وملحقات إكس بوكس', category: 'xbox', subCategory: 'xbox-other' },
+        ],
+      },
+      {
+        titleEn: 'Shop by Type (Sections)',
+        titleAr: 'تسوق حسب النوع (الأقسام)',
+        items: [
+          { nameEn: 'Xbox Consoles', nameAr: 'أجهزة إكس بوكس', category: 'xbox', section: 'consoles' },
+          { nameEn: 'Controllers & Accessories', nameAr: 'أذرع التحكم والمحولات', category: 'xbox', section: 'accessories' },
+          { nameEn: 'Xbox Games & Discs', nameAr: 'ألعاب وأقراص إكس بوكس', category: 'xbox', section: 'games-cds' },
+          { nameEn: 'Limited & Special Packs', nameAr: 'حزم وإصدارات خاصة', category: 'xbox', section: 'consoles' },
+        ],
+      },
+      {
+        titleEn: 'Featured Xbox Packs',
+        titleAr: 'حزم إكس بوكس الخاصة',
+        items: [
+          { nameEn: 'Xbox 360 Gears of War Red', nameAr: 'إكس بوكس 360 جيرز أوف وور', category: 'xbox', subCategory: 'xbox-360' },
+          { nameEn: 'Xbox 360 MW2 Limited', nameAr: 'إكس بوكس 360 مودرن وورفير 2', category: 'xbox', subCategory: 'xbox-360' },
+          { nameEn: 'Original Xbox Custom R2-D2', nameAr: 'إكس بوكس الأصلي R2-D2', category: 'xbox', subCategory: 'xbox-original' },
+          { nameEn: 'Xbox One Sunset Overdrive', nameAr: 'إكس بوكس ون سانسيت أوفر درايف', category: 'xbox', subCategory: 'xbox-one' },
+        ],
+      },
+    ],
+    promo: {
+      titleEn: 'Microsoft Xbox Zone',
+      titleAr: 'قسم مايكروسوفت إكس بوكس',
+      descEn: 'Original Xbox systems, Xbox 360 limited editions, and Series S hardware.',
+      descAr: 'أجهزة إكس بوكس الأصلية والإصدارات الخاصة المحدودة النادرة.',
+      ctaEn: 'Explore Xbox',
+      ctaAr: 'تصفح إكس بوكس',
+      href: '/xbox',
+      image: 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-600/25 via-retro-bg-card to-retro-bg-card',
+    },
+  },
+
+  // ── RETRO GAMES ──
   'retro-gaming': {
     columns: [
       {
-        titleEn: 'Sony & Xbox Retro',
-        titleAr: 'ريترو سوني وإكس بوكس',
+        titleEn: 'Retro Platforms',
+        titleAr: 'منصات الريترو الكلاسيكية',
         items: [
-          { nameEn: 'PlayStation 1', nameAr: 'بلايستيشن 1', slug: 'playstation-1' },
-          { nameEn: 'PlayStation 2', nameAr: 'بلايستيشن 2', slug: 'playstation-2' },
-          { nameEn: 'PlayStation 3', nameAr: 'بلايستيشن 3', slug: 'playstation-3' },
-          { nameEn: 'Classic Xbox', nameAr: 'إكس بوكس كلاسيك', slug: 'classic-xbox' },
+          { nameEn: 'Atari (2600 / 7800 / Flashback)', nameAr: 'أتاري (2600 / 7800 / فلاش باك)', category: 'retro-games', subCategory: 'atari' },
+          { nameEn: 'Sega (Mega Drive / Master System)', nameAr: 'سيجا (ميجا درايف / ماستر سيستم)', category: 'retro-games', subCategory: 'sega' },
+          { nameEn: 'Sega Saturn & Dreamcast', nameAr: 'سيجا ساتورن ودريم كاست', category: 'retro-games', subCategory: 'dreamcast-saturn' },
+          { nameEn: 'Amiga & Commodore C64', nameAr: 'أميغا وكومودور C64', category: 'retro-games', subCategory: 'amiga-commodore' },
+          { nameEn: 'PC Engine / Famicom / Arcade', nameAr: 'بي سي إنجن / فاميلي كمبيوتر / أركيد', category: 'retro-games', subCategory: 'other-retro' },
         ],
       },
       {
-        titleEn: 'Nintendo Retro',
-        titleAr: 'ريترو نينتندو',
+        titleEn: 'Shop by Type (Sections)',
+        titleAr: 'تسوق حسب النوع (الأقسام)',
         items: [
-          { nameEn: 'Classic Nintendo', nameAr: 'نينتندو كلاسيك', slug: 'classic-nintendo' },
-          { nameEn: 'Nintendo 64', nameAr: 'نينتندو 64', slug: 'nintendo-64' },
-          { nameEn: 'GameCube', nameAr: 'جيم كيوب', slug: 'gamecube' },
-          { nameEn: 'Game Boy Series', nameAr: 'عائلة قيم بوي', slug: 'game-boy' },
+          { nameEn: 'Retro Consoles & Systems', nameAr: 'أجهزة الكونسول الكلاسيكية', category: 'retro-games', section: 'consoles' },
+          { nameEn: 'Joysticks, Wheels & Cables', nameAr: 'أذرع تحكم الأركيد والكابلات', category: 'retro-games', section: 'accessories' },
+          { nameEn: 'Retro Cartridges, CDs & Tapes', nameAr: 'أشرطة وكارتريدج وأقراص ريترو', category: 'retro-games', section: 'games-cds' },
+          { nameEn: 'Clone & Compatible Systems', nameAr: 'أجهزة متوافقة ومعدلة', category: 'retro-games', section: 'consoles' },
         ],
       },
       {
-        titleEn: 'Sega & Handhelds',
-        titleAr: 'سيجا والأجهزة المحمولة',
+        titleEn: 'Retro Showcase',
+        titleAr: 'أجهزة كلاسيكية مميزة',
         items: [
-          { nameEn: 'Sega Classics', nameAr: 'أجهزة سيجا الكلاسيكية', slug: 'sega' },
-          { nameEn: 'Atari Systems', nameAr: 'أجهزة أتاري القديمة', slug: 'atari' },
-          { nameEn: 'Arcade Machines', nameAr: 'ألعاب آركيد', slug: 'arcade' },
-          { nameEn: 'PSP & Vita', nameAr: 'بي إس بي وفيتا', slug: 'psp' },
-        ],
-      },
-      {
-        titleEn: 'Retro Peripherals',
-        titleAr: 'ملحقات ريترو',
-        items: [
-          { nameEn: 'Retro Controllers', nameAr: 'أذرع تحكم ريترو', slug: 'retro-controllers' },
-          { nameEn: 'Retro Games CD/Cart', nameAr: 'أشرطة كلاسيكية', slug: 'retro-games' },
-          { nameEn: 'Retro Accessories', nameAr: 'إكسسوارات ريترو', slug: 'retro-accessories' },
-          { nameEn: 'Collectibles & Mods', nameAr: 'مجسمات وتعديلات', slug: 'collectibles' },
+          { nameEn: 'The C64 Mini 64 Games', nameAr: 'كومودور 64 ميني مع 64 لعبة', category: 'retro-games', subCategory: 'amiga-commodore' },
+          { nameEn: 'Amiga CD32 Critical Zone', nameAr: 'أميغا CD32 حزمة كريتيكال زون', category: 'retro-games', subCategory: 'amiga-commodore' },
+          { nameEn: 'PC Engine Japanese Edition', nameAr: 'بي سي إنجن النسخة اليابانية', category: 'retro-games', subCategory: 'other-retro' },
+          { nameEn: 'Speedlink Competition Pro', nameAr: 'يد تحكم سبيدلينك برو USB', category: 'retro-games', section: 'accessories' },
         ],
       },
     ],
     promo: {
-      titleEn: 'Restore Old Consoles',
-      titleAr: 'صيانة وتجديد الأجهزة القديمة',
-      descEn: 'Certified repair hub for Sega, Atari, and classic handheld chip recap.',
-      descAr: 'مركز صيانة معتمد لإعادة إحياء أجهزة سيغا وأتاري والقطع القديمة.',
-      ctaEn: 'Book Mod',
-      ctaAr: 'احجز صيانة',
-      href: '/repair',
-      image: 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-retro-pink/20 via-retro-bg-card to-retro-bg-card',
+      titleEn: 'Certified Retro Inspection',
+      titleAr: 'فحص وضمان ريترو قطر',
+      descEn: 'Ultrasonically cleaned motherboards, recapped circuits, and 100% operational guarantee.',
+      descAr: 'فحص تقني شامل وتنظيف بالموجات فوق الصوتية وضمان تشغيلي معتمد.',
+      ctaEn: 'View Classics',
+      ctaAr: 'تصفح الريترو',
+      href: '/retro-gaming-classics',
+      image: 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-600/25 via-retro-bg-card to-retro-bg-card',
     },
   },
+
+  // ── PC / COMPUTER (Independent PC Store) ──
   'pc': {
     columns: [
       {
-        titleEn: 'Gaming PCs',
-        titleAr: 'حواسيب قيمنق مجمعة',
+        titleEn: 'PC Core Components',
+        titleAr: 'مكونات الكمبيوتر الأساسية',
         items: [
-          { nameEn: 'Entry Level', nameAr: 'مستوى مبتدئ', slug: 'entry-level' },
-          { nameEn: 'Mid Range', nameAr: 'مستوى متوسط', slug: 'mid-range' },
-          { nameEn: 'High End', nameAr: 'مستوى عالي', slug: 'high-end' },
-          { nameEn: 'Extreme Rigs', nameAr: 'مستوى خارق', slug: 'extreme' },
+          { nameEn: 'CPUs (Intel & AMD Ryzen)', nameAr: 'المعالجات (Intel و AMD)', category: 'pc', subCategory: 'cpus' },
+          { nameEn: 'GPUs (RTX & Radeon)', nameAr: 'كروت الشاشة (NVIDIA و AMD)', category: 'pc', subCategory: 'gpus' },
+          { nameEn: 'Motherboards (AM4/AM5/Intel)', nameAr: 'اللوحات الأم (Motherboards)', category: 'pc', subCategory: 'motherboards' },
+          { nameEn: 'RAM Memory (DDR4 / DDR5)', nameAr: 'الذاكرة العشوائية (RAM)', category: 'pc', subCategory: 'ram' },
+          { nameEn: 'Storage (NVMe SSD / HDD)', nameAr: 'وحدات التخزين (SSD / HDD)', category: 'pc', subCategory: 'storage' },
+          { nameEn: 'Power Supplies (PSUs)', nameAr: 'مزودات الطاقة (PSUs)', category: 'pc', subCategory: 'psus' },
         ],
       },
       {
-        titleEn: 'Core Components',
-        titleAr: 'القطع الأساسية',
+        titleEn: 'Chassis & Thermal',
+        titleAr: 'الكيسات وأنظمة التبريد',
         items: [
-          { nameEn: 'CPUs (Intel/AMD)', nameAr: 'المعالجات', slug: 'cpu' },
-          { nameEn: 'GPUs (NVIDIA/AMD)', nameAr: 'كروت الشاشة', slug: 'gpu' },
-          { nameEn: 'Motherboards', nameAr: 'اللوحات الأم', slug: 'motherboards' },
-          { nameEn: 'RAM Memory', nameAr: 'الذاكرة العشوائية', slug: 'ram' },
-          { nameEn: 'Storage (NVMe/SSD)', nameAr: 'وحدات التخزين', slug: 'storage' },
+          { nameEn: 'PC Cases & Towers', nameAr: 'صناديق الكمبيوتر (Cases)', category: 'pc', subCategory: 'pc-cases' },
+          { nameEn: 'AIO Liquid Cooling', nameAr: 'تبريد مائي مغلق AIO', category: 'pc', subCategory: 'cooling' },
+          { nameEn: 'Air Coolers & ARGB Fans', nameAr: 'مبردات هوائية ومراوح ARGB', category: 'pc', subCategory: 'cooling' },
+          { nameEn: 'Thermal Pastes & Mounts', nameAr: 'معجون تبريد وقطع تثبيت', category: 'pc', subCategory: 'cooling' },
         ],
       },
       {
-        titleEn: 'Chassis & Power',
-        titleAr: 'الكيس ومزودات الطاقة',
+        titleEn: 'Gaming Systems & Software',
+        titleAr: 'أنظمة الألعاب وألعاب PC',
         items: [
-          { nameEn: 'Power Supplies (PSU)', nameAr: 'مزودات الطاقة', slug: 'psu' },
-          { nameEn: 'PC Cases', nameAr: 'كيسات الكمبيوتر', slug: 'pc-cases' },
-          { nameEn: 'Cables & Adapters', nameAr: 'توصيلات داخلية كابلات', slug: 'cables' },
-          { nameEn: 'Networking Cards', nameAr: 'كروت الشبكة والواي فاي', slug: 'networking' },
-        ],
-      },
-      {
-        titleEn: 'Cooling Products',
-        titleAr: 'أنظمة التبريد',
-        items: [
-          { nameEn: 'CPU Air Cooling', nameAr: 'مبرد هوائي للمعالج', slug: 'cpu-cooling' },
-          { nameEn: 'Liquid AIO Coolers', nameAr: 'مبردات مائية مغلقة AIO', slug: 'aio-cooling' },
-          { nameEn: 'Case Fans', nameAr: 'مراوح تبريد الكيس', slug: 'case-fans' },
-          { nameEn: 'Thermal Pastes', nameAr: 'معجون تبريد موصل', slug: 'thermal-products' },
+          { nameEn: 'Custom & Pre-built Gaming PCs', nameAr: 'تجميعات ألعاب احترافية جاهزة', category: 'pc', subCategory: 'gaming-pcs' },
+          { nameEn: 'High-Refresh Gaming Monitors', nameAr: 'شاشات ألعاب عالية التردد', category: 'pc', subCategory: 'monitors' },
+          { nameEn: 'PC Gaming Laptops', nameAr: 'أجهزة لابتوب للألعاب والعمل', category: 'pc', subCategory: 'laptops' },
+          { nameEn: 'PC Gaming Accessories', nameAr: 'ملحقات الحاسوب (كيبورد / ماوس)', category: 'pc', subCategory: 'pc-accessories' },
+          { nameEn: 'PC Games & Discs (Crysis, etc.)', nameAr: 'ألعاب وأقراص الكمبيوتر الأصلية', category: 'pc', subCategory: 'pc-games', section: 'games-cds' },
         ],
       },
     ],
     promo: {
       titleEn: 'Custom PC Simulator',
       titleAr: 'محاكي تجميعات الكمبيوتر',
-      descEn: 'Select compatible components with dynamic power checks.',
-      descAr: 'اختر قطع كمبيوتر متوافقة بالكامل مع فحص القدرة الكهربائية.',
-      ctaEn: 'Configure Rig',
+      descEn: 'Build your dream rig with real-time bottleneck and wattage checks.',
+      descAr: 'قم بتركيب تجميعتك المثالية مع فحص التوافق واستهلاك الطاقة فورياً.',
+      ctaEn: 'Open Builder',
       ctaAr: 'ابدأ التجميع',
       href: '/pc-builder',
-      image: 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-retro-purple/20 via-retro-bg-card to-retro-bg-card',
+      image: 'bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-retro-cyan/25 via-retro-bg-card to-retro-bg-card',
     },
   },
+
+  // ── ACCESSORIES ──
   'accessories': {
     columns: [
       {
         titleEn: 'Keyboards & Mice',
-        titleAr: 'الكيبورد والماوس',
+        titleAr: 'لوحات المفاتيح والماوسات',
         items: [
-          { nameEn: 'Gaming Keyboards', nameAr: 'لوحات مفاتيح ألعاب', slug: 'gaming-keyboards' },
-          { nameEn: 'Gaming Mice', nameAr: 'ماوسات ألعاب دقيقة', slug: 'gaming-mice' },
-          { nameEn: 'Mousepads', nameAr: 'أسطح ماوس باد', slug: 'mousepads' },
+          { nameEn: 'Mechanical Keyboards', nameAr: 'لوحات مفاتيح ميكانيكية', category: 'accessories', subCategory: 'gaming-keyboards' },
+          { nameEn: 'Precision Gaming Mice', nameAr: 'ماوسات ألعاب عالية الدقة', category: 'accessories', subCategory: 'gaming-mice' },
+          { nameEn: 'Speed & Control Mousepads', nameAr: 'أسطح ماوس باد احترافية', category: 'accessories', subCategory: 'mousepads' },
         ],
       },
       {
         titleEn: 'Audio & Streaming',
-        titleAr: 'الصوتيات والبث المباشر',
+        titleAr: 'الصوتيات وصناعة المحتوى',
         items: [
-          { nameEn: 'Pro Headsets', nameAr: 'سماعات رأس محيطية', slug: 'headsets' },
-          { nameEn: 'Studio Microphones', nameAr: 'ميكروفونات تسجيل وبث', slug: 'microphones' },
-          { nameEn: 'Webcams & Capture', nameAr: 'كاميرات وبطاقات التقاط', slug: 'webcams' },
-          { nameEn: 'Streaming Gear', nameAr: 'معدات صناع المحتوى', slug: 'streaming' },
-          { nameEn: 'RGB Ambient Lights', nameAr: 'إضاءة ذكية وديكور', slug: 'rgb-lighting' },
+          { nameEn: 'Surround Sound Headsets', nameAr: 'سماعات رأس محيطية', category: 'accessories', subCategory: 'headsets' },
+          { nameEn: 'Broadcast Microphones', nameAr: 'ميكروفونات تسجيل وبث', category: 'accessories', subCategory: 'microphones' },
+          { nameEn: 'Webcams & RGB Ambience', nameAr: 'كاميرات وإضاءة ديكور', category: 'accessories', subCategory: 'webcams' },
         ],
       },
       {
-        titleEn: 'Setup Furniture',
-        titleAr: 'أثاث وتجهيز الغرفة',
+        titleEn: 'Setup Furniture & Arms',
+        titleAr: 'أثاث وتجهيز بيئة اللعب',
         items: [
-          { nameEn: 'Gaming Chairs', nameAr: 'كراسي قيمنق طبية', slug: 'gaming-chairs' },
-          { nameEn: 'Gaming Desks', nameAr: 'طاولات ألعاب كهربائية', slug: 'gaming-desks' },
-          { nameEn: 'Monitor Arms', nameAr: 'حوامل شاشات متحركة', slug: 'monitor-arms' },
-        ],
-      },
-    ],
-  },
-  'laptops': {
-    columns: [
-      {
-        titleEn: 'Notebook Categories',
-        titleAr: 'فئات اللابتوبات',
-        items: [
-          { nameEn: 'Gaming Laptops', nameAr: 'لابتوبات قيمنق قوية', slug: 'gaming-laptops' },
-          { nameEn: 'Business Laptops', nameAr: 'لابتوبات أعمال خفيفة', slug: 'business-laptops' },
-          { nameEn: 'Student Laptops', nameAr: 'لابتوبات دراسة واقتصادية', slug: 'student-laptops' },
-          { nameEn: 'Laptop Accessories', nameAr: 'شواحن وحقائب ومستلزمات', slug: 'accessories' },
+          { nameEn: 'Ergonomic Gaming Chairs', nameAr: 'كراسي ألعاب طبية', category: 'accessories', subCategory: 'gaming-chairs' },
+          { nameEn: 'Electric Standing Desks', nameAr: 'طاولات ألعاب كهربائية', category: 'accessories', subCategory: 'gaming-desks' },
+          { nameEn: 'Heavy Duty Monitor Arms', nameAr: 'حوامل شاشات هيدروليكية', category: 'accessories', subCategory: 'monitor-arms' },
         ],
       },
     ],
@@ -246,70 +319,89 @@ const MEGA_MENU_DATA: Record<string, { columns: MegaColumn[]; promo?: { titleEn:
 
 export function MegaMenu({ activeCategory, locale, dict, onClose }: MegaMenuProps) {
   const isRtl = locale === 'ar';
-  const categoryData = MEGA_MENU_DATA[activeCategory];
+  
+  // Normalise category slug for lookup
+  const lookupKey = activeCategory === 'pc-components' || activeCategory === 'computers' 
+    ? 'pc' 
+    : activeCategory === 'retro-gaming-classics' || activeCategory === 'retro-games'
+    ? 'retro-gaming'
+    : activeCategory;
+
+  const categoryData = MEGA_MENU_DATA[lookupKey] || MEGA_MENU_DATA['gaming'];
 
   if (!categoryData) return null;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 10 }}
-      transition={{ duration: 0.22, ease: 'easeOut' }}
+      exit={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
       className="absolute top-full left-0 right-0 w-full z-50 bg-retro-bg-secondary/95 backdrop-blur-2xl border-b border-retro-border shadow-2xl overflow-hidden"
       onMouseLeave={onClose}
     >
-      {/* Dynamic Glowing border effect */}
+      {/* Glowing border top accent */}
       <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-retro-cyan/40 to-transparent" />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-12 gap-8">
-          {/* ── Subcategories Columns ── */}
+          {/* ── Subcategories & Sections Columns ── */}
           <div
             className={`grid gap-8 ${
-              categoryData.promo ? 'col-span-8 grid-cols-4' : 'col-span-12 grid-cols-4'
+              categoryData.promo ? 'col-span-8 grid-cols-3' : 'col-span-12 grid-cols-3'
             }`}
           >
             {categoryData.columns.map((col, idx) => (
-              <div key={idx} className="space-y-4">
-                <h3 className="text-[12px] font-black uppercase tracking-wider text-retro-text border-b border-retro-border pb-2">
-                  {isRtl ? col.titleAr : col.titleEn}
+              <div key={idx} className="space-y-3.5">
+                <h3 className="text-xs font-black uppercase tracking-wider text-retro-cyan border-b border-retro-border/80 pb-2 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-retro-cyan shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                  <span>{isRtl ? col.titleAr : col.titleEn}</span>
                 </h3>
-                <ul className="space-y-2.5">
-                  {col.items.map((item, itemIdx) => (
-                    <li key={itemIdx}>
-                      <Link
-                        href={`/${locale}/products?category=${activeCategory}&subCategory=${item.slug}`}
-                        onClick={onClose}
-                        className="text-xs text-retro-text-secondary hover:text-retro-cyan hover:translate-x-1.5 transition-all inline-block rtl:hover:-translate-x-1.5"
-                      >
-                        {isRtl ? item.nameAr : item.nameEn}
-                      </Link>
-                    </li>
-                  ))}
+                <ul className="space-y-2">
+                  {col.items.map((item, itemIdx) => {
+                    const queryParams = new URLSearchParams();
+                    if (item.category) queryParams.set('category', item.category);
+                    if (item.subCategory) queryParams.set('subCategory', item.subCategory);
+                    if (item.section) queryParams.set('section', item.section);
+
+                    const targetHref = `/${locale}/products?${queryParams.toString()}`;
+
+                    return (
+                      <li key={itemIdx}>
+                        <Link
+                          href={targetHref}
+                          onClick={onClose}
+                          className="text-xs text-retro-text-secondary hover:text-retro-cyan hover:translate-x-1.5 transition-all inline-flex items-center gap-1.5 rtl:hover:-translate-x-1.5 py-0.5"
+                        >
+                          <span className="text-[10px] text-retro-text-dim">›</span>
+                          <span className="font-medium">{isRtl ? item.nameAr : item.nameEn}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}
           </div>
 
-          {/* ── Optional Promotional Banner (Side Card) ── */}
+          {/* ── Promotional Banner Card ── */}
           {categoryData.promo && (
             <div className="col-span-4 h-full">
               <Link href={`/${locale}${categoryData.promo.href}`} onClick={onClose} className="block h-full group">
                 <div
-                  className={`h-full rounded-2xl border border-retro-border hover:border-retro-cyan/35 p-6 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${categoryData.promo.image}`}
+                  className={`h-full rounded-2xl border border-retro-border hover:border-retro-cyan/40 p-6 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${categoryData.promo.image} shadow-lg hover:shadow-retro-cyan/10`}
                 >
-                  {/* Subtle Background Glow circles */}
+                  {/* Glowing blur orb */}
                   <div className="absolute -top-16 -right-16 w-36 h-36 rounded-full bg-retro-cyan/15 blur-2xl group-hover:scale-125 transition-transform duration-500" />
                   
                   <div>
-                    <span className="inline-block rounded-full bg-retro-cyan/10 border border-retro-cyan/30 text-retro-cyan text-[10px] font-black uppercase px-2.5 py-0.5 mb-4">
-                      {isRtl ? 'عروض متميزة' : 'PROMO'}
+                    <span className="inline-block rounded-full bg-retro-cyan/10 border border-retro-cyan/30 text-retro-cyan text-[10px] font-black uppercase px-2.5 py-0.5 mb-3.5">
+                      {isRtl ? 'RETRO QATAR' : 'OFFICIAL'}
                     </span>
                     <h4 className="text-base font-black text-retro-text leading-tight group-hover:text-retro-cyan transition-colors">
                       {isRtl ? categoryData.promo.titleAr : categoryData.promo.titleEn}
                     </h4>
-                    <p className="text-xs text-retro-text-secondary mt-2.5 max-w-[280px]">
+                    <p className="text-xs text-retro-text-secondary mt-2.5 leading-relaxed">
                       {isRtl ? categoryData.promo.descAr : categoryData.promo.descEn}
                     </p>
                   </div>
