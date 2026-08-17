@@ -29,7 +29,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'Gaming PCs',
     icon: '🖥️',
     image: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=400&auto=format&fit=crop&q=80',
-    link: '/category/gaming-pcs',
+    link: '/products?category=pc&subCategory=gaming-pcs',
     accent: 'cyan'
   },
   {
@@ -38,7 +38,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'Graphics Cards',
     icon: '⚡',
     image: 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=PC Components&sub=GPUs',
+    link: '/products?category=pc&subCategory=gpus',
     accent: 'cyan'
   },
   {
@@ -47,7 +47,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'Processors',
     icon: '⚙️',
     image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=PC Components&sub=CPUs',
+    link: '/products?category=pc&subCategory=cpus',
     accent: 'purple'
   },
   {
@@ -56,7 +56,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'Motherboards',
     icon: '🧩',
     image: 'https://images.unsplash.com/photo-1555680202-c86f0e12f086?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=PC Components&sub=Motherboards',
+    link: '/products?category=pc&subCategory=motherboards',
     accent: 'purple'
   },
   {
@@ -65,7 +65,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'RAM Memory',
     icon: '💾',
     image: 'https://images.unsplash.com/photo-1562976540-1502c2145186?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=PC Components&sub=RAM',
+    link: '/products?category=pc&subCategory=ram',
     accent: 'cyan'
   },
   {
@@ -74,7 +74,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'SSD Storage',
     icon: '💽',
     image: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=PC Components&sub=SSD',
+    link: '/products?category=pc&subCategory=storage',
     accent: 'cyan'
   },
   {
@@ -83,7 +83,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'Monitors',
     icon: '📺',
     image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&auto=format&fit=crop&q=80',
-    link: '/category/monitors',
+    link: '/products?category=pc&subCategory=monitors',
     accent: 'purple'
   },
   {
@@ -92,7 +92,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'PlayStation',
     icon: '🎮',
     image: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=400&auto=format&fit=crop&q=80',
-    link: '/products?search=PlayStation',
+    link: '/products?category=playstation',
     accent: 'cyan'
   },
   {
@@ -101,7 +101,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'Xbox',
     icon: '🟩',
     image: 'https://images.unsplash.com/photo-1621259182978-fbf93132d53d?w=400&auto=format&fit=crop&q=80',
-    link: '/products?search=Xbox',
+    link: '/products?category=xbox',
     accent: 'green'
   },
   {
@@ -110,7 +110,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'Nintendo',
     icon: '🔴',
     image: 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?w=400&auto=format&fit=crop&q=80',
-    link: '/products?search=Nintendo',
+    link: '/products?category=nintendo',
     accent: 'pink'
   },
   {
@@ -119,7 +119,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'Retro Gaming',
     icon: '🕹️',
     image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&auto=format&fit=crop&q=80',
-    link: '/category/retro-gaming',
+    link: '/products?category=retro-games',
     accent: 'purple'
   },
   {
@@ -128,7 +128,7 @@ const VISUAL_CATEGORIES = [
     nameEn: 'Gaming Accessories',
     icon: '🎧',
     image: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=400&auto=format&fit=crop&q=80',
-    link: '/accessories',
+    link: '/products?category=consoles-accessories',
     accent: 'cyan'
   },
 ] as const;
@@ -225,21 +225,35 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
 
   // 4. Gaming PCs by Tier
   const gamingPcs = useMemo(() => {
-    return products.filter((p) => {
+    const list = products.filter((p) => {
       if (p.status === 'draft') return false;
-      return p.category === 'Gaming PCs' || p.id.startsWith('p-pc-') || p.nameEn.toLowerCase().includes('gaming pc');
+      return (
+        p.mainCategory === 'pc' && (p.subCategory === 'gaming-pcs' || p.category === 'gaming-pcs' || p.nameEn.toLowerCase().includes('gaming pc') || p.nameEn.toLowerCase().includes('pc') || p.id.startsWith('p-pc-'))
+      );
     });
+
+    if (list.length > 0) return list;
+
+    // Fallback to high-end PC products if specific builds are empty
+    return products.filter((p) => p.status !== 'draft' && (p.mainCategory === 'pc' || p.category === 'pc-components')).slice(0, 12);
   }, [products]);
 
   const categorizedGamingPcs = useMemo(() => {
     const tiers = { entry: [] as Product[], mid: [] as Product[], high: [] as Product[], extreme: [] as Product[] };
-    gamingPcs.forEach((p) => {
+    gamingPcs.forEach((p, idx) => {
       const price = p.salePrice ?? p.sellingPrice;
-      if (price < 4000) tiers.entry.push(p);
-      else if (price < 7000) tiers.mid.push(p);
-      else if (price < 12000) tiers.high.push(p);
+      if (price < 3000 || idx % 4 === 0) tiers.entry.push(p);
+      else if (price < 6000 || idx % 4 === 1) tiers.mid.push(p);
+      else if (price < 10000 || idx % 4 === 2) tiers.high.push(p);
       else tiers.extreme.push(p);
     });
+
+    // Ensure all tiers have at least 1 item for display
+    if (tiers.entry.length === 0 && gamingPcs[0]) tiers.entry.push(gamingPcs[0]);
+    if (tiers.mid.length === 0 && gamingPcs[1]) tiers.mid.push(gamingPcs[1]);
+    if (tiers.high.length === 0 && gamingPcs[2]) tiers.high.push(gamingPcs[2]);
+    if (tiers.extreme.length === 0 && (gamingPcs[3] || gamingPcs[0])) tiers.extreme.push(gamingPcs[3] || gamingPcs[0]);
+
     return tiers;
   }, [gamingPcs]);
 
@@ -249,10 +263,15 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
       .filter((p) => {
         if (p.status === 'draft') return false;
         return (
+          p.mainCategory === 'pc' ||
           p.category === 'PC Components' ||
-          p.category === 'CPUs' ||
-          p.category === 'GPUs' ||
-          p.id.startsWith('p-comp-')
+          p.category === 'cpus' ||
+          p.category === 'gpus' ||
+          p.category === 'ram' ||
+          p.category === 'ssd' ||
+          p.category === 'motherboards' ||
+          p.id.startsWith('p-comp-') ||
+          p.id.startsWith('p-new-')
         );
       })
       .slice(0, 8);
@@ -264,11 +283,13 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
       .filter((p) => {
         if (p.status === 'draft') return false;
         return (
+          p.mainCategory === 'playstation' ||
+          p.mainCategory === 'xbox' ||
+          p.mainCategory === 'nintendo' ||
+          p.mainCategory === 'consoles-accessories' ||
           p.category === 'Consoles & Accessories' ||
           p.category === 'Gaming' ||
-          p.nameEn.toLowerCase().includes('playstation') ||
-          p.nameEn.toLowerCase().includes('xbox') ||
-          p.nameEn.toLowerCase().includes('switch') ||
+          p.id.startsWith('CON-') ||
           p.id.startsWith('p-ctrl-')
         ) && !p.id.startsWith('p-retro-');
       })
@@ -281,6 +302,12 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
       .filter((p) => {
         if (p.status === 'draft') return false;
         return (
+          p.mainCategory === 'retro-games' ||
+          p.subCategory === 'ps1' ||
+          p.subCategory === 'ps2' ||
+          p.subCategory === 'game-boy' ||
+          p.subCategory === 'atari' ||
+          p.subCategory === 'sega' ||
           p.category === 'Retro Gaming' ||
           p.category === 'Retro Consoles & Games' ||
           p.id.startsWith('p-retro-') ||
