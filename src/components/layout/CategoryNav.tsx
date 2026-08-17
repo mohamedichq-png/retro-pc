@@ -84,7 +84,7 @@ export function CategoryNav({ dict, locale }: CategoryNavProps) {
                   className="relative py-1"
                 >
                   <Link
-                    href={cat.id === 'all' ? `/${locale}/products` : `/${locale}/category/${cat.slugEn}`}
+                    href={`/${locale}${cat.href}`}
                     className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all flex items-center gap-1 ${
                       hoveredCategory === cat.id
                         ? 'text-retro-cyan bg-retro-cyan/5'

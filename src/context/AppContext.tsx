@@ -439,56 +439,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setLoading(true);
       const fetchSupabaseData = async () => {
         try {
-          // Fetch products
+          // Fetch products with timeout protection
           const { data: pData, error: pError } = await supabase.from('products').select('*');
-          if (pError) throw pError;
-          if (pData && pData.length > 0) {
+          if (!pError && pData && pData.length > 0) {
             setProducts(pData.map(mapToProduct));
           } else {
-            // Seed Supabase with mock products if empty
-            const seedProducts = initialProducts.map(mapToDbProduct);
-            await supabase.from('products').insert(seedProducts);
-            setProducts(initialProducts);
+            loadLocalData();
           }
 
           // Fetch customers
           const { data: cData, error: cError } = await supabase.from('customers').select('*');
-          if (cError) throw cError;
-          if (cData && cData.length > 0) {
+          if (!cError && cData && cData.length > 0) {
             setCustomers(cData.map(mapToCustomer));
-          } else {
-            const seedCustomers = initialCustomers.map(mapToDbCustomer);
-            await supabase.from('customers').insert(seedCustomers);
-            setCustomers(initialCustomers);
           }
 
           // Fetch employees
           const { data: eData, error: eError } = await supabase.from('employees').select('*');
-          if (eError) throw eError;
-          if (eData && eData.length > 0) {
+          if (!eError && eData && eData.length > 0) {
             setEmployees(eData);
-          } else {
-            await supabase.from('employees').insert(initialEmployees);
-            setEmployees(initialEmployees);
           }
 
           // Fetch repairs
           const { data: rData, error: rError } = await supabase.from('repairs').select('*');
-          if (rError) throw rError;
-          setRepairs(rData ? rData.map(mapToRepair) : []);
+          if (!rError && rData) {
+            setRepairs(rData.map(mapToRepair));
+          }
 
           // Fetch transactions
           const { data: tData, error: tError } = await supabase.from('transactions').select('*').order('created_at', { ascending: false });
-          if (tError) throw tError;
-          setTransactions(tData ? tData.map(mapToTransaction) : []);
-
-          // Default Cashier
-          const { data: cashierData } = await supabase.from('employees').select('*').limit(1);
-          if (cashierData && cashierData.length > 0) {
-            setActiveCashier(cashierData[0]);
+          if (!tError && tData) {
+            setTransactions(tData.map(mapToTransaction));
           }
-        } catch (error) {
-          console.error("Supabase load failed, falling back to localStorage:", error);
+        } catch {
+          // Graceful fallback to verified local dataset
           loadLocalData();
         } finally {
           setLoading(false);

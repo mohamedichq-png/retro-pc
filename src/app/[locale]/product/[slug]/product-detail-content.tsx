@@ -61,16 +61,17 @@ export function ProductDetailContent({ dict, locale, product, relatedProducts }:
 
   const isRetro = product.productType === 'RETRO PRODUCT' || product.category === 'Retro Gaming' || product.category === 'Retro Gaming Classics' || product.id.startsWith('p-retro-') || product.sku?.startsWith('PLAY-') || product.sku?.startsWith('PSP-') || product.sku?.startsWith('XBOX-') || product.sku?.startsWith('NIN-') || product.sku?.startsWith('RETRO-');
 
-  // WhatsApp Inquiry URL
+  // WhatsApp Inquiry URL with automatic product URL & SKU
   const whatsappInquiryUrl = useMemo(() => {
     const priceText = isPriceOnDemand 
       ? (isRtl ? 'السعر: عند الطلب' : 'Price: On Demand') 
       : `${currentPrice} QAR`;
+    const pageUrl = typeof window !== 'undefined' ? window.location.href : `https://www.retroqatar.com/${locale}/product/${product.slug || product.id}`;
     const message = isRtl
-      ? `مرحباً Retro Qatar، أود الاستفسار عن هذا المنتج:\nالاسم: ${product.nameAr}\nرمز المنتج (SKU): ${product.sku}\n${priceText}`
-      : `Hello RETRO Qatar, I would like to inquire about this product:\nName: ${product.nameEn}\nSKU: ${product.sku}\n${priceText}`;
+      ? `مرحباً Retro Qatar، أود الاستفسار عن هذا المنتج:\nالاسم: ${product.nameAr}\nرمز المنتج (SKU): ${product.sku}\n${priceText}\nالرابط: ${pageUrl}`
+      : `Hello RETRO Qatar, I would like to inquire about this product:\nName: ${product.nameEn}\nSKU: ${product.sku}\n${priceText}\nLink: ${pageUrl}`;
     return `https://wa.me/${BUSINESS_INFO.salesWhatsApp}?text=${encodeURIComponent(message)}`;
-  }, [product.nameAr, product.nameEn, product.sku, currentPrice, isPriceOnDemand, isRtl]);
+  }, [product.nameAr, product.nameEn, product.sku, currentPrice, isPriceOnDemand, isRtl, locale, product.slug, product.id]);
 
   const handleAddToCart = () => {
     if (isOutOfStock || isPriceOnDemand) return;
@@ -122,6 +123,32 @@ export function ProductDetailContent({ dict, locale, product, relatedProducts }:
   ];
 
   const [activeTab, setActiveTab] = useState(tabs[0].id);
+
+  // Spec keys translation dictionary
+  const SPEC_LABEL_MAP: Record<string, { ar: string; en: string }> = {
+    socket: { ar: 'المقبس (Socket)', en: 'Socket' },
+    cores: { ar: 'عدد الأنوية (Cores)', en: 'Cores' },
+    threads: { ar: 'عدد المسارات (Threads)', en: 'Threads' },
+    baseClock: { ar: 'التردد الأساسي', en: 'Base Clock' },
+    boostClock: { ar: 'أقصى تردد (Boost Clock)', en: 'Boost Clock' },
+    tdp: { ar: 'استهلاك الطاقة (TDP)', en: 'TDP' },
+    vram: { ar: 'ذاكرة كرت الشاشة (VRAM)', en: 'VRAM' },
+    capacity: { ar: 'السعة', en: 'Capacity' },
+    speed: { ar: 'التردد / السرعة', en: 'Speed / Frequency' },
+    type: { ar: 'النوع', en: 'Type' },
+    chipset: { ar: 'الشريحة (Chipset)', en: 'Chipset' },
+    formFactor: { ar: 'حجم اللوحة (Form Factor)', en: 'Form Factor' },
+    interface: { ar: 'واجهة التوصيل (Interface)', en: 'Interface' },
+    readSpeed: { ar: 'سرعة القراءة', en: 'Read Speed' },
+    writeSpeed: { ar: 'سرعة الكتابة', en: 'Write Speed' },
+    wattage: { ar: 'القدرة الكهربائية (Wattage)', en: 'Wattage' },
+    refreshRate: { ar: 'معدل التحديث (Hz)', en: 'Refresh Rate' },
+    resolution: { ar: 'الدقة (Resolution)', en: 'Resolution' },
+    panel: { ar: 'نوع الشاشة (Panel)', en: 'Panel Type' },
+    responseTime: { ar: 'زمن الاستجابة', en: 'Response Time' },
+    gpu: { ar: 'المعالج الرسومي (GPU)', en: 'GPU' },
+    cpu: { ar: 'المعالج (CPU)', en: 'CPU' },
+  };
 
   // Specifications table compilation (combining catalog fields & custom specs)
   const allSpecs = useMemo(() => {
@@ -181,17 +208,24 @@ export function ProductDetailContent({ dict, locale, product, relatedProducts }:
         value: isRtl ? (product.packagingAr || product.packaging || '') : (product.packaging || '')
       });
     }
-    if (product.warranty) {
-      list.push({
-        label: isRtl ? 'الضمان' : 'Warranty',
-        value: product.warranty
-      });
-    }
+    
+    // Accurate warranty based on SKU condition
+    const accurateWarranty = product.warranty || (
+      product.condition === 'New' 
+        ? (isRtl ? 'ضمان محلي معتمد سنتين' : '2 Years Local Warranty') 
+        : (isRtl ? 'ضمان تشغيلي معتمد 30 - 90 يوماً' : '30 - 90 Days Certified Operational Warranty')
+    );
+    list.push({
+      label: isRtl ? 'الضمان المحلي' : 'Local Warranty',
+      value: accurateWarranty
+    });
 
     if (product.specs) {
       Object.entries(product.specs).forEach(([k, v]) => {
         if (typeof v === 'string' || typeof v === 'number') {
-          list.push({ label: k, value: String(v) });
+          const mapped = SPEC_LABEL_MAP[k];
+          const label = mapped ? (isRtl ? mapped.ar : mapped.en) : k;
+          list.push({ label, value: String(v) });
         }
       });
     }

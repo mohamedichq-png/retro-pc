@@ -26,23 +26,17 @@ export const CURRENCY_AR = 'ر.ق';
 export const MAX_COMPARE_ITEMS = 4;
 export const LOYALTY_POINTS_PER_QAR = 0.1; // 1 point per 10 QAR
 
-// Navigation Categories
+// Navigation Categories (Cleaned & De-duplicated 9 Pillars)
 export const MAIN_CATEGORIES = [
-  { id: 'all', slugEn: 'all-categories', nameEn: 'All Categories', nameAr: 'جميع الأقسام', icon: 'grid' },
-  { id: 'playstation', slugEn: 'playstation', nameEn: 'PlayStation', nameAr: 'بلايستيشن', icon: 'controller' },
-  { id: 'psp', slugEn: 'psp', nameEn: 'PSP', nameAr: 'بي إس بي', icon: 'gamepad' },
-  { id: 'xbox', slugEn: 'xbox', nameEn: 'Xbox', nameAr: 'إكس بوكس', icon: 'controller' },
-  { id: 'nintendo', slugEn: 'nintendo', nameEn: 'Nintendo', nameAr: 'نينتندو', icon: 'controller' },
-  { id: 'retro-gaming-classics', slugEn: 'retro-gaming-classics', nameEn: 'Retro Gaming Classics', nameAr: 'الألعاب الكلاسيكية والريترو', icon: 'retro' },
-  { id: 'computers', slugEn: 'gaming-pcs', nameEn: 'Computers', nameAr: 'أجهزة الكمبيوتر', icon: 'cpu' },
-  { id: 'pc', slugEn: 'pc-components', nameEn: 'PC Components', nameAr: 'مكونات الحاسوب', icon: 'cpu' },
-  { id: 'gaming', slugEn: 'gaming', nameEn: 'Consoles & Games', nameAr: 'أجهزة وألعاب', icon: 'controller' },
-  { id: 'retro-gaming', slugEn: 'retro-gaming', nameEn: 'Retro Gaming', nameAr: 'Retro Gaming', icon: 'retro' },
-  { id: 'monitors', slugEn: 'monitors', nameEn: 'Monitors', nameAr: 'الشاشات', icon: 'monitor' },
-  { id: 'accessories', slugEn: 'accessories', nameEn: 'Accessories', nameAr: 'الملحقات', icon: 'headset' },
-  { id: 'laptops', slugEn: 'laptops', nameEn: 'Laptops', nameAr: 'اللابتوبات', icon: 'laptop' },
-  { id: 'deals', slugEn: 'deals', nameEn: 'Deals', nameAr: 'العروض', icon: 'tag' },
-  { id: 'repair-hub', slugEn: 'repair', nameEn: 'Repair', nameAr: 'الصيانة', icon: 'wrench' },
+  { id: 'all', slugEn: 'all', nameEn: 'All Categories', nameAr: 'جميع الأقسام', icon: 'grid', href: '/products' },
+  { id: 'computers', slugEn: 'computers', nameEn: 'Computers', nameAr: 'أجهزة الكمبيوتر', icon: 'cpu', href: '/products?category=pc&subCategory=gaming-pcs' },
+  { id: 'pc', slugEn: 'pc-components', nameEn: 'PC Components', nameAr: 'قطع الكمبيوتر', icon: 'cpu', href: '/products?category=pc' },
+  { id: 'gaming', slugEn: 'consoles', nameEn: 'Gaming Consoles', nameAr: 'أجهزة الألعاب', icon: 'controller', href: '/products?category=consoles-accessories' },
+  { id: 'retro-gaming', slugEn: 'retro-gaming', nameEn: 'Retro Gaming', nameAr: 'Retro Gaming', icon: 'retro', href: '/products?category=retro-games' },
+  { id: 'accessories', slugEn: 'accessories', nameEn: 'Accessories', nameAr: 'الملحقات', icon: 'headset', href: '/accessories' },
+  { id: 'repair-hub', slugEn: 'repair', nameEn: 'Repair Hub', nameAr: 'مركز الصيانة', icon: 'wrench', href: '/repair' },
+  { id: 'pc-builder', slugEn: 'pc-builder', nameEn: 'Build Your PC', nameAr: 'ابنِ حاسوبك', icon: 'cpu', href: '/pc-builder' },
+  { id: 'deals', slugEn: 'deals', nameEn: 'Deals', nameAr: 'العروض', icon: 'tag', href: '/products?sale=true' },
 ] as const;
 
 export const CATALOG_5_CATEGORIES = [

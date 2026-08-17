@@ -145,17 +145,17 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
     setActiveDepartment('general');
   }, [setActiveDepartment]);
 
-  // 3 Curated Hero Slides
+  // 3 Curated Hero Slides (Updated sustainable copy without outdated RTX generation hardcoding)
   const heroSlides = useMemo(() => [
     {
       id: 'gaming-pc',
-      tag: isRtl ? 'تجميعات وقطع احترافية' : 'Gaming Rigs & Hardware',
-      title: isRtl ? 'عروض Gaming PC وقطع الكمبيوتر' : 'Gaming PC & Component Deals',
+      tag: isRtl ? 'كل ما تحتاجه للألعاب في قطر' : 'All Your Gaming Needs in Qatar',
+      title: isRtl ? 'Gaming PC وقطع الكمبيوتر الاحترافية' : 'Custom Gaming PCs & Pro Hardware',
       subtitle: isRtl 
-        ? 'أقوى أداء للألعاب مع أحدث كروت RTX 40 ومعالجات الجيل الجديد مع ضمان محلي شامل سنتين.' 
-        : 'Unleash extreme power with the latest RTX 40-series cards and certified parts with 2-year local warranty.',
-      primaryBtnText: isRtl ? 'تسوق العروض' : 'Shop Deals',
-      primaryBtnLink: '/products?sale=true',
+        ? 'أقوى تجميعات الألعاب بأحدث بطاقات الرسوميات والمعالجات، مع تبريد متطور وضمان محلي شامل وتوصيل سريع داخل قطر.' 
+        : 'Extreme gaming performance with the latest GPUs and high-end processors, featuring advanced thermal cooling and local Qatar warranty.',
+      primaryBtnText: isRtl ? 'تسوق الآن' : 'Shop Now',
+      primaryBtnLink: '/products',
       secondaryBtnText: isRtl ? 'ابنِ حاسوبك' : 'Build Your PC',
       secondaryBtnLink: '/pc-builder',
       image: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=700&auto=format&fit=crop&q=85',
@@ -164,28 +164,28 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
     },
     {
       id: 'consoles',
-      tag: isRtl ? 'أحدث المنصات والألعاب' : 'Next-Gen Platforms',
-      title: isRtl ? 'أجهزة وألعاب الكونسول الحديثة' : 'Modern Consoles & Games',
+      tag: isRtl ? 'أحدث المنصات والكونسول' : 'Next-Gen Consoles & Games',
+      title: isRtl ? 'أجهزة PlayStation وXbox وNintendo' : 'PlayStation, Xbox & Nintendo Consoles',
       subtitle: isRtl 
-        ? 'PlayStation 5 Pro، Xbox Series X، وNintendo Switch مع ملحقات احترافية وأحدث الألعاب الحصرية.' 
-        : 'PlayStation 5 Pro, Xbox Series X, and Nintendo Switch with exclusive titles and custom pro controllers.',
+        ? 'منصات أصلية مع تشكيلة واسعة من الألعاب، أذرع التحكم الاحترافية، وإكسسوارات الألعاب مع استلام فوري من مشيرب أو توصيل للمنزل.' 
+        : 'Authentic next-gen consoles with genuine game titles, custom pro controllers, and accessories with Msheireb pickup or home delivery.',
       primaryBtnText: isRtl ? 'تسوق الكونسول' : 'Shop Consoles',
-      primaryBtnLink: '/category/gaming',
+      primaryBtnLink: '/products?category=consoles-accessories',
       secondaryBtnText: isRtl ? 'تصفح الألعاب' : 'Browse Games',
-      secondaryBtnLink: '/products?category=Games',
+      secondaryBtnLink: '/products?category=consoles-accessories&section=games-cds',
       image: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=700&auto=format&fit=crop&q=85',
       badgeGradient: 'from-retro-purple to-pink-600',
       glowColor: 'rgba(168,85,247,0.25)',
     },
     {
       id: 'retro',
-      tag: isRtl ? 'كلاسيكيات أصلية مفحوصة' : 'Tested & Certified Classics',
-      title: isRtl ? 'أجهزة Retro المفحوصة والمضمونة' : 'Guaranteed & Tested Retro Gear',
+      tag: isRtl ? 'كلاسيكيات مفحوصة ومضمونة' : 'Certified Inspected Retro Gear',
+      title: isRtl ? 'أجهزة وألعاب Retro النادرة والمجددة' : 'Rare Inspected & Restored Retro Games',
       subtitle: isRtl 
-        ? 'أجهزة Game Boy و PS1 و Nintendo الكلاسيكية المجددة والمفحوصة بالكامل مع ضمان تشغيلي وملحقات أصلية.' 
-        : 'Authentic vintage consoles, ultrasonic cleaned, recapped, and tested with operating warranty and full cables.',
-      primaryBtnText: isRtl ? 'تسوق أجهزة Retro' : 'Shop Retro Gear',
-      primaryBtnLink: '/category/retro-gaming',
+        ? 'أجهزة Game Boy وPS1 وNintendo وSega مفحوصة ومنظفة بالموجات فوق الصوتية مع ضمان تشغيلي موثق وشهادة فحص جودة.' 
+        : 'Ultrasonically cleaned and recapped vintage consoles with full operational warranty, original box contents, and quality certificate.',
+      primaryBtnText: isRtl ? 'استكشف Retro' : 'Explore Retro',
+      primaryBtnLink: '/products?category=retro-games',
       secondaryBtnText: isRtl ? 'احجز صيانة' : 'Book Repair',
       secondaryBtnLink: '/repair',
       image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=700&auto=format&fit=crop&q=85',
