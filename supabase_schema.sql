@@ -208,3 +208,64 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS accessories TEXT[];
 ALTER TABLE products DROP CONSTRAINT IF EXISTS products_condition_check;
 ALTER TABLE products ADD CONSTRAINT products_condition_check 
 CHECK (condition IN ('NEW', 'USED', 'REFURBISHED', 'OPEN BOX', 'PRE-OWNED', 'New', 'Used', 'Refurbished'));
+
+-- ----------------------------------------------------
+-- 8. OFFICIAL GAMING PC BUILDS SEED DATA
+-- ----------------------------------------------------
+INSERT INTO products (
+    sku, barcode, name_en, name_ar, description_en, description_ar, 
+    category, sub_category, brand, model, condition, product_type,
+    cost_price, selling_price, sale_price, stock_qty, image_url, specs, is_featured, status
+) VALUES 
+(
+    'BUILD-RETRO-CYBER-4060', '62900020001',
+    'RETRO Cyber V1 Gaming PC | Core i5-14400F | RTX 4060 8GB | 16GB DDR5 | 1TB NVMe',
+    'تجميعة ريترو سايبر V1 قيمنق | معالج i5-14400F | كرت RTX 4060 | رام 16GB | تخزين 1TB',
+    'Expertly assembled entry-tier esports gaming PC in Qatar with local 2-year warranty.',
+    'تجميعة ألعاب احترافية فئة الدخول مجمعة ومفحوصة بالكامل بالدوحة مع ضمان محلي معتمد سنتين في مشيرب.',
+    'gaming-pcs', 'gaming-pcs', 'RETRO Custom', 'Cyber V1', 'New', 'PRE-BUILT PC',
+    2950, 3450, 3290, 5, '/media/image53.jpeg',
+    '{"CPU": "Intel Core i5-14400F", "GPU": "RTX 4060 8GB", "RAM": "16GB DDR5", "Storage": "1TB NVMe", "Warranty": "2 Years Qatar"}',
+    TRUE, 'published'
+),
+(
+    'BUILD-RETRO-STORM-4070S', '62900020002',
+    'RETRO Storm V2 Gaming PC | Ryzen 5 7600X | RTX 4070 Super 12GB | 32GB DDR5 | 1TB Gen4 SSD',
+    'تجميعة ريترو ستورم V2 قيمنق | معالج رايزن 7600X | كرت RTX 4070 Super | رام 32GB | تخزين 1TB',
+    'Exceptional 1440p Quad-HD gaming performance and streaming monster.',
+    'تجميعة قيمنق وبثوث قوية مخصصة لألعاب 2K بإطارات مرتفعة مع تبريد مائي وضمان محلي معتمد.',
+    'gaming-pcs', 'gaming-pcs', 'RETRO Custom', 'Storm V2', 'New', 'PRE-BUILT PC',
+    4850, 5690, 5450, 4, '/media/image52.jpeg',
+    '{"CPU": "AMD Ryzen 5 7600X", "GPU": "RTX 4070 Super 12GB", "RAM": "32GB DDR5 6000MHz", "Storage": "1TB Gen4 SSD", "Warranty": "2 Years Qatar"}',
+    TRUE, 'published'
+),
+(
+    'BUILD-RETRO-TITAN-4080S', '62900020003',
+    'RETRO Titan V3 Gaming PC | Ryzen 7 9800X3D | RTX 4080 Super 16GB | 32GB DDR5 | 2TB Gen4',
+    'تجميعة ريترو تايتن V3 الاحترافية | معالج رايزن 9800X3D | كرت RTX 4080 Super | رام 32GB | تخزين 2TB',
+    'High-end flagship gaming beast featuring Ryzen 7 9800X3D and NVIDIA RTX 4080 Super.',
+    'تجميعة احترافية خارقة بأقوى معالج ألعاب في العالم Ryzen 7 9800X3D وكرت الشاشة RTX 4080 Super مع ضمان سنتين.',
+    'gaming-pcs', 'gaming-pcs', 'RETRO Custom', 'Titan V3', 'New', 'PRE-BUILT PC',
+    8400, 9850, 9490, 3, '/media/image51.jpeg',
+    '{"CPU": "AMD Ryzen 7 9800X3D", "GPU": "RTX 4080 Super 16GB", "RAM": "32GB DDR5 6000MHz", "Storage": "2TB 990 PRO", "Warranty": "2 Years Qatar"}',
+    TRUE, 'published'
+),
+(
+    'BUILD-RETRO-APEX-4090', '62900020004',
+    'RETRO Apex Extreme V4 Gaming PC | Core i9-14900KS | RTX 4090 24GB | 64GB DDR5 | 4TB NVMe',
+    'تجميعة ريترو أبيكس الخارقة V4 | معالج i9-14900KS | كرت RTX 4090 24GB | رام 64GB | تخزين 4TB',
+    'The absolute pinnacle of PC performance. RTX 4090 24GB, Core i9-14900KS, 64GB DDR5.',
+    'قمة القوة والأداء لمتطلبات الـ 4K القصوى وصناعة المحتوى. كرت RTX 4090 24GB ومعالج i9-14900KS وضمان VIP.',
+    'gaming-pcs', 'gaming-pcs', 'RETRO Custom', 'Apex Extreme V4', 'New', 'PRE-BUILT PC',
+    14500, 16900, NULL, 2, '/media/image50.jpeg',
+    '{"CPU": "Intel Core i9-14900KS", "GPU": "RTX 4090 24GB", "RAM": "64GB DDR5 6600MHz", "Storage": "4TB NVMe", "Warranty": "3 Years VIP"}',
+    TRUE, 'published'
+)
+ON CONFLICT (sku) DO UPDATE SET
+    name_en = EXCLUDED.name_en,
+    name_ar = EXCLUDED.name_ar,
+    selling_price = EXCLUDED.selling_price,
+    sale_price = EXCLUDED.sale_price,
+    specs = EXCLUDED.specs,
+    image_url = EXCLUDED.image_url,
+    product_type = EXCLUDED.product_type;

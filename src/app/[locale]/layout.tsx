@@ -6,6 +6,7 @@ import { getDictionary, hasLocale } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/dictionaries';
 import '../globals.css';
 import { ClientProviders } from './providers';
+import { JsonLd, getStoreSchema, getWebSiteSchema } from '@/components/seo/JsonLd';
 
 export async function generateStaticParams() {
   return [{ locale: 'en' }, { locale: 'ar' }];
@@ -14,16 +15,15 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const lang = hasLocale(locale) ? (locale as Locale) : 'ar';
-  const dict = await getDictionary(lang);
   const isAr = lang === 'ar';
 
   const title = isAr
-    ? 'ريترو قطر | متجر ألعاب الكمبيوتر، الكونسول، أجهزة Retro والصيانة في قطر'
-    : 'RETRO Qatar | Gaming PCs, Consoles, Authentic Retro & Repair Hub in Qatar';
+    ? 'ريترو قطر | متجر تجميعات Gaming PC، أجهزة Retro والصيانة في الدوحة'
+    : 'RETRO Qatar | Custom Gaming PCs, Retro Consoles & Certified Repair in Doha';
 
   const description = isAr
-    ? 'ريترو قطر — متجر قطري متخصص في تجميعات وقطع Gaming PC، كروت الشاشة والمعالجات، أجهزة PlayStation وXbox وNintendo، وأجهزة وألعاب Retro الكلاسيكية المفحوصة مع صيانة معتمدة وضمان محلي.'
-    : 'RETRO Qatar — Premier Qatari retailer for Custom Gaming PCs, PC hardware, PlayStation, Xbox, Nintendo, and inspected rare retro games with certified repair and local warranty.';
+    ? 'ريترو قطر — المتجر الرائد في قطر لتجميعات بي سي الألعاب الاحترافية، أجهزة وألعاب Retro الكلاسيكية الأصلية النادرة، قطع الهاردوير، وخدمات الصيانة المعتمدة في مشيرب، الدوحة. شحن سريع وضمان محلي.'
+    : 'RETRO Qatar — Premier Qatari retailer for Custom Gaming PCs, PC hardware, authentic rare retro games, and certified console & PC repairs in Msheireb, Doha with local warranty.';
 
   return {
     metadataBase: new URL('https://www.retroqatar.com'),
@@ -35,14 +35,16 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     keywords: [
       'Gaming PC Qatar',
       'تجميعات قيمنق قطر',
+      'تجميعات بي سي الدوحة',
+      'ألعاب ريترو قطر',
       'قطع كمبيوتر الدوحة',
       'Retro Gaming Qatar',
-      'ألعاب ريترو قطر',
-      'PS5 Qatar',
-      'Nintendo Switch Doha',
+      'تصليح سوني وبلايستيشن قطر',
       'تصليح كمبيوتر مشيرب',
-      'Msheireb Gaming Store',
-      'RTX Graphics Cards Qatar',
+      'Msheireb Gaming Store Doha',
+      'RTX 4080 Qatar',
+      'PlayStation 2 Doha',
+      'Nintendo Switch Qatar',
     ],
     alternates: {
       canonical: `/${lang}`,
@@ -73,7 +75,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       card: 'summary_large_image',
       title,
       description,
-      creator: '@retro_qatar',
+      creator: '@retroqa',
       images: ['/media/og-image.jpg'],
     },
     robots: {
@@ -102,16 +104,21 @@ export default async function LocaleLayout({
 
   if (!hasLocale(locale)) notFound();
 
-  const dict = await getDictionary(locale as Locale);
-  const isRtl = locale === 'ar';
+  const currentLocale = locale as Locale;
+  const dict = await getDictionary(currentLocale);
+  const isRtl = currentLocale === 'ar';
 
   return (
     <html
-      lang={locale}
+      lang={currentLocale}
       dir={isRtl ? 'rtl' : 'ltr'}
       suppressHydrationWarning
       className="h-full antialiased"
     >
+      <head>
+        <JsonLd data={getStoreSchema(currentLocale)} />
+        <JsonLd data={getWebSiteSchema(currentLocale)} />
+      </head>
       <body suppressHydrationWarning className="h-full bg-retro-bg text-retro-text relative selection:bg-retro-cyan selection:text-retro-bg">
         {/* Skip to Main Content Accessibility Link */}
         <a
@@ -121,7 +128,7 @@ export default async function LocaleLayout({
           {isRtl ? 'الانتقال إلى المحتوى الرئيسي' : 'Skip to main content'}
         </a>
 
-        <ClientProviders dict={dict} locale={locale as Locale}>
+        <ClientProviders dict={dict} locale={currentLocale}>
           <div id="main-content" tabIndex={-1} className="outline-none min-h-screen flex flex-col justify-between">
             {children}
           </div>

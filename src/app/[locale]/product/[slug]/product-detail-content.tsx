@@ -11,6 +11,7 @@ import { PriceTag } from '@/components/ui/PriceTag';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { QuantitySelector } from '@/components/ui/QuantitySelector';
 import { ProductGrid } from '@/components/product/ProductGrid';
+import { ProductTrustBar } from '@/components/product/ProductTrustBar';
 import { Tabs } from '@/components/ui/Tabs';
 import { useCartStore } from '@/stores/useCartStore';
 import { useWishlistStore } from '@/stores/useWishlistStore';
@@ -511,6 +512,9 @@ export function ProductDetailContent({ dict, locale, product, relatedProducts }:
                 </div>
               )}
             </div>
+
+            {/* Certified Warranty & Free Shipping Trust Bar */}
+            <ProductTrustBar isRtl={isRtl} />
 
             {/* Trust Markers List */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-retro-text-secondary bg-retro-bg-card/50 border border-retro-border rounded-2xl p-4">

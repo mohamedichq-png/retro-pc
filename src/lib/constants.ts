@@ -102,8 +102,13 @@ export const QATAR_ZONES = [
 
 // Social media links
 export const SOCIAL_LINKS = {
-  instagram: 'https://instagram.com/retroqatar',
-  tiktok: 'https://tiktok.com/@retroqatar',
+  instagram: 'https://www.instagram.com/retroqa/',
+  instagramPc: 'https://www.instagram.com/retropccomputers/',
+  instagramRetro: 'https://www.instagram.com/retroqa/',
+  facebook: 'https://www.facebook.com/profile.php?id=61592888429023',
+  facebookRetro: 'https://www.facebook.com/profile.php?id=61592888429023',
+  facebookPc: 'https://www.facebook.com/profile.php?id=61592562826924',
+  tiktok: 'https://www.tiktok.com/@retroqa',
   twitter: 'https://x.com/retroqatar',
   youtube: 'https://youtube.com/@retroqatar',
 } as const;

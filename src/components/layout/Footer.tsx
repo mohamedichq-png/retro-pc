@@ -36,17 +36,22 @@ export function Footer({ dict, locale }: FooterProps) {
                 : 'Retro Qatar is a premier Qatari retailer specializing in custom Gaming PCs, PC hardware, modern gaming consoles, authentic retro games, and certified technical repair services.')}
             </p>
             {/* Social Links */}
-            <div className="flex items-center gap-2.5 pt-2">
-              <SocialIcon href={SOCIAL_LINKS.instagram} label="Instagram">
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <SocialIcon href={SOCIAL_LINKS.instagramRetro} label="Instagram - RETRO Qatar">
                 <path d="M16 8a6 6 0 0 1 6 6v7a6 6 0 0 1-6 6H8a6 6 0 0 1-6-6v-7a6 6 0 0 1 6-6z" fill="none" stroke="currentColor" strokeWidth="1.8" />
                 <circle cx="12" cy="15" r="4" fill="none" stroke="currentColor" strokeWidth="1.8" />
                 <circle cx="17.5" cy="8.5" r="1" fill="currentColor" />
               </SocialIcon>
-              <SocialIcon href={SOCIAL_LINKS.tiktok} label="TikTok">
-                <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <SocialIcon href={SOCIAL_LINKS.instagramPc} label="Instagram - RETRO PC Computers">
+                <path d="M16 8a6 6 0 0 1 6 6v7a6 6 0 0 1-6 6H8a6 6 0 0 1-6-6v-7a6 6 0 0 1 6-6z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                <circle cx="12" cy="15" r="4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                <circle cx="17.5" cy="8.5" r="1" fill="currentColor" />
               </SocialIcon>
-              <SocialIcon href={SOCIAL_LINKS.twitter} label="X / Twitter">
-                <path d="M4 4l11.7 16h4.3m-16 0L15.7 4H20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <SocialIcon href={SOCIAL_LINKS.facebookRetro} label="Facebook - Retro Qatar">
+                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </SocialIcon>
+              <SocialIcon href={SOCIAL_LINKS.tiktok} label="TikTok - @retroqa">
+                <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
               </SocialIcon>
             </div>
           </div>

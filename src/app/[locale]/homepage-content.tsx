@@ -11,7 +11,8 @@ import { ProductCard } from '@/components/product/ProductCard';
 import { useCartStore } from '@/stores/useCartStore';
 import { useWishlistStore } from '@/stores/useWishlistStore';
 import { useUIStore } from '@/stores/useUIStore';
-import { BUSINESS_INFO } from '@/lib/constants';
+import { BUSINESS_INFO, SOCIAL_LINKS } from '@/lib/constants';
+import { CustomerReviews } from '@/components/ui/CustomerReviews';
 import type { Product } from '@/types';
 import type { Dictionary, Locale } from '@/i18n/dictionaries';
 
@@ -223,35 +224,48 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
       .slice(0, 8);
   }, [products]);
 
-  // 4. Gaming PCs by Tier
+  // 4. Gaming PCs by Tier (Strict Filtering: Only Full Builds, Never Single Components)
+  const EXCLUDED_COMPONENTS = useMemo(() => new Set([
+    'psu', 'psus', 'power-supply', 'gpu', 'gpus', 'graphics-card', 'cpu', 'cpus', 'processor',
+    'motherboard', 'motherboards', 'ram', 'rams', 'memory', 'storage', 'ssd', 'ssds', 'hdd',
+    'pc-case', 'case', 'cases', 'cooling', 'cpu-cooling', 'aio-cooling', 'fans'
+  ]), []);
+
   const gamingPcs = useMemo(() => {
-    const list = products.filter((p) => {
+    return products.filter((p) => {
       if (p.status === 'draft') return false;
-      return (
-        p.mainCategory === 'pc' && (p.subCategory === 'gaming-pcs' || p.category === 'gaming-pcs' || p.nameEn.toLowerCase().includes('gaming pc') || p.nameEn.toLowerCase().includes('pc') || p.id.startsWith('p-pc-'))
-      );
+      
+      const subCat = (p.subCategory || '').toLowerCase();
+      const cat = (p.category || '').toLowerCase();
+      
+      // Explicitly reject if category or subCategory is a known single component
+      if (EXCLUDED_COMPONENTS.has(subCat) || EXCLUDED_COMPONENTS.has(cat)) {
+        return false;
+      }
+
+      // Check if product is explicitly a full build
+      const isPrebuiltType = p.productType === 'PRE-BUILT PC' || p.productType === 'CUSTOM PC';
+      const isGamingPcCategory = subCat === 'gaming-pcs' || cat === 'gaming-pcs';
+      const isCustomBuildSku = (p.sku || '').startsWith('BUILD-') || (p.id || '').startsWith('p-build-');
+
+      return isPrebuiltType || isGamingPcCategory || isCustomBuildSku;
     });
-
-    if (list.length > 0) return list;
-
-    // Fallback to high-end PC products if specific builds are empty
-    return products.filter((p) => p.status !== 'draft' && (p.mainCategory === 'pc' || p.category === 'pc-components')).slice(0, 12);
-  }, [products]);
+  }, [products, EXCLUDED_COMPONENTS]);
 
   const categorizedGamingPcs = useMemo(() => {
     const tiers = { entry: [] as Product[], mid: [] as Product[], high: [] as Product[], extreme: [] as Product[] };
-    gamingPcs.forEach((p, idx) => {
+    gamingPcs.forEach((p) => {
       const price = p.salePrice ?? p.sellingPrice;
-      if (price < 3000 || idx % 4 === 0) tiers.entry.push(p);
-      else if (price < 6000 || idx % 4 === 1) tiers.mid.push(p);
-      else if (price < 10000 || idx % 4 === 2) tiers.high.push(p);
+      if (price < 4000) tiers.entry.push(p);
+      else if (price < 7000) tiers.mid.push(p);
+      else if (price < 12000) tiers.high.push(p);
       else tiers.extreme.push(p);
     });
 
-    // Ensure all tiers have at least 1 item for display
+    // Ensure all tiers have at least 1 item for display if gamingPcs are available
     if (tiers.entry.length === 0 && gamingPcs[0]) tiers.entry.push(gamingPcs[0]);
-    if (tiers.mid.length === 0 && gamingPcs[1]) tiers.mid.push(gamingPcs[1]);
-    if (tiers.high.length === 0 && gamingPcs[2]) tiers.high.push(gamingPcs[2]);
+    if (tiers.mid.length === 0 && (gamingPcs[1] || gamingPcs[0])) tiers.mid.push(gamingPcs[1] || gamingPcs[0]);
+    if (tiers.high.length === 0 && (gamingPcs[2] || gamingPcs[0])) tiers.high.push(gamingPcs[2] || gamingPcs[0]);
     if (tiers.extreme.length === 0 && (gamingPcs[3] || gamingPcs[0])) tiers.extreme.push(gamingPcs[3] || gamingPcs[0]);
 
     return tiers;
@@ -1098,6 +1112,11 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
       </section>
 
       {/* ═══════════════════════════════════════
+          13.5 VERIFIED CUSTOMER REVIEWS (QATAR SOCIAL PROOF)
+         ═══════════════════════════════════════ */}
+      <CustomerReviews isRtl={isRtl} />
+
+      {/* ═══════════════════════════════════════
           14. NEWSLETTER & SOCIAL FEED
          ═══════════════════════════════════════ */}
       <section className="px-4 py-16 sm:px-6 lg:px-8 border-t border-retro-border bg-retro-bg-secondary/30">
@@ -1136,32 +1155,56 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
 
           {/* Social Showcase */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-retro-border pb-3">
+            <div className="flex flex-wrap items-center justify-between border-b border-retro-border pb-3 gap-2">
               <h3 className="text-xs sm:text-sm font-bold text-retro-text">
-                {isRtl ? 'تابعنا على إنستغرام @retroqatar' : 'Follow Us @retroqatar'}
+                {isRtl ? 'تابع حساباتنا الرسمية على إنستغرام' : 'Follow Our Official Instagram'}
               </h3>
-              <span className="text-[10px] text-retro-cyan font-bold uppercase">Instagram Feed</span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={SOCIAL_LINKS.instagramRetro}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-pink-400 hover:text-pink-300 font-bold bg-pink-500/10 border border-pink-500/20 px-2 py-0.5 rounded-lg transition-colors"
+                >
+                  @retroqa
+                </a>
+                <a
+                  href={SOCIAL_LINKS.instagramPc}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-lg transition-colors"
+                >
+                  @retropccomputers
+                </a>
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
               {[
-                'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=300&auto=format&fit=crop&q=60',
-                'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=300&auto=format&fit=crop&q=60',
-                'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=300&auto=format&fit=crop&q=60',
-                'https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=300&auto=format&fit=crop&q=60',
-                'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=300&auto=format&fit=crop&q=60',
-                'https://images.unsplash.com/photo-1518770660439-4636190af475?w=300&auto=format&fit=crop&q=60'
-              ].map((url, i) => (
-                <div key={i} className="group relative aspect-square rounded-xl overflow-hidden bg-retro-bg-input border border-retro-border">
+                { url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=300&auto=format&fit=crop&q=60', link: SOCIAL_LINKS.instagramPc },
+                { url: 'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?w=300&auto=format&fit=crop&q=60', link: SOCIAL_LINKS.instagramRetro },
+                { url: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=300&auto=format&fit=crop&q=60', link: SOCIAL_LINKS.instagramPc },
+                { url: 'https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=300&auto=format&fit=crop&q=60', link: SOCIAL_LINKS.instagramRetro },
+                { url: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=300&auto=format&fit=crop&q=60', link: SOCIAL_LINKS.instagramPc },
+                { url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=300&auto=format&fit=crop&q=60', link: SOCIAL_LINKS.instagramRetro }
+              ].map((item, i) => (
+                <a
+                  key={i}
+                  href={item.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative aspect-square rounded-xl overflow-hidden bg-retro-bg-input border border-retro-border block"
+                >
                   <img 
-                    src={url} 
+                    src={item.url} 
                     alt="Social feed" 
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                   />
-                  <div className="absolute inset-0 bg-retro-bg/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <span className="text-white text-base">❤️</span>
+                  <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 text-white text-xs font-bold">
+                    <span>❤️</span>
+                    <span className="text-[10px]">Follow</span>
                   </div>
-                </div>
+                </a>
               ))}
             </div>
           </div>

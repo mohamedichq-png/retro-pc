@@ -1,11 +1,9 @@
-// RETRO Qatar — Structured Data (JSON-LD SEO & Rich Results)
-// Compliant with Schema.org specifications for LocalBusiness, Store, Product, Offer, BreadcrumbList, and WebSite
-
 import React from 'react';
 import { BUSINESS_INFO } from '@/lib/constants';
+import type { Product } from '@/types';
 
 interface JsonLdProps {
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }
 
 export function JsonLd({ data }: JsonLdProps) {
@@ -58,9 +56,11 @@ export function getStoreSchema(locale: 'en' | 'ar') {
       },
     ],
     'sameAs': [
-      'https://www.instagram.com/retro_qatar',
-      'https://twitter.com/retro_qatar',
-      'https://tiktok.com/@retro_qatar',
+      'https://www.instagram.com/retropccomputers/',
+      'https://www.instagram.com/retroqa/',
+      'https://www.facebook.com/profile.php?id=61592888429023',
+      'https://www.facebook.com/profile.php?id=61592562826924',
+      'https://www.tiktok.com/@retroqa',
     ],
     'hasMap': BUSINESS_INFO.googleMapsUrl,
     'paymentAccepted': 'Cash, Credit Card, Debit Card, Apple Pay, QPay, Cash on Delivery',
@@ -88,7 +88,7 @@ export function getWebSiteSchema(locale: 'en' | 'ar') {
 }
 
 // Generates Schema.org JSON for a product detail page
-export function getProductSchema(product: any, locale: 'en' | 'ar') {
+export function getProductSchema(product: Product, locale: 'en' | 'ar') {
   const name = locale === 'ar' ? product.nameAr : product.nameEn;
   const description = locale === 'ar' ? product.descriptionAr : product.descriptionEn;
   const price = product.salePrice ?? product.sellingPrice;
