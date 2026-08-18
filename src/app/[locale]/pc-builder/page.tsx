@@ -11,6 +11,8 @@ export const metadata = {
   description: 'Build your dream gaming PC step-by-step. Our intelligent compatibility engine ensures all your selected parts work perfectly together.',
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function PCBuilderPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
 
