@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Product } from '../data/mockData';
 import { CloseIcon, UploadIcon, SparklesIcon, CheckIcon, PlusIcon } from './Icons';
+import { uploadImageToSupabase } from '@/lib/supabase';
 
 interface QuickAddProductModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
   const [condition, setCondition] = useState<'NEW' | 'USED' | 'REFURBISHED' | 'OPEN BOX' | 'PRE-OWNED'>('NEW');
   const [status, setStatus] = useState<'published' | 'draft'>('published');
   const [imageUrl, setImageUrl] = useState(SAMPLE_IMAGES[0].url);
+  const [isUploading, setIsUploading] = useState(false);
   const [descriptionAr, setDescriptionAr] = useState('');
   const [descriptionEn, setDescriptionEn] = useState('');
   const [productType, setProductType] = useState<'PHYSICAL PRODUCT' | 'DIGITAL PRODUCT' | 'SERVICE' | 'CUSTOM PC' | 'PRE-BUILT PC' | 'USED / PRE-OWNED' | 'RETRO PRODUCT'>('PHYSICAL PRODUCT');
@@ -40,9 +42,25 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
 
   if (!isOpen) return null;
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const publicUrl = await uploadImageToSupabase(file, 'products');
+      if (publicUrl) {
+        setImageUrl(publicUrl);
+      } else {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            setImageUrl(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch {
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === 'string') {
@@ -50,6 +68,8 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
         }
       };
       reader.readAsDataURL(file);
+    } finally {
+      setIsUploading(false);
     }
   };
 

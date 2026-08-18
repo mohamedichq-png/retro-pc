@@ -4,8 +4,7 @@ import { getDictionary, hasLocale } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/dictionaries';
 import { notFound } from 'next/navigation';
 import { PCBuilderContent } from './builder-content';
-import { initialProducts } from '@/data/mockData';
-import type { Product } from '@/types';
+import { getStoreProducts } from '@/lib/productsData';
 
 export const metadata = {
   title: 'Custom PC Builder | RETRO Qatar',
@@ -18,9 +17,7 @@ export default async function PCBuilderPage({ params }: { params: Promise<{ loca
   if (!hasLocale(locale)) notFound();
 
   const dict = await getDictionary(locale as Locale);
-  
-  // Later we'll fetch only PC components from Supabase
-  const products = initialProducts as unknown as Product[];
+  const products = await getStoreProducts();
 
   return <PCBuilderContent products={products} dict={dict} locale={locale as Locale} />;
 }

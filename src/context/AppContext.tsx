@@ -76,6 +76,7 @@ interface AppContextType {
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   deleteProduct: (productId: string) => void;
   updateProductStock: (productId: string, qty: number) => void;
+  importProducts: (newProducts: Product[]) => void;
   addCustomer: (customer: Customer) => void;
   updateCustomerPoints: (customerId: string, points: number) => void;
 }
@@ -943,6 +944,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const importProducts = (newProducts: Product[]) => {
+    if (!Array.isArray(newProducts) || newProducts.length === 0) return;
+    setProducts(newProducts);
+    saveState('retro_products', newProducts);
+    localStorage.setItem('retro_products_version', 'v2026-08-18-imported-custom');
+    showToast(language === 'ar' ? `تم استيراد ${newProducts.length} منتج بنجاح!` : `Imported ${newProducts.length} products!`, 'success');
+  };
+
   const addCustomer = (customer: Customer) => {
     setCustomers(prev => {
       const updated = [...prev, customer];
@@ -992,6 +1001,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateProduct,
       deleteProduct,
       updateProductStock,
+      importProducts,
       addCustomer,
       updateCustomerPoints
     }}>

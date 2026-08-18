@@ -6,8 +6,7 @@ import type { Locale } from '@/i18n/dictionaries';
 import { notFound } from 'next/navigation';
 import { HomepageContent } from './homepage-content';
 import { JsonLd, getStoreSchema } from '@/components/seo/JsonLd';
-import { initialProducts } from '@/data/mockData';
-import type { Product } from '@/types';
+import { getStoreProducts } from '@/lib/productsData';
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -16,7 +15,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
   const dict = await getDictionary(locale as Locale);
   const storeSchema = getStoreSchema(locale as Locale);
-  const products = initialProducts as unknown as Product[];
+  const products = await getStoreProducts();
 
   return (
     <>
@@ -25,3 +24,4 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     </>
   );
 }
+

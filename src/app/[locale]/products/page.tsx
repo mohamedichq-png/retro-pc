@@ -3,8 +3,7 @@ import { getDictionary, hasLocale } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/dictionaries';
 import { notFound } from 'next/navigation';
 import { ProductsContent } from './products-content';
-import { initialProducts } from '@/data/mockData';
-import type { Product } from '@/types';
+import { getStoreProducts } from '@/lib/productsData';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -50,7 +49,7 @@ export default async function ProductsPage({ params }: { params: Promise<{ local
   if (!hasLocale(locale)) notFound();
 
   const dict = await getDictionary(locale as Locale);
-  const products = initialProducts as unknown as Product[];
+  const products = await getStoreProducts();
 
   return (
     <Suspense fallback={<div className="min-h-screen bg-retro-bg flex items-center justify-center text-retro-cyan font-bold">Loading products...</div>}>

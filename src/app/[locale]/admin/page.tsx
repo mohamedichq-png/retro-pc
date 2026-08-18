@@ -20,6 +20,8 @@ import QuickAddProductModal from '@/components/QuickAddProductModal';
 import { useOffersStore } from '@/stores/useOffersStore';
 import { classifyAllProducts, classifyProduct } from '@/lib/classificationEngine';
 import { FULL_TAXONOMY_TREE } from '@/lib/taxonomy';
+import { uploadImageToSupabase, supabase } from '@/lib/supabase';
+import { mapProductToDb } from '@/lib/productsData';
 
 const SAMPLE_IMAGES = [
   { label: 'Gaming PC Tower', url: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=600&auto=format&fit=crop&q=80' },
@@ -38,6 +40,8 @@ export default function AdminDashboard() {
     updateProduct, 
     deleteProduct, 
     addProduct, 
+    importProducts,
+    showToast,
     loading,
     t 
   } = useApp();
@@ -46,6 +50,11 @@ export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState('');
+
+  // Cloud Sync & Image Uploading States
+  const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
 
   // Dashboard Filters States
   const [activeTab, setActiveTab] = useState<'published' | 'draft' | 'banners' | 'taxonomy'>('published');
@@ -306,9 +315,26 @@ export default function AdminDashboard() {
     setEditModalTab('general');
   };
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    setIsUploadingEditImage(true);
+    try {
+      const publicUrl = await uploadImageToSupabase(file, 'products');
+      if (publicUrl) {
+        setEditImageUrl(publicUrl);
+        if (showToast) showToast(isRtl ? 'تم رفع الصورة للسحابة بنجاح!' : 'Image uploaded to cloud!', 'success');
+      } else {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            setEditImageUrl(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch {
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === 'string') {
@@ -316,6 +342,98 @@ export default function AdminDashboard() {
         }
       };
       reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingEditImage(false);
+    }
+  };
+
+  const handleExportJSON = () => {
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(products, null, 2)
+    )}`;
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', jsonString);
+    downloadAnchor.setAttribute('download', `retro_catalog_export_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    if (showToast) {
+      showToast(isRtl ? 'تم تصدير ملف البيانات بنجاح!' : 'Catalog exported successfully!', 'success');
+    }
+  };
+
+  const handleCopyJSON = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(products, null, 2));
+      if (showToast) {
+        showToast(isRtl ? 'تم نسخ جميع بيانات المنتجات إلى الحافظة!' : 'All products copied to clipboard!', 'success');
+      } else {
+        alert(isRtl ? 'تم نسخ البيانات!' : 'Data copied!');
+      }
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+    }
+  };
+
+  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          importProducts(parsed);
+        } else {
+          alert(isRtl ? 'صيغة الملف غير صحيحة. يجب أن يحتوي على مصفوفة منتجات.' : 'Invalid file format. Must contain an array of products.');
+        }
+      } catch {
+        alert(isRtl ? 'حدث خطأ أثناء قراءة الملف.' : 'Error reading JSON file.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleSyncAllToSupabase = async () => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder-domain')) {
+      alert(isRtl ? 'مفاتيح Supabase غير مفعلة في البيئة!' : 'Supabase is not configured in this environment!');
+      return;
+    }
+
+    setIsSyncingCloud(true);
+    setSyncMessage(isRtl ? 'جاري المزامنة مع السحابة...' : 'Syncing with cloud...');
+
+    try {
+      const dbProducts = products.map(mapProductToDb);
+      const chunkSize = 40;
+      let syncedCount = 0;
+
+      for (let i = 0; i < dbProducts.length; i += chunkSize) {
+        const chunk = dbProducts.slice(i, i + chunkSize);
+        const { error } = await supabase.from('products').upsert(chunk, { onConflict: 'id' });
+        if (error) {
+          console.error('Supabase bulk upsert chunk error:', error);
+          throw error;
+        }
+        syncedCount += chunk.length;
+        setSyncMessage(isRtl ? `تمت مزامنة ${syncedCount} من ${dbProducts.length}...` : `Synced ${syncedCount}/${dbProducts.length}...`);
+      }
+
+      if (showToast) {
+        showToast(isRtl ? `تمت مزامنة جميع المنتجات (${products.length}) مع السحابة بنجاح!` : `Successfully synced all ${products.length} products to cloud!`, 'success');
+      } else {
+        alert(isRtl ? 'تمت المزامنة بنجاح!' : 'Cloud sync successful!');
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Cloud sync failed:', err);
+      alert(isRtl ? `فشلت المزامنة: ${errorMsg}` : `Sync failed: ${errorMsg}`);
+    } finally {
+      setIsSyncingCloud(false);
+      setSyncMessage('');
     }
   };
 
@@ -333,7 +451,7 @@ export default function AdminDashboard() {
       salePrice: editSalePrice ? Number(editSalePrice) : undefined,
       stockQty: Number(editStockQty),
       lowStockThreshold: editLowStockThreshold,
-      condition: editCondition as any,
+      condition: editCondition as Product['condition'],
       imageUrl: editImageUrl,
       descriptionAr: editDescriptionAr,
       descriptionEn: editDescriptionEn,
@@ -458,18 +576,69 @@ export default function AdminDashboard() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {/* Export JSON Button */}
+            <button
+              onClick={handleExportJSON}
+              title={isRtl ? "تنزيل ملف البيانات كاملاً كـ JSON" : "Download complete catalog JSON"}
+              className="flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-950/40 px-3.5 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-sm"
+            >
+              <span>📥</span>
+              <span>{isRtl ? "تصدير JSON" : "Export JSON"}</span>
+            </button>
+
+            {/* Copy JSON Button */}
+            <button
+              onClick={handleCopyJSON}
+              title={isRtl ? "نسخ بيانات جميع المنتجات إلى الحافظة" : "Copy JSON to clipboard"}
+              className="flex items-center gap-1.5 rounded-xl border border-purple-500/40 bg-purple-950/40 px-3.5 py-2 text-xs font-bold text-purple-300 hover:bg-purple-500/20 transition-all cursor-pointer shadow-sm"
+            >
+              <span>📋</span>
+              <span>{isRtl ? "نسخ البيانات" : "Copy Data"}</span>
+            </button>
+
+            {/* Import JSON File Button */}
+            <label
+              title={isRtl ? "استيراد ملف JSON وتحديث بيانات المتجر" : "Import JSON to update store catalog"}
+              className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white hover:border-slate-600 transition-all cursor-pointer shadow-sm"
+            >
+              <span>📤</span>
+              <span>{isRtl ? "استيراد JSON" : "Import JSON"}</span>
+              <input 
+                type="file" 
+                accept=".json,application/json" 
+                onChange={handleImportJSON} 
+                className="hidden" 
+              />
+            </label>
+
+            {/* Sync All to Supabase Cloud Button */}
+            <button
+              onClick={handleSyncAllToSupabase}
+              disabled={isSyncingCloud}
+              title={isRtl ? "مزامنة جميع المنتجات محلياً مع قاعدة بيانات Supabase السحابية" : "Sync all local products to Supabase cloud"}
+              className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-bold transition-all cursor-pointer shadow-sm ${
+                isSyncingCloud 
+                  ? 'border-cyan-500/40 bg-cyan-950/60 text-cyan-300 animate-pulse cursor-not-allowed'
+                  : 'border-cyan-500/40 bg-cyan-950/40 text-cyan-400 hover:bg-cyan-500/20'
+              }`}
+            >
+              <span>⚡</span>
+              <span>{isSyncingCloud ? syncMessage || (isRtl ? "جاري المزامنة..." : "Syncing...") : (isRtl ? "مزامنة السحابة" : "Sync to Cloud")}</span>
+            </button>
+
             {/* Logout button */}
             <button
               onClick={handleLogout}
-              className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer"
+              className="rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-400 hover:text-white transition-all cursor-pointer"
             >
-              {isRtl ? "خروج" : "Lock Session"}
+              {isRtl ? "خروج" : "Lock"}
             </button>
 
+            {/* Add Product Button */}
             <button
               onClick={() => setQuickAddOpen(true)}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-cyan-500/20 hover:scale-[1.02] transition-all cursor-pointer"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-cyan-500/20 hover:scale-[1.02] transition-all cursor-pointer"
             >
               <PlusIcon size={16} />
               <span>{isRtl ? "إضافة منتج" : "Add Product"}</span>
