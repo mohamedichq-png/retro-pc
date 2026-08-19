@@ -15,6 +15,7 @@ import {
   Transaction 
 } from '../data/mockData';
 import { supabase } from '../lib/supabase';
+import { useOffersStore } from '../stores/useOffersStore';
 
 export interface CartItem {
   product: Product;
@@ -476,6 +477,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           loadLocalData();
         } finally {
           setLoading(false);
+          // Initialize Visual Categories and Banners from Supabase
+          useOffersStore.getState().initializeFromCloud();
         }
       };
 

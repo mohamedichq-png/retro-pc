@@ -3,6 +3,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { supabase } from '../lib/supabase';
 
 export interface OfferSlide {
   key: string;
@@ -45,6 +46,9 @@ interface OffersState {
   // Visual Categories Admin State
   visualCategories: VisualCategory[];
   updateVisualCategory: (id: string, updates: Partial<VisualCategory>) => void;
+
+  // Cloud Sync
+  initializeFromCloud: () => Promise<void>;
 }
 
 const DEFAULT_SLIDES: OfferSlide[] = [
@@ -108,14 +112,29 @@ const DEFAULT_SLIDES: OfferSlide[] = [
 
 export const useOffersStore = create<OffersState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       slides: DEFAULT_SLIDES,
-      addSlide: (slide) => set((s) => ({ slides: [slide, ...s.slides] })),
-      removeSlide: (key) => set((s) => ({ slides: s.slides.filter((x) => x.key !== key) })),
-      updateSlide: (key, updates) =>
-        set((s) => ({
-          slides: s.slides.map((x) => (x.key === key ? { ...x, ...updates } : x)),
-        })),
+      addSlide: (slide) => {
+        set((s) => {
+          const newSlides = [slide, ...s.slides];
+          supabase.from('store_settings').upsert({ id: 'offer_slides', data: newSlides }).then();
+          return { slides: newSlides };
+        });
+      },
+      removeSlide: (key) => {
+        set((s) => {
+          const newSlides = s.slides.filter((x) => x.key !== key);
+          supabase.from('store_settings').upsert({ id: 'offer_slides', data: newSlides }).then();
+          return { slides: newSlides };
+        });
+      },
+      updateSlide: (key, updates) => {
+        set((s) => {
+          const newSlides = s.slides.map((x) => (x.key === key ? { ...x, ...updates } : x));
+          supabase.from('store_settings').upsert({ id: 'offer_slides', data: newSlides }).then();
+          return { slides: newSlides };
+        });
+      },
         
       // Weekly Offer state
       weeklyOffersActive: true,
@@ -144,10 +163,34 @@ export const useOffersStore = create<OffersState>()(
         { id: 'retro-gaming', nameAr: 'Retro Gaming', nameEn: 'Retro Gaming', icon: '🕹️', image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&auto=format&fit=crop&q=80', link: '/products?category=retro-games', accent: 'purple' },
         { id: 'accessories', nameAr: 'ملحقات Gaming', nameEn: 'Gaming Accessories', icon: '🎧', image: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=400&auto=format&fit=crop&q=80', link: '/products?category=consoles-accessories', accent: 'cyan' },
       ],
-      updateVisualCategory: (id, updates) =>
-        set((s) => ({
-          visualCategories: s.visualCategories.map((x) => (x.id === id ? { ...x, ...updates } : x)),
-        })),
+      updateVisualCategory: (id, updates) => {
+        set((s) => {
+          const newCats = s.visualCategories.map((x) => (x.id === id ? { ...x, ...updates } : x));
+          supabase.from('store_settings').upsert({ id: 'visual_categories', data: newCats }).then();
+          return { visualCategories: newCats };
+        });
+      },
+      initializeFromCloud: async () => {
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder-domain')) {
+          return;
+        }
+        try {
+          const { data, error } = await supabase.from('store_settings').select('*');
+          if (!error && data) {
+            const vc = data.find((row) => row.id === 'visual_categories');
+            const os = data.find((row) => row.id === 'offer_slides');
+            
+            if (vc && vc.data) {
+              set({ visualCategories: vc.data });
+            }
+            if (os && os.data) {
+              set({ slides: os.data });
+            }
+          }
+        } catch (err) {
+          console.error("Failed to fetch store settings from cloud:", err);
+        }
+      },
     }),
     {
       name: 'retro-offers',

@@ -1116,17 +1116,31 @@ export default function AdminDashboard() {
                           const file = e.target.files?.[0];
                           if (!file) return;
                           
-                          showToast(isRtl ? 'جاري رفع الصورة...' : 'Uploading image...', 'info');
+                          if (showToast) showToast(isRtl ? 'جاري رفع الصورة...' : 'Uploading image...', 'info');
                           try {
                             const publicUrl = await uploadImageToSupabase(file, 'offers');
                             if (publicUrl) {
                               updateVisualCategory(cat.id, { image: publicUrl });
-                              showToast(isRtl ? 'تم تحديث الصورة بنجاح' : 'Image updated successfully', 'success');
+                              if (showToast) showToast(isRtl ? 'تم تحديث الصورة بنجاح' : 'Image updated successfully', 'success');
                             } else {
-                              showToast(isRtl ? 'فشل رفع الصورة' : 'Image upload failed', 'error');
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                if (typeof reader.result === 'string') {
+                                  updateVisualCategory(cat.id, { image: reader.result });
+                                  if (showToast) showToast(isRtl ? 'تم تحديث الصورة بنجاح محلياً' : 'Image updated successfully (local)', 'success');
+                                }
+                              };
+                              reader.readAsDataURL(file);
                             }
                           } catch (error) {
-                            showToast(isRtl ? 'فشل رفع الصورة' : 'Image upload failed', 'error');
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              if (typeof reader.result === 'string') {
+                                updateVisualCategory(cat.id, { image: reader.result });
+                                if (showToast) showToast(isRtl ? 'تم تحديث الصورة بنجاح محلياً' : 'Image updated successfully (local)', 'success');
+                              }
+                            };
+                            reader.readAsDataURL(file);
                           }
                         }} 
                       />
