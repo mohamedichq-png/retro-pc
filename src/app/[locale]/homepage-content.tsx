@@ -22,117 +22,7 @@ interface HomepageContentProps {
   locale: Locale;
 }
 
-// 12 Visual Categories (with dark glassmorphism & cyan/purple accents, NO orange bubbles)
-const VISUAL_CATEGORIES = [
-  {
-    id: 'gaming-pcs',
-    nameAr: 'تجميعات Gaming PC',
-    nameEn: 'Gaming PCs',
-    icon: '🖥️',
-    image: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=pc&subCategory=gaming-pcs',
-    accent: 'cyan'
-  },
-  {
-    id: 'gpus',
-    nameAr: 'كروت الشاشة',
-    nameEn: 'Graphics Cards',
-    icon: '⚡',
-    image: 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=pc&subCategory=gpus',
-    accent: 'cyan'
-  },
-  {
-    id: 'cpus',
-    nameAr: 'المعالجات',
-    nameEn: 'Processors',
-    icon: '⚙️',
-    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=pc&subCategory=cpus',
-    accent: 'purple'
-  },
-  {
-    id: 'motherboards',
-    nameAr: 'اللوحات الرئيسية',
-    nameEn: 'Motherboards',
-    icon: '🧩',
-    image: 'https://images.unsplash.com/photo-1555680202-c86f0e12f086?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=pc&subCategory=motherboards',
-    accent: 'purple'
-  },
-  {
-    id: 'ram',
-    nameAr: 'الذاكرة RAM',
-    nameEn: 'RAM Memory',
-    icon: '💾',
-    image: 'https://images.unsplash.com/photo-1562976540-1502c2145186?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=pc&subCategory=ram',
-    accent: 'cyan'
-  },
-  {
-    id: 'ssd',
-    nameAr: 'وحدات التخزين SSD',
-    nameEn: 'SSD Storage',
-    icon: '💽',
-    image: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=pc&subCategory=storage',
-    accent: 'cyan'
-  },
-  {
-    id: 'monitors',
-    nameAr: 'الشاشات',
-    nameEn: 'Monitors',
-    icon: '📺',
-    image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=pc&subCategory=monitors',
-    accent: 'purple'
-  },
-  {
-    id: 'playstation',
-    nameAr: 'PlayStation',
-    nameEn: 'PlayStation',
-    icon: '🎮',
-    image: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=playstation',
-    accent: 'cyan'
-  },
-  {
-    id: 'xbox',
-    nameAr: 'Xbox',
-    nameEn: 'Xbox',
-    icon: '🟩',
-    image: 'https://images.unsplash.com/photo-1621259182978-fbf93132d53d?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=xbox',
-    accent: 'green'
-  },
-  {
-    id: 'nintendo',
-    nameAr: 'Nintendo',
-    nameEn: 'Nintendo',
-    icon: '🔴',
-    image: 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=nintendo',
-    accent: 'pink'
-  },
-  {
-    id: 'retro-gaming',
-    nameAr: 'Retro Gaming',
-    nameEn: 'Retro Gaming',
-    icon: '🕹️',
-    image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=retro-games',
-    accent: 'purple'
-  },
-  {
-    id: 'accessories',
-    nameAr: 'ملحقات Gaming',
-    nameEn: 'Gaming Accessories',
-    icon: '🎧',
-    image: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=400&auto=format&fit=crop&q=80',
-    link: '/products?category=consoles-accessories',
-    accent: 'cyan'
-  },
-] as const;
+import { useOffersStore } from '@/stores/useOffersStore';
 
 export function HomepageContent({ products, dict, locale }: HomepageContentProps) {
   const isRtl = locale === 'ar';
@@ -140,6 +30,7 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
   const [activePcTab, setActivePcTab] = useState<'entry' | 'mid' | 'high' | 'extreme'>('mid');
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const { showToast, setActiveDepartment } = useUIStore();
+  const visualCategories = useOffersStore((s) => s.visualCategories);
 
   // Reset logo branding to general storefront on mount
   useEffect(() => {
@@ -638,7 +529,7 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
 
           {/* Categories Container: Smooth Horizontal Swipe on mobile, Grid on desktop */}
           <div className="flex lg:grid lg:grid-cols-6 gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 scrollbar-none snap-x snap-mandatory">
-            {VISUAL_CATEGORIES.map((cat) => {
+            {visualCategories.map((cat) => {
               const name = isRtl ? cat.nameAr : cat.nameEn;
               return (
                 <Link

@@ -19,6 +19,16 @@ export interface OfferSlide {
   glowColor: 'cyan' | 'purple' | 'pink';
 }
 
+export interface VisualCategory {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  icon: string;
+  image: string;
+  link: string;
+  accent: 'cyan' | 'purple' | 'green' | 'pink';
+}
+
 interface OffersState {
   slides: OfferSlide[];
   addSlide: (slide: OfferSlide) => void;
@@ -31,6 +41,10 @@ interface OffersState {
   weeklyOfferPromoPrice: number;
   weeklyOfferEndDate: string;
   setWeeklyOfferData: (data: { active: boolean; productId: string; promoPrice: number; endDate: string }) => void;
+
+  // Visual Categories Admin State
+  visualCategories: VisualCategory[];
+  updateVisualCategory: (id: string, updates: Partial<VisualCategory>) => void;
 }
 
 const DEFAULT_SLIDES: OfferSlide[] = [
@@ -114,6 +128,26 @@ export const useOffersStore = create<OffersState>()(
         weeklyOfferPromoPrice: data.promoPrice,
         weeklyOfferEndDate: data.endDate,
       }),
+
+      // Visual Categories Initial Data
+      visualCategories: [
+        { id: 'gaming-pcs', nameAr: 'تجميعات Gaming PC', nameEn: 'Gaming PCs', icon: '🖥️', image: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=400&auto=format&fit=crop&q=80', link: '/products?category=pc&subCategory=gaming-pcs', accent: 'cyan' },
+        { id: 'gpus', nameAr: 'كروت الشاشة', nameEn: 'Graphics Cards', icon: '⚡', image: 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=400&auto=format&fit=crop&q=80', link: '/products?category=pc&subCategory=gpus', accent: 'cyan' },
+        { id: 'cpus', nameAr: 'المعالجات', nameEn: 'Processors', icon: '⚙️', image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&auto=format&fit=crop&q=80', link: '/products?category=pc&subCategory=cpus', accent: 'purple' },
+        { id: 'motherboards', nameAr: 'اللوحات الرئيسية', nameEn: 'Motherboards', icon: '🧩', image: 'https://images.unsplash.com/photo-1555680202-c86f0e12f086?w=400&auto=format&fit=crop&q=80', link: '/products?category=pc&subCategory=motherboards', accent: 'purple' },
+        { id: 'ram', nameAr: 'الذاكرة RAM', nameEn: 'RAM Memory', icon: '💾', image: 'https://images.unsplash.com/photo-1562976540-1502c2145186?w=400&auto=format&fit=crop&q=80', link: '/products?category=pc&subCategory=ram', accent: 'cyan' },
+        { id: 'ssd', nameAr: 'وحدات التخزين SSD', nameEn: 'SSD Storage', icon: '💽', image: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&auto=format&fit=crop&q=80', link: '/products?category=pc&subCategory=storage', accent: 'cyan' },
+        { id: 'monitors', nameAr: 'الشاشات', nameEn: 'Monitors', icon: '📺', image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400&auto=format&fit=crop&q=80', link: '/products?category=pc&subCategory=monitors', accent: 'purple' },
+        { id: 'playstation', nameAr: 'PlayStation', nameEn: 'PlayStation', icon: '🎮', image: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=400&auto=format&fit=crop&q=80', link: '/products?category=playstation', accent: 'cyan' },
+        { id: 'xbox', nameAr: 'Xbox', nameEn: 'Xbox', icon: '🟩', image: 'https://images.unsplash.com/photo-1621259182978-fbf93132d53d?w=400&auto=format&fit=crop&q=80', link: '/products?category=xbox', accent: 'green' },
+        { id: 'nintendo', nameAr: 'Nintendo', nameEn: 'Nintendo', icon: '🔴', image: 'https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?w=400&auto=format&fit=crop&q=80', link: '/products?category=nintendo', accent: 'pink' },
+        { id: 'retro-gaming', nameAr: 'Retro Gaming', nameEn: 'Retro Gaming', icon: '🕹️', image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&auto=format&fit=crop&q=80', link: '/products?category=retro-games', accent: 'purple' },
+        { id: 'accessories', nameAr: 'ملحقات Gaming', nameEn: 'Gaming Accessories', icon: '🎧', image: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=400&auto=format&fit=crop&q=80', link: '/products?category=consoles-accessories', accent: 'cyan' },
+      ],
+      updateVisualCategory: (id, updates) =>
+        set((s) => ({
+          visualCategories: s.visualCategories.map((x) => (x.id === id ? { ...x, ...updates } : x)),
+        })),
     }),
     {
       name: 'retro-offers',

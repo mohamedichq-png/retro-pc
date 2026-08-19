@@ -57,7 +57,7 @@ export default function AdminDashboard() {
   const [syncMessage, setSyncMessage] = useState('');
 
   // Dashboard Filters States
-  const [activeTab, setActiveTab] = useState<'published' | 'draft' | 'banners' | 'taxonomy'>('published');
+  const [activeTab, setActiveTab] = useState<'published' | 'draft' | 'banners' | 'taxonomy' | 'visual-categories'>('published');
   const [searchQuery, setSearchQuery] = useState('');
   const [taxonomyFilter, setTaxonomyFilter] = useState<'all' | 'needs-review' | 'pos' | 'pc' | 'playstation' | 'nintendo' | 'xbox' | 'retro' | 'pc-parts'>('all');
 
@@ -83,7 +83,9 @@ export default function AdminDashboard() {
     weeklyOfferProductId, 
     weeklyOfferPromoPrice, 
     weeklyOfferEndDate,
-    setWeeklyOfferData 
+    setWeeklyOfferData,
+    visualCategories,
+    updateVisualCategory
   } = useOffersStore();
 
   // Local form states for Weekly Offer
@@ -703,6 +705,18 @@ export default function AdminDashboard() {
             </button>
 
             <button
+              onClick={() => setActiveTab('visual-categories')}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'visual-categories'
+                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/10'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>🖼️</span>
+              <span>{isRtl ? "تسوق حسب القسم" : "Visual Categories"}</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('taxonomy')}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'taxonomy'
@@ -1078,6 +1092,50 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
+          </div>
+        ) : activeTab === 'visual-categories' ? (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
+                {isRtl ? "إدارة صور الأقسام (تسوق حسب الطلب)" : "Visual Categories Management"}
+              </h3>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {visualCategories.map((cat) => (
+                <div key={cat.id} className="relative rounded-2xl border border-slate-800 bg-slate-900/40 p-4 space-y-3 flex flex-col items-center">
+                  <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-800 border border-slate-700 group">
+                    <img src={cat.image} alt={isRtl ? cat.nameAr : cat.nameEn} className="w-full h-full object-cover" />
+                    <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity">
+                      <UploadIcon size={24} className="text-cyan-400 mb-2" />
+                      <span className="text-[10px] font-bold text-white text-center px-2">{isRtl ? "تغيير الصورة" : "Change Image"}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          
+                          showToast(isRtl ? 'جاري رفع الصورة...' : 'Uploading image...', 'info');
+                          try {
+                            const publicUrl = await uploadImageToSupabase(file, 'offers');
+                            if (publicUrl) {
+                              updateVisualCategory(cat.id, { image: publicUrl });
+                              showToast(isRtl ? 'تم تحديث الصورة بنجاح' : 'Image updated successfully', 'success');
+                            } else {
+                              showToast(isRtl ? 'فشل رفع الصورة' : 'Image upload failed', 'error');
+                            }
+                          } catch (error) {
+                            showToast(isRtl ? 'فشل رفع الصورة' : 'Image upload failed', 'error');
+                          }
+                        }} 
+                      />
+                    </label>
+                  </div>
+                  <span className="text-xs font-bold text-slate-300 text-center">{isRtl ? cat.nameAr : cat.nameEn}</span>
+                </div>
+              ))}
+            </div>
           </div>
         ) : activeTab === 'banners' ? (
           <div className="space-y-8 animate-in fade-in duration-300">
