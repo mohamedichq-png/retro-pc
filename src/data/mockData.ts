@@ -2,8 +2,9 @@
 // High-fidelity structures matching the PostgreSQL schemas
 
 import { catalog57Products } from './catalogProducts';
+import { inventory200Products } from './inventory200Products';
 import type { Product, ProductVariation } from '@/types';
-export { catalog57Products };
+export { catalog57Products, inventory200Products };
 export type { Product, ProductVariation };
 
 export interface RepairTicket {
@@ -83,6 +84,7 @@ export interface Transaction {
 // 1. Initial Products List
 export const initialProducts: Product[] = [
   ...catalog57Products,
+  ...inventory200Products,
   {
     id: 'p-new-1',
     sku: 'RAM-COR-101',

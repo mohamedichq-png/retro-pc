@@ -45,8 +45,11 @@ export function SearchOverlay({ dict, locale }: SearchOverlayProps) {
         p.nameEn.toLowerCase().includes(q) || 
         p.nameAr.includes(q) || 
         p.brand?.toLowerCase().includes(q) ||
-        p.sku.toLowerCase().includes(q)
-      ).slice(0, 5); // top 5 results for autocomplete
+        p.sku.toLowerCase().includes(q) ||
+        p.barcode?.toLowerCase().includes(q) ||
+        p.platform?.toLowerCase().includes(q) ||
+        p.category?.toLowerCase().includes(q)
+      ).slice(0, 8); // top 8 results for autocomplete
       setResults(filtered);
     } else {
       setResults([]);
