@@ -210,16 +210,6 @@ export function ProductDetailContent({ dict, locale, product, relatedProducts }:
       });
     }
     
-    // Accurate warranty based on SKU condition
-    const accurateWarranty = product.warranty || (
-      product.condition === 'New' 
-        ? (isRtl ? 'ضمان محلي معتمد سنتين' : '2 Years Local Warranty') 
-        : (isRtl ? 'ضمان تشغيلي معتمد 30 - 90 يوماً' : '30 - 90 Days Certified Operational Warranty')
-    );
-    list.push({
-      label: isRtl ? 'الضمان المحلي' : 'Local Warranty',
-      value: accurateWarranty
-    });
 
     if (product.specs) {
       Object.entries(product.specs).forEach(([k, v]) => {

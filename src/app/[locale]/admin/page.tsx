@@ -206,14 +206,11 @@ export default function AdminDashboard() {
   
   // UI Tabs inside Editor Modal
   const [editModalTab, setEditModalTab] = useState<'general' | 'category' | 'pricing' | 'specs'>('general');
-  const [suggestedPrimaryCategory, setSuggestedPrimaryCategory] = useState('');
 
   // Smart suggestions on product name change
-  useEffect(() => {
-    if (!editNameEn && !editNameAr) {
-      setSuggestedPrimaryCategory('');
-      return;
-    }
+  const suggestedPrimaryCategory = useMemo(() => {
+    if (!editNameEn && !editNameAr) return '';
+    
     const textScan = (editNameEn + ' ' + editNameAr).toLowerCase();
     if (
       textScan.includes('rtx') || textScan.includes('geforce') || textScan.includes('radeon') ||
@@ -222,29 +219,33 @@ export default function AdminDashboard() {
       textScan.includes('motherboard') || textScan.includes('psu') || textScan.includes('cooler') ||
       textScan.includes('chassis')
     ) {
-      setSuggestedPrimaryCategory('PC');
-    } else if (
+      return 'PC';
+    }
+    if (
       textScan.includes('ps1') || textScan.includes('ps2') || textScan.includes('ps3') ||
       textScan.includes('playstation') || textScan.includes('game boy') || textScan.includes('sega') ||
       textScan.includes('atari') || textScan.includes('gamecube') || textScan.includes('n64') ||
       textScan.includes('nes') || textScan.includes('snes') || textScan.includes('dreamcast')
     ) {
-      setSuggestedPrimaryCategory('Retro Gaming');
-    } else if (textScan.includes('monitor') || textScan.includes('screen')) {
-      setSuggestedPrimaryCategory('Monitors');
-    } else if (textScan.includes('laptop') || textScan.includes('notebook')) {
-      setSuggestedPrimaryCategory('Laptops');
-    } else if (textScan.includes('repair') || textScan.includes('service') || textScan.includes('fix')) {
-      setSuggestedPrimaryCategory('Repair Hub');
-    } else {
-      setSuggestedPrimaryCategory('');
+      return 'Retro Gaming';
     }
+    if (textScan.includes('monitor') || textScan.includes('screen')) {
+      return 'Monitors';
+    }
+    if (textScan.includes('laptop') || textScan.includes('notebook')) {
+      return 'Laptops';
+    }
+    if (textScan.includes('repair') || textScan.includes('service') || textScan.includes('fix')) {
+      return 'Repair Hub';
+    }
+    return '';
   }, [editNameEn, editNameAr]);
 
   // Verify authentication on component mount
   useEffect(() => {
     const token = sessionStorage.getItem('retro_admin_auth');
     if (token === 'authenticated') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsAuthenticated(true);
     }
   }, []);
