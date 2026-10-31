@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect */
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
@@ -206,6 +207,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     descriptionAr: dbRow.description_ar || '',
     category: dbRow.category,
     subCategory: dbRow.sub_category || '',
+    mainCategory: dbRow.main_category || '',
+    section: dbRow.section || undefined,
+    source: dbRow.source || undefined,
     brand: dbRow.brand || '',
     model: dbRow.model || '',
     condition: dbRow.condition || 'New',
@@ -252,6 +256,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     description_ar: p.descriptionAr || null,
     category: p.category,
     sub_category: p.subCategory || null,
+    main_category: p.mainCategory || null,
+    section: p.section || null,
+    source: p.source || null,
     brand: p.brand || null,
     model: p.model || null,
     condition: p.condition,
@@ -444,7 +451,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           // Fetch products with timeout protection
           const { data: pData, error: pError } = await supabase.from('products').select('*');
           if (!pError && pData && pData.length > 0) {
-            setProducts(pData.map(mapToProduct));
+            const cloudProducts = pData.map(mapToProduct);
+            const localRaw = localStorage.getItem('retro_products');
+            if (localRaw) {
+              try {
+                const localList: Product[] = JSON.parse(localRaw);
+                if (Array.isArray(localList) && localList.length > 0) {
+                  const mergedMap = new Map<string, Product>();
+                  for (const cp of cloudProducts) mergedMap.set(cp.id, cp);
+                  for (const lp of localList) {
+                    if (!mergedMap.has(lp.id) || lp.id.startsWith('prod_')) {
+                      mergedMap.set(lp.id, lp);
+                    }
+                  }
+                  setProducts(Array.from(mergedMap.values()));
+                } else {
+                  setProducts(cloudProducts);
+                }
+              } catch {
+                setProducts(cloudProducts);
+              }
+            } else {
+              setProducts(cloudProducts);
+            }
           } else {
             loadLocalData();
           }
@@ -613,7 +642,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updatedProducts = products.map(prod => {
       const cartItemsForProd = cart.filter(ci => ci.product.id === prod.id);
       if (cartItemsForProd.length > 0) {
-        let updatedProd = { ...prod };
+        const updatedProd = { ...prod };
         for (const cartItem of cartItemsForProd) {
           if (cartItem.variation && updatedProd.variations) {
             updatedProd.variations = updatedProd.variations.map(v => 

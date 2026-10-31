@@ -1,6 +1,23 @@
 // RETRO store visual navigation; read-only, no database mutations.
-export type RetroDevice = { id: string; name: string; image: string; tokens: string[] };
-export type RetroBrand = { id: string; name: string; color: string; devices: RetroDevice[] };
+export type RetroKindId = 'consoles' | 'games' | 'accessories';
+export type RetroDevice = {
+  id: string;
+  name: string;
+  nameAr?: string;
+  image: string;
+  tokens: string[];
+  hidden?: boolean;
+  kindImages?: Partial<Record<RetroKindId, string>>;
+};
+export type RetroBrand = {
+  id: string;
+  name: string;
+  nameAr?: string;
+  color: string;
+  logo?: string;
+  hidden?: boolean;
+  devices: RetroDevice[];
+};
 const img = (name: string) => !name ? '' : name.startsWith('/') ? name : `/media/consoles/${encodeURIComponent(name)}`;
 const d = (id: string, name: string, filename: string, tokens: string[]): RetroDevice => ({ id, name, image: img(filename), tokens });
 export const RETRO_BRANDS: RetroBrand[] = [

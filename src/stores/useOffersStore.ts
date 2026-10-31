@@ -1,9 +1,10 @@
 // RETRO Qatar — Offers & Banners Store (Zustand)
-// Manages dynamic homepage hero slides and promotions in local storage
+// Manages dynamic homepage hero slides, visual categories, and Retro sections in local storage + Supabase
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
+import { RETRO_BRANDS, type RetroBrand, type RetroDevice, type RetroKindId } from '../lib/retro-navigation';
 
 export interface OfferSlide {
   key: string;
@@ -28,6 +29,7 @@ export interface VisualCategory {
   image: string;
   link: string;
   accent: 'cyan' | 'purple' | 'green' | 'pink';
+  hidden?: boolean;
 }
 
 export const DEFAULT_RETRO_BRAND_LOGOS: Record<string, string> = {
@@ -60,6 +62,25 @@ interface OffersState {
   // Visual Categories Admin State
   visualCategories: VisualCategory[];
   updateVisualCategory: (id: string, updates: Partial<VisualCategory>) => void;
+  addVisualCategory: (cat: VisualCategory) => void;
+  deleteVisualCategory: (id: string) => void;
+  toggleHideVisualCategory: (id: string) => void;
+  reorderVisualCategory: (id: string, direction: 'up' | 'down') => void;
+
+  // Dynamic Retro Brands & Devices Hierarchy
+  retroBrands: RetroBrand[];
+  retroCatalogUpdatedAt: number;
+  addRetroBrand: (brand: RetroBrand) => void;
+  updateRetroBrand: (brandId: string, updates: Partial<Omit<RetroBrand, 'id' | 'devices'>>) => void;
+  deleteRetroBrand: (brandId: string) => void;
+  toggleHideRetroBrand: (brandId: string) => void;
+  reorderRetroBrand: (brandId: string, direction: 'up' | 'down') => void;
+
+  addRetroDevice: (brandId: string, device: RetroDevice) => void;
+  updateRetroDevice: (brandId: string, deviceId: string, updates: Partial<Omit<RetroDevice, 'id'>>) => void;
+  deleteRetroDevice: (brandId: string, deviceId: string) => void;
+  toggleHideRetroDevice: (brandId: string, deviceId: string) => void;
+  reorderRetroDevice: (brandId: string, deviceId: string, direction: 'up' | 'down') => void;
 
   // Retro Brand & Section Logos State
   retroBrandLogos: Record<string, string>;
@@ -70,6 +91,11 @@ interface OffersState {
   retroDeviceImages: Record<string, string>;
   updateRetroDeviceImage: (brandId: string, deviceId: string, image: string) => void;
   resetRetroDeviceImage: (brandId: string, deviceId: string) => void;
+
+  // Retro Product-Type (Consoles / Games / Accessories) Custom Images per Console Model
+  retroKindImages: Record<string, string>;
+  updateRetroKindImage: (brandId: string, deviceId: string, kindId: RetroKindId, image: string) => void;
+  resetRetroKindImage: (brandId: string, deviceId: string, kindId: RetroKindId) => void;
 
   // Cloud Sync
   initializeFromCloud: () => Promise<void>;
@@ -134,9 +160,16 @@ const DEFAULT_SLIDES: OfferSlide[] = [
   }
 ];
 
+const syncRetroCatalogToCloud = (brands: RetroBrand[], updatedAt: number) => {
+  supabase
+    .from('store_settings')
+    .upsert({ id: 'retro_catalog', data: { brands, updatedAt }, updated_at: new Date().toISOString() })
+    .then();
+};
+
 export const useOffersStore = create<OffersState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       slides: DEFAULT_SLIDES,
       addSlide: (slide) => {
         set((s) => {
@@ -162,9 +195,9 @@ export const useOffersStore = create<OffersState>()(
         
       // Weekly Offer state
       weeklyOffersActive: true,
-      weeklyOfferProductId: 'p-new-5', // Default matching RTX 4070 Ti from mockData
+      weeklyOfferProductId: 'p-new-5',
       weeklyOfferPromoPrice: 2850,
-      weeklyOfferEndDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+      weeklyOfferEndDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       setWeeklyOfferData: (data) => set({
         weeklyOffersActive: data.active,
         weeklyOfferProductId: data.productId,
@@ -194,22 +227,243 @@ export const useOffersStore = create<OffersState>()(
           return { visualCategories: newCats };
         });
       },
+      addVisualCategory: (cat) => {
+        set((s) => {
+          const exists = s.visualCategories.some((x) => x.id === cat.id);
+          const newCats = exists
+            ? s.visualCategories.map((x) => (x.id === cat.id ? cat : x))
+            : [...s.visualCategories, cat];
+          supabase.from('store_settings').upsert({ id: 'visual_categories', data: newCats }).then();
+          return { visualCategories: newCats };
+        });
+      },
+      deleteVisualCategory: (id) => {
+        set((s) => {
+          const newCats = s.visualCategories.filter((x) => x.id !== id);
+          supabase.from('store_settings').upsert({ id: 'visual_categories', data: newCats }).then();
+          return { visualCategories: newCats };
+        });
+      },
+      toggleHideVisualCategory: (id) => {
+        set((s) => {
+          const newCats = s.visualCategories.map((x) => (x.id === id ? { ...x, hidden: !x.hidden } : x));
+          supabase.from('store_settings').upsert({ id: 'visual_categories', data: newCats }).then();
+          return { visualCategories: newCats };
+        });
+      },
+      reorderVisualCategory: (id, direction) => {
+        set((s) => {
+          const idx = s.visualCategories.findIndex((x) => x.id === id);
+          if (idx === -1) return s;
+          const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+          if (targetIdx < 0 || targetIdx >= s.visualCategories.length) return s;
+          const newCats = [...s.visualCategories];
+          const [moved] = newCats.splice(idx, 1);
+          newCats.splice(targetIdx, 0, moved);
+          supabase.from('store_settings').upsert({ id: 'visual_categories', data: newCats }).then();
+          return { visualCategories: newCats };
+        });
+      },
+
+      // Dynamic Retro Brands & Console Models Hierarchy
+      retroBrands: RETRO_BRANDS,
+      retroCatalogUpdatedAt: 0,
+
+      addRetroBrand: (brand) => {
+        set((s) => {
+          const now = Date.now();
+          const exists = s.retroBrands.some((b) => b.id === brand.id);
+          const nextBrands = exists
+            ? s.retroBrands.map((b) => (b.id === brand.id ? { ...b, ...brand } : b))
+            : [...s.retroBrands, brand];
+          const nextLogos = brand.logo ? { ...s.retroBrandLogos, [brand.id]: brand.logo } : s.retroBrandLogos;
+          syncRetroCatalogToCloud(nextBrands, now);
+          if (brand.logo) {
+            supabase.from('store_settings').upsert({ id: 'retro_brand_logos', data: nextLogos }).then();
+          }
+          return { retroBrands: nextBrands, retroBrandLogos: nextLogos, retroCatalogUpdatedAt: now };
+        });
+      },
+
+      updateRetroBrand: (brandId, updates) => {
+        set((s) => {
+          const now = Date.now();
+          const nextBrands = s.retroBrands.map((b) => (b.id === brandId ? { ...b, ...updates } : b));
+          const nextLogos = updates.logo !== undefined
+            ? { ...s.retroBrandLogos, [brandId]: updates.logo }
+            : s.retroBrandLogos;
+          syncRetroCatalogToCloud(nextBrands, now);
+          if (updates.logo !== undefined) {
+            supabase.from('store_settings').upsert({ id: 'retro_brand_logos', data: nextLogos }).then();
+          }
+          return { retroBrands: nextBrands, retroBrandLogos: nextLogos, retroCatalogUpdatedAt: now };
+        });
+      },
+
+      deleteRetroBrand: (brandId) => {
+        set((s) => {
+          const now = Date.now();
+          const nextBrands = s.retroBrands.filter((b) => b.id !== brandId);
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroBrands: nextBrands, retroCatalogUpdatedAt: now };
+        });
+      },
+
+      toggleHideRetroBrand: (brandId) => {
+        set((s) => {
+          const now = Date.now();
+          const nextBrands = s.retroBrands.map((b) =>
+            b.id === brandId ? { ...b, hidden: !b.hidden } : b
+          );
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroBrands: nextBrands, retroCatalogUpdatedAt: now };
+        });
+      },
+
+      reorderRetroBrand: (brandId, direction) => {
+        set((s) => {
+          const idx = s.retroBrands.findIndex((b) => b.id === brandId);
+          if (idx === -1) return s;
+          const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+          if (targetIdx < 0 || targetIdx >= s.retroBrands.length) return s;
+          const now = Date.now();
+          const nextBrands = [...s.retroBrands];
+          const [moved] = nextBrands.splice(idx, 1);
+          nextBrands.splice(targetIdx, 0, moved);
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroBrands: nextBrands, retroCatalogUpdatedAt: now };
+        });
+      },
+
+      addRetroDevice: (brandId, device) => {
+        set((s) => {
+          const now = Date.now();
+          const nextBrands = s.retroBrands.map((b) => {
+            if (b.id !== brandId) return b;
+            const exists = b.devices.some((d) => d.id === device.id);
+            const nextDevices = exists
+              ? b.devices.map((d) => (d.id === device.id ? { ...d, ...device } : d))
+              : [...b.devices, device];
+            return { ...b, devices: nextDevices };
+          });
+          const key = `${brandId}:${device.id}`;
+          const nextDeviceImages = device.image
+            ? { ...s.retroDeviceImages, [key]: device.image }
+            : s.retroDeviceImages;
+          syncRetroCatalogToCloud(nextBrands, now);
+          if (device.image) {
+            supabase.from('store_settings').upsert({ id: 'retro_device_images', data: nextDeviceImages }).then();
+          }
+          return {
+            retroBrands: nextBrands,
+            retroDeviceImages: nextDeviceImages,
+            retroCatalogUpdatedAt: now,
+          };
+        });
+      },
+
+      updateRetroDevice: (brandId, deviceId, updates) => {
+        set((s) => {
+          const now = Date.now();
+          const nextBrands = s.retroBrands.map((b) => {
+            if (b.id !== brandId) return b;
+            return {
+              ...b,
+              devices: b.devices.map((d) => (d.id === deviceId ? { ...d, ...updates } : d)),
+            };
+          });
+          const key = `${brandId}:${deviceId}`;
+          const nextDeviceImages =
+            updates.image !== undefined
+              ? { ...s.retroDeviceImages, [key]: updates.image }
+              : s.retroDeviceImages;
+          syncRetroCatalogToCloud(nextBrands, now);
+          if (updates.image !== undefined) {
+            supabase.from('store_settings').upsert({ id: 'retro_device_images', data: nextDeviceImages }).then();
+          }
+          return {
+            retroBrands: nextBrands,
+            retroDeviceImages: nextDeviceImages,
+            retroCatalogUpdatedAt: now,
+          };
+        });
+      },
+
+      deleteRetroDevice: (brandId, deviceId) => {
+        set((s) => {
+          const now = Date.now();
+          const nextBrands = s.retroBrands.map((b) => {
+            if (b.id !== brandId) return b;
+            return { ...b, devices: b.devices.filter((d) => d.id !== deviceId) };
+          });
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroBrands: nextBrands, retroCatalogUpdatedAt: now };
+        });
+      },
+
+      toggleHideRetroDevice: (brandId, deviceId) => {
+        set((s) => {
+          const now = Date.now();
+          const nextBrands = s.retroBrands.map((b) => {
+            if (b.id !== brandId) return b;
+            return {
+              ...b,
+              devices: b.devices.map((d) => (d.id === deviceId ? { ...d, hidden: !d.hidden } : d)),
+            };
+          });
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroBrands: nextBrands, retroCatalogUpdatedAt: now };
+        });
+      },
+
+      reorderRetroDevice: (brandId, deviceId, direction) => {
+        set((s) => {
+          const brand = s.retroBrands.find((b) => b.id === brandId);
+          if (!brand) return s;
+          const idx = brand.devices.findIndex((d) => d.id === deviceId);
+          if (idx === -1) return s;
+          const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+          if (targetIdx < 0 || targetIdx >= brand.devices.length) return s;
+          const now = Date.now();
+          const nextDevices = [...brand.devices];
+          const [moved] = nextDevices.splice(idx, 1);
+          nextDevices.splice(targetIdx, 0, moved);
+          const nextBrands = s.retroBrands.map((b) =>
+            b.id === brandId ? { ...b, devices: nextDevices } : b
+          );
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroBrands: nextBrands, retroCatalogUpdatedAt: now };
+        });
+      },
 
       // Retro Brand Section Logos
       retroBrandLogos: {},
       updateRetroBrandLogo: (brandId, image) => {
         set((s) => {
+          const now = Date.now();
           const updated = { ...s.retroBrandLogos, [brandId]: image };
+          const nextBrands = s.retroBrands.map((b) =>
+            b.id === brandId ? { ...b, logo: image } : b
+          );
           supabase.from('store_settings').upsert({ id: 'retro_brand_logos', data: updated }).then();
-          return { retroBrandLogos: updated };
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroBrandLogos: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
         });
       },
       resetRetroBrandLogo: (brandId) => {
         set((s) => {
+          const now = Date.now();
           const updated = { ...s.retroBrandLogos };
           delete updated[brandId];
+          const nextBrands = s.retroBrands.map((b) => {
+            if (b.id !== brandId) return b;
+            const copy = { ...b };
+            delete copy.logo;
+            return copy;
+          });
           supabase.from('store_settings').upsert({ id: 'retro_brand_logos', data: updated }).then();
-          return { retroBrandLogos: updated };
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroBrandLogos: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
         });
       },
 
@@ -217,19 +471,88 @@ export const useOffersStore = create<OffersState>()(
       retroDeviceImages: {},
       updateRetroDeviceImage: (brandId, deviceId, image) => {
         set((s) => {
+          const now = Date.now();
           const key = `${brandId}:${deviceId}`;
           const updated = { ...s.retroDeviceImages, [key]: image };
+          const nextBrands = s.retroBrands.map((b) => {
+            if (b.id !== brandId) return b;
+            return {
+              ...b,
+              devices: b.devices.map((d) => (d.id === deviceId ? { ...d, image } : d)),
+            };
+          });
           supabase.from('store_settings').upsert({ id: 'retro_device_images', data: updated }).then();
-          return { retroDeviceImages: updated };
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroDeviceImages: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
         });
       },
       resetRetroDeviceImage: (brandId, deviceId) => {
         set((s) => {
+          const now = Date.now();
           const key = `${brandId}:${deviceId}`;
           const updated = { ...s.retroDeviceImages };
           delete updated[key];
+          const defaultBrand = RETRO_BRANDS.find((b) => b.id === brandId);
+          const defaultDev = defaultBrand?.devices.find((d) => d.id === deviceId);
+          const nextBrands = s.retroBrands.map((b) => {
+            if (b.id !== brandId) return b;
+            return {
+              ...b,
+              devices: b.devices.map((d) =>
+                d.id === deviceId ? { ...d, image: defaultDev?.image || '' } : d
+              ),
+            };
+          });
           supabase.from('store_settings').upsert({ id: 'retro_device_images', data: updated }).then();
-          return { retroDeviceImages: updated };
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroDeviceImages: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
+        });
+      },
+
+      // Retro Product-Type (Consoles / Games / Accessories) Custom Images per Console Model
+      retroKindImages: {},
+      updateRetroKindImage: (brandId, deviceId, kindId, image) => {
+        set((s) => {
+          const now = Date.now();
+          const key = `${brandId}:${deviceId}:${kindId}`;
+          const updated = { ...s.retroKindImages, [key]: image };
+          const nextBrands = s.retroBrands.map((b) => {
+            if (b.id !== brandId) return b;
+            return {
+              ...b,
+              devices: b.devices.map((d) =>
+                d.id === deviceId
+                  ? { ...d, kindImages: { ...(d.kindImages || {}), [kindId]: image } }
+                  : d
+              ),
+            };
+          });
+          supabase.from('store_settings').upsert({ id: 'retro_kind_images', data: updated }).then();
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroKindImages: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
+        });
+      },
+      resetRetroKindImage: (brandId, deviceId, kindId) => {
+        set((s) => {
+          const now = Date.now();
+          const key = `${brandId}:${deviceId}:${kindId}`;
+          const updated = { ...s.retroKindImages };
+          delete updated[key];
+          const nextBrands = s.retroBrands.map((b) => {
+            if (b.id !== brandId) return b;
+            return {
+              ...b,
+              devices: b.devices.map((d) => {
+                if (d.id !== deviceId) return d;
+                const nextKindImgs = { ...(d.kindImages || {}) };
+                delete nextKindImgs[kindId];
+                return { ...d, kindImages: nextKindImgs };
+              }),
+            };
+          });
+          supabase.from('store_settings').upsert({ id: 'retro_kind_images', data: updated }).then();
+          syncRetroCatalogToCloud(nextBrands, now);
+          return { retroKindImages: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
         });
       },
 
@@ -244,18 +567,35 @@ export const useOffersStore = create<OffersState>()(
             const os = data.find((row) => row.id === 'offer_slides');
             const rbl = data.find((row) => row.id === 'retro_brand_logos');
             const rdi = data.find((row) => row.id === 'retro_device_images');
+            const rki = data.find((row) => row.id === 'retro_kind_images');
+            const rc = data.find((row) => row.id === 'retro_catalog');
             
-            if (vc && vc.data) {
+            if (vc && vc.data && Array.isArray(vc.data)) {
               set({ visualCategories: vc.data });
             }
-            if (os && os.data) {
+            if (os && os.data && Array.isArray(os.data)) {
               set({ slides: os.data });
             }
             if (rbl && rbl.data) {
-              set({ retroBrandLogos: rbl.data });
+              set((s) => ({ retroBrandLogos: { ...rbl.data, ...s.retroBrandLogos } }));
             }
             if (rdi && rdi.data) {
-              set({ retroDeviceImages: rdi.data });
+              set((s) => ({ retroDeviceImages: { ...rdi.data, ...s.retroDeviceImages } }));
+            }
+            if (rki && rki.data) {
+              set((s) => ({ retroKindImages: { ...rki.data, ...s.retroKindImages } }));
+            }
+            if (rc && rc.data) {
+              const cloudUpdatedAt = typeof rc.data.updatedAt === 'number' ? rc.data.updatedAt : 0;
+              const cloudBrands: RetroBrand[] | undefined = Array.isArray(rc.data)
+                ? rc.data
+                : Array.isArray(rc.data.brands)
+                ? rc.data.brands
+                : undefined;
+              const localUpdatedAt = get().retroCatalogUpdatedAt || 0;
+              if (cloudBrands && cloudBrands.length > 0 && cloudUpdatedAt > localUpdatedAt) {
+                set({ retroBrands: cloudBrands, retroCatalogUpdatedAt: cloudUpdatedAt });
+              }
             }
           }
         } catch (err) {
@@ -265,6 +605,17 @@ export const useOffersStore = create<OffersState>()(
     }),
     {
       name: 'retro-offers',
+      merge: (persistedState, currentState) => {
+        const p = (persistedState as Partial<OffersState>) || {};
+        return {
+          ...currentState,
+          ...p,
+          retroBrands:
+            Array.isArray(p.retroBrands) && p.retroBrands.length > 0
+              ? p.retroBrands
+              : currentState.retroBrands,
+        };
+      },
     }
   )
 );

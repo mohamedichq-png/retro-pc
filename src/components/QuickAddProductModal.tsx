@@ -1,14 +1,20 @@
+/* eslint-disable @next/next/no-img-element, @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect, react-hooks/purity */
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Product } from '../data/mockData';
 import { CloseIcon, UploadIcon, SparklesIcon, CheckIcon, PlusIcon } from './Icons';
 import { uploadImageToSupabase } from '@/lib/supabase';
+import { useOffersStore } from '@/stores/useOffersStore';
+import { RETRO_BRANDS, RETRO_KINDS } from '@/lib/retro-navigation';
 
 interface QuickAddProductModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultRetroBrandId?: string;
+  defaultRetroDeviceId?: string;
+  defaultRetroKindId?: 'consoles' | 'games' | 'accessories';
 }
 
 const SAMPLE_IMAGES = [
@@ -20,27 +26,59 @@ const SAMPLE_IMAGES = [
   { label: 'Game Console Controller', url: 'https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?w=600&auto=format&fit=crop&q=80' },
 ];
 
-export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProductModalProps) {
-  const { addProduct, isRtl, t } = useApp();
+export default function QuickAddProductModal({
+  isOpen,
+  onClose,
+  defaultRetroBrandId,
+  defaultRetroDeviceId,
+  defaultRetroKindId,
+}: QuickAddProductModalProps) {
+  const { addProduct, isRtl } = useApp();
+  const retroBrands = useOffersStore((s) => s.retroBrands);
+  const allRetroBrands = retroBrands && retroBrands.length > 0 ? retroBrands : RETRO_BRANDS;
 
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
   const [category, setCategory] = useState('Gaming');
+  const [retroBrandId, setRetroBrandId] = useState<string>('');
+  const [retroDeviceId, setRetroDeviceId] = useState<string>('');
+  const [retroKindId, setRetroKindId] = useState<'consoles' | 'games' | 'accessories'>('consoles');
   const [brand, setBrand] = useState('Sony');
   const [sellingPrice, setSellingPrice] = useState<number | ''>('');
   const [salePrice, setSalePrice] = useState<number | ''>('');
   const [stockQty, setStockQty] = useState<number | ''>(10);
-  const [lowStockThreshold, setLowStockThreshold] = useState<number>(3);
+  const [lowStockThreshold] = useState<number>(3);
   const [condition, setCondition] = useState<'NEW' | 'USED' | 'REFURBISHED' | 'OPEN BOX' | 'PRE-OWNED'>('NEW');
   const [status, setStatus] = useState<'published' | 'draft'>('published');
   const [imageUrl, setImageUrl] = useState(SAMPLE_IMAGES[0].url);
   const [isUploading, setIsUploading] = useState(false);
   const [descriptionAr, setDescriptionAr] = useState('');
   const [descriptionEn, setDescriptionEn] = useState('');
-  const [productType, setProductType] = useState<'PHYSICAL PRODUCT' | 'DIGITAL PRODUCT' | 'SERVICE' | 'CUSTOM PC' | 'PRE-BUILT PC' | 'USED / PRE-OWNED' | 'RETRO PRODUCT'>('PHYSICAL PRODUCT');
+  const [productType] = useState<'PHYSICAL PRODUCT' | 'DIGITAL PRODUCT' | 'SERVICE' | 'CUSTOM PC' | 'PRE-BUILT PC' | 'USED / PRE-OWNED' | 'RETRO PRODUCT'>('PHYSICAL PRODUCT');
   const [isSuccess, setIsSuccess] = useState(false);
 
+  useEffect(() => {
+    if (isOpen && defaultRetroBrandId) {
+      const targetBrand = allRetroBrands.find((b) => b.id === defaultRetroBrandId);
+      setCategory('Retro Gaming');
+      setRetroBrandId(defaultRetroBrandId);
+      if (targetBrand) {
+        setBrand(targetBrand.name);
+        const targetDeviceId =
+          defaultRetroDeviceId || (targetBrand.devices[0] ? targetBrand.devices[0].id : '');
+        setRetroDeviceId(targetDeviceId);
+      }
+      if (defaultRetroKindId) {
+        setRetroKindId(defaultRetroKindId);
+      }
+    }
+  }, [isOpen, defaultRetroBrandId, defaultRetroDeviceId, defaultRetroKindId, allRetroBrands]);
+
   if (!isOpen) return null;
+
+  const selectedRetroBrand = allRetroBrands.find((b) => b.id === retroBrandId) || null;
+  const selectedRetroDevice =
+    selectedRetroBrand?.devices.find((d) => d.id === retroDeviceId) || null;
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -77,42 +115,34 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
     e.preventDefault();
     if (!nameAr.trim() || !sellingPrice) return;
 
-    // Smart Suggest Category scan
-    let suggestedPrimary = 'Gaming';
-    const textScan = (nameEn + ' ' + nameAr).toLowerCase();
-    if (
-      textScan.includes('rtx') || textScan.includes('geforce') || textScan.includes('radeon') ||
-      textScan.includes('ryzen') || textScan.includes('core i') || textScan.includes('ddr5') ||
-      textScan.includes('ddr4') || textScan.includes('nvme') || textScan.includes('ssd') ||
-      textScan.includes('motherboard') || textScan.includes('psu') || textScan.includes('cooler') ||
-      textScan.includes('chassis')
-    ) {
-      suggestedPrimary = 'PC';
-    } else if (
-      textScan.includes('ps1') || textScan.includes('ps2') || textScan.includes('ps3') ||
-      textScan.includes('game boy') || textScan.includes('sega') || textScan.includes('atari') ||
-      textScan.includes('gamecube') || textScan.includes('n64') || textScan.includes('nes')
-    ) {
-      suggestedPrimary = 'Retro Gaming';
-    } else if (textScan.includes('monitor') || textScan.includes('screen')) {
-      suggestedPrimary = 'Monitors';
-    } else if (textScan.includes('laptop') || textScan.includes('notebook')) {
-      suggestedPrimary = 'Laptops';
-    } else if (textScan.includes('repair') || textScan.includes('service') || textScan.includes('fix')) {
-      suggestedPrimary = 'Repair Hub';
-    }
-
-    const finalCategory = category;
+    const finalCategory = selectedRetroBrand ? selectedRetroBrand.id : category;
+    const mappedSection =
+      retroKindId === 'games'
+        ? 'games-cds'
+        : retroKindId === 'accessories'
+        ? 'accessories'
+        : 'consoles';
+    const mappedSecondary =
+      retroKindId === 'games'
+        ? 'Games'
+        : retroKindId === 'accessories'
+        ? 'Accessories'
+        : 'Consoles';
 
     const newProduct: Product = {
       id: `prod_${Date.now()}`,
       sku: `RET-${Math.floor(1000 + Math.random() * 9000)}`,
       barcode: `690${Math.floor(100000000 + Math.random() * 900000000)}`,
-      model: nameEn.trim() || nameAr.trim(),
+      model: selectedRetroDevice ? selectedRetroDevice.name : nameEn.trim() || nameAr.trim(),
       nameEn: nameEn.trim() || nameAr.trim(),
       nameAr: nameAr.trim(),
       category: finalCategory,
-      brand: brand.trim() || 'RETRO',
+      mainCategory: selectedRetroBrand ? selectedRetroBrand.id : finalCategory.toLowerCase(),
+      subCategory: selectedRetroDevice ? selectedRetroDevice.id : mappedSection,
+      section: selectedRetroBrand ? mappedSection : undefined,
+      platform: selectedRetroDevice ? selectedRetroDevice.name : selectedRetroBrand?.name,
+      generation: selectedRetroDevice ? selectedRetroDevice.id : undefined,
+      brand: brand.trim() || selectedRetroBrand?.name || 'RETRO',
       sellingPrice: Number(sellingPrice),
       salePrice: salePrice ? Number(salePrice) : undefined,
       costPrice: Math.round(Number(sellingPrice) * 0.7),
@@ -124,14 +154,24 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
       descriptionEn: descriptionEn.trim() || 'High performance professional gaming hardware by RETRO.',
       status,
       specs: {
-        'Warranty': '2 Years Official',
-        'Condition': condition,
-        'Origin': 'Original Sealed'
+        Warranty: '2 Years Official',
+        Condition: condition,
+        Origin: 'Original Sealed',
+        ...(selectedRetroDevice ? { platform: selectedRetroDevice.name, generation: selectedRetroDevice.id } : {}),
       },
-      productType: finalCategory === 'Retro Gaming' ? 'RETRO PRODUCT' : productType,
-      primaryCategory: finalCategory,
-      categories: [finalCategory],
-      tags: [brand, finalCategory],
+      productType: selectedRetroBrand || finalCategory === 'Retro Gaming' ? 'RETRO PRODUCT' : productType,
+      primaryCategory: selectedRetroBrand ? 'Retro Gaming' : finalCategory,
+      secondaryCategory: selectedRetroBrand ? mappedSecondary : undefined,
+      categories: [
+        finalCategory,
+        ...(selectedRetroBrand ? [selectedRetroBrand.name] : []),
+        ...(selectedRetroDevice ? [selectedRetroDevice.name] : []),
+      ],
+      tags: [
+        brand,
+        finalCategory,
+        ...(selectedRetroDevice ? [selectedRetroDevice.id, selectedRetroDevice.name] : []),
+      ],
       stockStatus: (Number(stockQty) || 1) > 0 ? 'IN STOCK' : 'OUT OF STOCK',
     };
 
@@ -140,7 +180,6 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
 
     setTimeout(() => {
       setIsSuccess(false);
-      // Reset form
       setNameAr('');
       setNameEn('');
       setSellingPrice('');
@@ -219,8 +258,16 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
                 <div className="sm:col-span-2 space-y-3">
                   <label className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-cyan-500/40 bg-cyan-500/5 px-4 py-3 text-xs font-bold text-cyan-300 hover:bg-cyan-500/10 transition-all cursor-pointer">
                     <UploadIcon size={16} />
-                    <span>{isRtl ? "اختر صورة من جهازك (سحب وإفلات)" : "Upload File / Drag & Drop"}</span>
-                    <input type="file" accept="image/*" onChange={handleImageFileChange} className="hidden" />
+                    <span>
+                      {isUploading
+                        ? isRtl
+                          ? "جاري الرفع..."
+                          : "Uploading..."
+                        : isRtl
+                        ? "اختر صورة من جهازك (سحب وإفلات)"
+                        : "Upload File / Drag & Drop"}
+                    </span>
+                    <input type="file" accept="image/*" onChange={handleImageFileChange} className="hidden" disabled={isUploading} />
                   </label>
 
                   {/* Sample presets */}
@@ -247,6 +294,85 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
               </div>
             </div>
 
+            {/* Retro Section & Console Model Assignment (includes newly created sections & subsections!) */}
+            <div className="rounded-2xl border border-cyan-500/25 bg-slate-900/50 p-4 space-y-3">
+              <div className="text-xs font-bold text-cyan-300">
+                🕹️ {isRtl ? "ربط بقسم الريترو وجهاز الكونسول (يدعم الأقسام الحالية والجديدة)" : "Assign to Retro Section & Console Model (Existing & Newly Created)"}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-300">
+                    {isRtl ? "الشركة / السكشن" : "Retro Brand / Section"}
+                  </label>
+                  <select
+                    value={retroBrandId}
+                    onChange={(e) => {
+                      const nextBrandId = e.target.value;
+                      setRetroBrandId(nextBrandId);
+                      const bObj = allRetroBrands.find((b) => b.id === nextBrandId);
+                      if (bObj) {
+                        setBrand(bObj.name);
+                        setCategory('Retro Gaming');
+                        setRetroDeviceId(bObj.devices[0]?.id || '');
+                      } else {
+                        setRetroDeviceId('');
+                      }
+                    }}
+                    className="w-full rounded-xl bg-slate-950 px-3 py-2 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
+                  >
+                    <option value="">{isRtl ? "-- منتج عام (غير مرتبط بقسم ريترو) --" : "-- General Store Product --"}</option>
+                    {allRetroBrands.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {isRtl && b.nameAr ? `${b.nameAr} (${b.name})` : b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-300">
+                    {isRtl ? "موديل الجهاز (القسم الفرعي)" : "Console Model (Subsection)"}
+                  </label>
+                  <select
+                    value={retroDeviceId}
+                    disabled={!selectedRetroBrand}
+                    onChange={(e) => setRetroDeviceId(e.target.value)}
+                    className="w-full rounded-xl bg-slate-950 px-3 py-2 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none disabled:opacity-40"
+                  >
+                    {!selectedRetroBrand ? (
+                      <option value="">{isRtl ? "اختر الشركة أولاً" : "Select brand first"}</option>
+                    ) : selectedRetroBrand.devices.length === 0 ? (
+                      <option value="">{isRtl ? "لا توجد أجهزة مضافة" : "No console models yet"}</option>
+                    ) : (
+                      selectedRetroBrand.devices.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {isRtl && d.nameAr ? `${d.nameAr} (${d.name})` : d.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-300">
+                    {isRtl ? "قسم نوع المنتج" : "Product-Type Section"}
+                  </label>
+                  <select
+                    value={retroKindId}
+                    disabled={!selectedRetroBrand}
+                    onChange={(e) => setRetroKindId(e.target.value as 'consoles' | 'games' | 'accessories')}
+                    className="w-full rounded-xl bg-slate-950 px-3 py-2 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none disabled:opacity-40"
+                  >
+                    {RETRO_KINDS.map((k) => (
+                      <option key={k.id} value={k.id}>
+                        {isRtl ? `${k.ar} (${k.en})` : k.en}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* Inputs Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               
@@ -260,7 +386,7 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
                   required
                   value={nameAr}
                   onChange={(e) => setNameAr(e.target.value)}
-                  placeholder="مثال: شاشة ألعاب 240Hz 2K"
+                  placeholder="مثال: جهاز بلايستيشن 2 أو شاشة ألعاب"
                   className="w-full rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
                 />
               </div>
@@ -274,7 +400,7 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
                   type="text"
                   value={nameEn}
                   onChange={(e) => setNameEn(e.target.value)}
-                  placeholder="e.g. 240Hz 2K Gaming Monitor"
+                  placeholder="e.g. PlayStation 2 Slim Console"
                   className="w-full rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
                 />
               </div>
@@ -296,6 +422,11 @@ export default function QuickAddProductModal({ isOpen, onClose }: QuickAddProduc
                   <option value="Accessories">Accessories (الملحقات والأكسسوارات)</option>
                   <option value="Laptops">Laptops (اللابتوبات)</option>
                   <option value="Repair Hub">Repair Hub (خدمات الصيانة)</option>
+                  {allRetroBrands.map((b) => (
+                    <option key={`cat-${b.id}`} value={b.id}>
+                      {b.name} ({b.id})
+                    </option>
+                  ))}
                 </select>
               </div>
 

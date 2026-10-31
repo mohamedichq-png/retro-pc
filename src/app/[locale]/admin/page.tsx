@@ -19,7 +19,7 @@ import {
 } from '@/components/Icons';
 import QuickAddProductModal from '@/components/QuickAddProductModal';
 import { useOffersStore, DEFAULT_RETRO_BRAND_LOGOS } from '@/stores/useOffersStore';
-import { RETRO_BRANDS } from '@/lib/retro-navigation';
+import { RETRO_BRANDS, RETRO_KINDS, type RetroKindId } from '@/lib/retro-navigation';
 import { classifyAllProducts } from '@/lib/classificationEngine';
 import { uploadImageToSupabase, supabase } from '@/lib/supabase';
 import { mapProductToDb } from '@/lib/productsData';
@@ -49,13 +49,59 @@ export default function AdminDashboard() {
   // Dashboard Filters States
   const [activeTab, setActiveTab] = useState<'published' | 'draft' | 'banners' | 'taxonomy' | 'visual-categories' | 'retro-sections'>('published');
   const [searchQuery, setSearchQuery] = useState('');
-  const [taxonomyFilter, setTaxonomyFilter] = useState<'all' | 'needs-review' | 'pos' | 'pc' | 'playstation' | 'nintendo' | 'xbox' | 'retro' | 'pc-parts'>('all');
+  const [taxonomyFilter, setTaxonomyFilter] = useState<string>('all');
 
   // Retro Sections View States
   const [retroSubView, setRetroSubView] = useState<'brands' | 'devices'>('brands');
   const [selectedRetroBrandForDevices, setSelectedRetroBrandForDevices] = useState<string>('playstation');
-  const [retroUrlModal, setRetroUrlModal] = useState<{ id: string; name: string; currentUrl: string; type: 'brand' | 'device'; brandId?: string } | null>(null);
+  const [retroUrlModal, setRetroUrlModal] = useState<{
+    id: string;
+    name: string;
+    currentUrl: string;
+    type: 'brand' | 'device' | 'kind';
+    brandId?: string;
+    kindId?: RetroKindId;
+  } | null>(null);
   const [tempRetroUrl, setTempRetroUrl] = useState('');
+
+  // Add / Edit Retro Brand (Section) Modal State
+  const [brandFormModal, setBrandFormModal] = useState<{
+    mode: 'add' | 'edit';
+    id: string;
+    name: string;
+    nameAr: string;
+    color: string;
+    logo: string;
+  } | null>(null);
+
+  // Add / Edit Console Model (Subsection) Modal State
+  const [deviceFormModal, setDeviceFormModal] = useState<{
+    mode: 'add' | 'edit';
+    brandId: string;
+    id: string;
+    name: string;
+    nameAr: string;
+    tokensText: string;
+    image: string;
+  } | null>(null);
+
+  // Add / Edit Visual Category Modal State
+  const [visualCatFormModal, setVisualCatFormModal] = useState<{
+    mode: 'add' | 'edit';
+    id: string;
+    nameEn: string;
+    nameAr: string;
+    link: string;
+    image: string;
+    accent: 'cyan' | 'purple' | 'green' | 'pink';
+  } | null>(null);
+
+  // Quick Add Product context for pre-selecting a Retro Section / Console / Kind
+  const [quickAddContext, setQuickAddContext] = useState<{
+    brandId?: string;
+    deviceId?: string;
+    kindId?: RetroKindId;
+  }>({});
 
   // Quick Taxonomy Modal State
   const [taxonomyEditProduct, setTaxonomyEditProduct] = useState<Product | null>(null);
@@ -82,13 +128,36 @@ export default function AdminDashboard() {
     setWeeklyOfferData,
     visualCategories,
     updateVisualCategory,
+    addVisualCategory,
+    deleteVisualCategory,
+    toggleHideVisualCategory,
+    reorderVisualCategory,
+    retroBrands,
+    addRetroBrand,
+    updateRetroBrand,
+    deleteRetroBrand,
+    toggleHideRetroBrand,
+    reorderRetroBrand,
+    addRetroDevice,
+    updateRetroDevice,
+    deleteRetroDevice,
+    toggleHideRetroDevice,
+    reorderRetroDevice,
     retroBrandLogos,
     updateRetroBrandLogo,
     resetRetroBrandLogo,
     retroDeviceImages,
     updateRetroDeviceImage,
-    resetRetroDeviceImage
+    resetRetroDeviceImage,
+    retroKindImages,
+    updateRetroKindImage,
+    resetRetroKindImage,
   } = useOffersStore();
+
+  const allRetroBrands = useMemo(
+    () => (retroBrands && retroBrands.length > 0 ? retroBrands : RETRO_BRANDS),
+    [retroBrands]
+  );
 
   // Local form states for Weekly Offer
   const [promoActive, setPromoActive] = useState(weeklyOffersActive);
@@ -269,8 +338,12 @@ export default function AdminDashboard() {
     setPasswordInput('');
   };
 
-  // Categories list
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
+  // Categories list (includes existing + newly created Retro sections)
+  const categories = useMemo(() => {
+    const productCats = products.map((p) => p.category).filter(Boolean);
+    const brandIds = allRetroBrands.map((b) => b.id);
+    return ['All', ...Array.from(new Set([...productCats, ...brandIds]))];
+  }, [products, allRetroBrands]);
 
   // Filter products by tab, search query, and category
   const filteredProducts = products.filter(p => {
@@ -282,7 +355,11 @@ export default function AdminDashboard() {
       p.nameAr.includes(searchQuery) ||
       p.sku.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
+    const matchesCategory =
+      selectedCategory === 'All' ||
+      p.category === selectedCategory ||
+      p.mainCategory === selectedCategory ||
+      p.primaryCategory === selectedCategory;
 
     return matchesSearch && matchesCategory;
   });
@@ -426,6 +503,15 @@ export default function AdminDashboard() {
         syncedCount += chunk.length;
         setSyncMessage(isRtl ? `تمت مزامنة ${syncedCount} من ${dbProducts.length}...` : `Synced ${syncedCount}/${dbProducts.length}...`);
       }
+
+      // Also sync Retro Sections, Console Models, Product-Type Images, and Visual Categories
+      await supabase.from('store_settings').upsert([
+        { id: 'retro_catalog', data: { brands: allRetroBrands, updatedAt: Date.now() }, updated_at: new Date().toISOString() },
+        { id: 'retro_brand_logos', data: retroBrandLogos, updated_at: new Date().toISOString() },
+        { id: 'retro_device_images', data: retroDeviceImages, updated_at: new Date().toISOString() },
+        { id: 'retro_kind_images', data: retroKindImages, updated_at: new Date().toISOString() },
+        { id: 'visual_categories', data: visualCategories, updated_at: new Date().toISOString() },
+      ]);
 
       if (showToast) {
         showToast(isRtl ? `تمت مزامنة جميع المنتجات (${products.length}) مع السحابة بنجاح!` : `Successfully synced all ${products.length} products to cloud!`, 'success');
@@ -728,11 +814,11 @@ export default function AdminDashboard() {
               }`}
             >
               <span>🕹️</span>
-              <span>{isRtl ? "صور أقسام الريترو" : "Retro Sections"}</span>
+              <span>{isRtl ? "صور وإدارة أقسام الريترو" : "Retro Sections"}</span>
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
                 activeTab === 'retro-sections' ? 'bg-slate-950/25 text-slate-950' : 'bg-slate-800 text-cyan-400'
               }`}>
-                {RETRO_BRANDS.length}
+                {allRetroBrands.length}
               </span>
             </button>
 
@@ -826,14 +912,16 @@ export default function AdminDashboard() {
                 { id: 'needs-review', labelAr: `تحتاج مراجعة (${taxonomySummary.needsClassification})`, labelEn: `Needs Review (${taxonomySummary.needsClassification})` },
                 { id: 'pos', labelAr: `مخزون POS (${taxonomySummary.totalPosProducts})`, labelEn: `POS Only (${taxonomySummary.totalPosProducts})` },
                 { id: 'pc', labelAr: `مخزون PC (${taxonomySummary.totalPcProducts})`, labelEn: `PC Only (${taxonomySummary.totalPcProducts})` },
-                { id: 'playstation', labelAr: 'PlayStation', labelEn: 'PlayStation' },
-                { id: 'nintendo', labelAr: 'Nintendo', labelEn: 'Nintendo' },
-                { id: 'xbox', labelAr: 'Xbox', labelEn: 'Xbox' },
+                ...allRetroBrands.map((b) => ({
+                  id: b.id,
+                  labelAr: b.nameAr || b.name,
+                  labelEn: b.name,
+                })),
                 { id: 'retro', labelAr: 'Retro Games', labelEn: 'Retro Games' },
               ].map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => setTaxonomyFilter(tab.id as typeof taxonomyFilter)}
+                  onClick={() => setTaxonomyFilter(tab.id)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     taxonomyFilter === tab.id
                       ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md shadow-cyan-500/20'
@@ -868,14 +956,12 @@ export default function AdminDashboard() {
                         const match = p.nameEn.toLowerCase().includes(q) || p.nameAr.includes(q) || p.sku?.toLowerCase().includes(q) || (p.mainCategory || '').toLowerCase().includes(q) || (p.subCategory || '').toLowerCase().includes(q);
                         if (!match) return false;
                       }
+                      if (taxonomyFilter === 'all') return true;
                       if (taxonomyFilter === 'needs-review') return p.needsClassification;
                       if (taxonomyFilter === 'pos') return p.source === 'POS';
                       if (taxonomyFilter === 'pc') return p.source === 'PC';
-                      if (taxonomyFilter === 'playstation') return p.mainCategory === 'playstation';
-                      if (taxonomyFilter === 'nintendo') return p.mainCategory === 'nintendo';
-                      if (taxonomyFilter === 'xbox') return p.mainCategory === 'xbox';
                       if (taxonomyFilter === 'retro') return p.mainCategory === 'retro-games';
-                      return true;
+                      return p.mainCategory === taxonomyFilter || p.category === taxonomyFilter;
                     })
                     .map(p => {
                       const confidencePct = Math.round((p.taxonomyConfidence || 0.95) * 100);
@@ -1028,9 +1114,11 @@ export default function AdminDashboard() {
                         onChange={(e) => setTaxMainCategory(e.target.value)}
                         className="w-full rounded-xl bg-slate-950 p-2.5 text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
                       >
-                        <option value="playstation">PlayStation (بلايستيشن)</option>
-                        <option value="nintendo">Nintendo (نينتندو)</option>
-                        <option value="xbox">Xbox (إكس بوكس)</option>
+                        {allRetroBrands.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.name} {b.nameAr ? `(${b.nameAr})` : `(${b.id})`}
+                          </option>
+                        ))}
                         <option value="retro-games">Retro Games (ألعاب وأجهزة ريترو)</option>
                         <option value="consoles-accessories">Consoles & Accessories (أجهزة وإكسسوارات)</option>
                         <option value="pc">PC / Computer (الكمبيوتر ومكوناته)</option>
@@ -1119,10 +1207,10 @@ export default function AdminDashboard() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">
               <div className="space-y-0.5">
                 <h4 className="text-xs font-bold text-cyan-300">
-                  {isRtl ? "هل تبحث عن صور أقسام وسكشنات الريترو؟ (SEGA, Xbox, Nintendo, PlayStation...)" : "Looking to edit Retro & Console Section Images? (SEGA, Xbox, Nintendo...)"}
+                  {isRtl ? "هل تبحث عن صور وإدارة أقسام وسكشنات الريترو؟ (SEGA, Xbox, Nintendo, PlayStation...)" : "Looking to manage Retro & Console Sections & Images? (SEGA, Xbox, Nintendo...)"}
                 </h4>
                 <p className="text-[11px] text-slate-400">
-                  {isRtl ? "تمت إضافة قسم مخصص للتحكم الكامل بشعارات الشركات وأجهزة الكونسول المعروضة في صفحة الريترو." : "A dedicated section is available to manage all retro console brands and device models."}
+                  {isRtl ? "تمت إضافة قسم مخصص للتحكم الكامل بشعارات الشركات، أجهزة الكونسول، وصور أقسام المنتجات (الكونسول / الألعاب / الإكسسوارات)." : "A dedicated section is available to manage all retro brands, console models, and product-type section images."}
                 </p>
               </div>
               <button
@@ -1131,18 +1219,107 @@ export default function AdminDashboard() {
                 className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition-all shrink-0 cursor-pointer shadow-lg shadow-cyan-500/20"
               >
                 <span>🕹️</span>
-                <span>{isRtl ? "انتقل لصور أقسام الريترو" : "Go to Retro Sections"}</span>
+                <span>{isRtl ? "انتقل لأقسام الريترو" : "Go to Retro Sections"}</span>
               </button>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
-                {isRtl ? "إدارة صور الأقسام (تسوق حسب الطلب)" : "Visual Categories Management"}
+                {isRtl ? "إدارة صور وترتيب الأقسام (تسوق حسب القسم)" : "Visual Categories Management"}
               </h3>
+              <button
+                type="button"
+                onClick={() =>
+                  setVisualCatFormModal({
+                    mode: 'add',
+                    id: '',
+                    nameEn: '',
+                    nameAr: '',
+                    link: '/products',
+                    image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&auto=format&fit=crop&q=80',
+                    accent: 'cyan',
+                  })
+                }
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 py-2 text-xs font-black text-slate-950 shadow-md hover:scale-105 transition-all cursor-pointer"
+              >
+                <PlusIcon size={14} />
+                <span>{isRtl ? "إضافة قسم جديد" : "Add New Category"}</span>
+              </button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {visualCategories.map((cat) => (
-                <div key={cat.id} className="relative rounded-2xl border border-slate-800 bg-slate-900/40 p-4 space-y-3 flex flex-col items-center">
+              {visualCategories.map((cat, idx) => (
+                <div
+                  key={cat.id}
+                  className={`relative rounded-2xl border p-4 space-y-3 flex flex-col items-center transition-all ${
+                    cat.hidden
+                      ? 'border-slate-800/60 bg-slate-950/60 opacity-60'
+                      : 'border-slate-800 bg-slate-900/40'
+                  }`}
+                >
+                  {/* Top management buttons: Reorder, Hide, Edit, Delete */}
+                  <div className="w-full flex items-center justify-between gap-1 text-[10px]">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => reorderVisualCategory(cat.id, 'up')}
+                        className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 cursor-pointer"
+                        title={isRtl ? "تحريك للأمام" : "Move up"}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === visualCategories.length - 1}
+                        onClick={() => reorderVisualCategory(cat.id, 'down')}
+                        className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-30 cursor-pointer"
+                        title={isRtl ? "تحريك للخلف" : "Move down"}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleHideVisualCategory(cat.id)}
+                        className="p-1 rounded bg-slate-800 text-slate-300 hover:text-cyan-400 cursor-pointer"
+                        title={cat.hidden ? (isRtl ? "إظهار القسم" : "Show section") : (isRtl ? "إخفاء القسم" : "Hide section")}
+                      >
+                        {cat.hidden ? <EyeOffIcon size={12} /> : <EyeIcon size={12} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVisualCatFormModal({
+                            mode: 'edit',
+                            id: cat.id,
+                            nameEn: cat.nameEn,
+                            nameAr: cat.nameAr,
+                            link: cat.link,
+                            image: cat.image,
+                            accent: cat.accent,
+                          })
+                        }
+                        className="p-1 rounded bg-slate-800 text-slate-300 hover:text-cyan-400 cursor-pointer"
+                        title={isRtl ? "تعديل القسم" : "Edit category"}
+                      >
+                        <EditIcon size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(isRtl ? `حذف قسم ${cat.nameAr}؟` : `Delete ${cat.nameEn}?`)) {
+                            deleteVisualCategory(cat.id);
+                          }
+                        }}
+                        className="p-1 rounded bg-pink-500/10 text-pink-400 hover:bg-pink-500/20 cursor-pointer"
+                        title={isRtl ? "حذف القسم" : "Delete category"}
+                      >
+                        <TrashIcon size={12} />
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-800 border border-slate-700 group">
                     <img src={cat.image} alt={isRtl ? cat.nameAr : cat.nameEn} className="w-full h-full object-cover" />
                     <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity">
@@ -1186,7 +1363,12 @@ export default function AdminDashboard() {
                       />
                     </label>
                   </div>
-                  <span className="text-xs font-bold text-slate-300 text-center">{isRtl ? cat.nameAr : cat.nameEn}</span>
+                  <div className="text-center">
+                    <span className="text-xs font-bold text-slate-300 block">{isRtl ? cat.nameAr : cat.nameEn}</span>
+                    {cat.hidden && (
+                      <span className="text-[9px] text-amber-400 font-bold">{isRtl ? "(مخفي)" : "(Hidden)"}</span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1201,38 +1383,58 @@ export default function AdminDashboard() {
                   <span>{isRtl ? "أقسام وسكشنات الريترو والكونسول" : "Retro & Console Visual Sections"}</span>
                 </div>
                 <h3 className="text-lg font-black text-white tracking-tight">
-                  {isRtl ? "تعديل صور وشعارات السكشنات والشركات" : "Manage Retro Brand & Console Section Images"}
+                  {isRtl ? "إدارة السكشنات، موديلات الكونسول، وصور أقسام المنتجات" : "Manage Retro Brands, Console Models & Product-Type Section Images"}
                 </h3>
                 <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
                   {isRtl 
-                    ? "تحكم بالصور والشعارات المعروضة في صفحة الريترو (SEGA, Xbox, Nintendo, PlayStation, Amiga, Atari, Panasonic 3DO, SNK, Philips, Arcade, PC Engine). يمكنك رفع صورة جديدة أو كتابة رابط مباشر أو استعادة الأصلية."
-                    : "Customize brand logos and console photos displayed across the Retro store page. Upload new images, paste direct URLs, or restore original defaults anytime."}
+                    ? "تحكم كامل بالشركات (السكشنات)، موديلات الأجهزة (الأقسام الفرعية)، وصور البطاقات الثلاث لكل جهاز (الكونسول، الألعاب، الإكسسوارات). يمكنك إضافة سكشنات وأجهزة جديدة، إعادة الترتيب، الإخفاء، أو الحذف مع الحفظ الدائم."
+                    : "Full control over Retro brands/sections, console models, and the 3 product-type cards (Consoles, Games, Accessories) per console model. Add new sections/models, reorder, hide, delete, and upload images permanently."}
                 </p>
               </div>
 
               {/* Sub-view switcher: Brands vs Devices */}
-              <div className="inline-flex rounded-2xl bg-slate-950 p-1 border border-slate-800 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <div className="inline-flex rounded-2xl bg-slate-950 p-1 border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setRetroSubView('brands')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      retroSubView === 'brands'
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🏢 {isRtl ? `سكشنات الشركات (${allRetroBrands.length})` : `Brands & Sections (${allRetroBrands.length})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRetroSubView('devices')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      retroSubView === 'devices'
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🎮 {isRtl ? "موديلات الكونسول وصور الأقسام" : "Console Models & Section Images"}
+                  </button>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setRetroSubView('brands')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    retroSubView === 'brands'
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
+                  onClick={() =>
+                    setBrandFormModal({
+                      mode: 'add',
+                      id: '',
+                      name: '',
+                      nameAr: '',
+                      color: '#06b6d4',
+                      logo: '',
+                    })
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
                 >
-                  🏢 {isRtl ? `سكشنات وماركات الشركات (${RETRO_BRANDS.length})` : `Brands & Sections (${RETRO_BRANDS.length})`}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRetroSubView('devices')}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    retroSubView === 'devices'
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  🎮 {isRtl ? "موديلات الكونسول" : "Console Models"}
+                  <PlusIcon size={15} />
+                  <span>{isRtl ? "إضافة شركة / سكشن جديد" : "Add New Brand / Section"}</span>
                 </button>
               </div>
             </div>
@@ -1240,38 +1442,145 @@ export default function AdminDashboard() {
             {/* View 1: Brands / Sections Grid */}
             {retroSubView === 'brands' ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-                  <span>{isRtl ? "انقر على 'رفع صورة' لاختيار ملف من حاسوبك، أو '🔗' لإدخال رابط مباشر." : "Click 'Upload' to pick an image from your PC or '🔗' to paste a direct URL."}</span>
-                  <span className="text-cyan-400 font-bold">{RETRO_BRANDS.length} {isRtl ? "سكشن متاح" : "Sections available"}</span>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 px-1">
+                  <span>
+                    {isRtl
+                      ? "يمكنك تعديل شعار كل شركة، إعادة ترتيبها (↑↓)، إخفاؤها، حذفها، أو الدخول لإدارة موديلات الأجهزة والمنتجات بداخلها."
+                      : "Upload brand logos, reorder (↑↓), hide/show, delete, or click 'Manage Models & Content' to manage subsections and products."}
+                  </span>
+                  <span className="text-cyan-400 font-bold">
+                    {allRetroBrands.length} {isRtl ? "سكشن متاح" : "Sections available"}
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {RETRO_BRANDS.map((b) => {
-                    const currentLogo = retroBrandLogos[b.id] || DEFAULT_RETRO_BRAND_LOGOS[b.id] || `/brand-logos/${b.id}.svg`;
-                    const isCustomized = Boolean(retroBrandLogos[b.id]);
+                  {allRetroBrands.map((b, bIdx) => {
+                    const currentLogo =
+                      retroBrandLogos[b.id] ||
+                      b.logo ||
+                      DEFAULT_RETRO_BRAND_LOGOS[b.id] ||
+                      `/brand-logos/${b.id}.svg`;
+                    const isCustomized = Boolean(retroBrandLogos[b.id] || b.logo);
 
                     return (
                       <div
                         key={b.id}
-                        className="group relative flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/60 p-4 hover:border-cyan-500/40 hover:shadow-[0_8px_30px_rgba(6,182,212,0.12)] transition-all duration-300"
+                        className={`group relative flex flex-col justify-between rounded-2xl border p-4 transition-all duration-300 ${
+                          b.hidden
+                            ? 'border-amber-500/30 bg-slate-950/70 opacity-65'
+                            : 'border-slate-800 bg-slate-900/60 hover:border-cyan-500/40 hover:shadow-[0_8px_30px_rgba(6,182,212,0.12)]'
+                        }`}
                       >
+                        {/* Reorder + Hide + Edit + Delete Toolbar */}
+                        <div className="flex items-center justify-between gap-1 mb-2 pb-2 border-b border-slate-800/80">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={bIdx === 0}
+                              onClick={() => reorderRetroBrand(b.id, 'up')}
+                              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold disabled:opacity-30 cursor-pointer"
+                              title={isRtl ? "تحريك للأعلى / اليمين" : "Move earlier"}
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              disabled={bIdx === allRetroBrands.length - 1}
+                              onClick={() => reorderRetroBrand(b.id, 'down')}
+                              className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold disabled:opacity-30 cursor-pointer"
+                              title={isRtl ? "تحريك للأسفل / اليسار" : "Move later"}
+                            >
+                              ↓
+                            </button>
+                            <span className="text-[10px] font-mono text-slate-500 px-1">#{bIdx + 1}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                toggleHideRetroBrand(b.id);
+                                if (showToast) {
+                                  showToast(
+                                    b.hidden
+                                      ? isRtl
+                                        ? `تم إظهار قسم ${b.name}`
+                                        : `${b.name} is now visible`
+                                      : isRtl
+                                      ? `تم إخفاء قسم ${b.name}`
+                                      : `${b.name} is now hidden`,
+                                    'info'
+                                  );
+                                }
+                              }}
+                              className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer ${
+                                b.hidden
+                                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-cyan-400'
+                              }`}
+                              title={b.hidden ? (isRtl ? "إظهار السكشن" : "Show section") : (isRtl ? "إخفاء السكشن" : "Hide section")}
+                            >
+                              {b.hidden ? <EyeOffIcon size={13} /> : <EyeIcon size={13} />}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setBrandFormModal({
+                                  mode: 'edit',
+                                  id: b.id,
+                                  name: b.name,
+                                  nameAr: b.nameAr || '',
+                                  color: b.color || '#06b6d4',
+                                  logo: retroBrandLogos[b.id] || b.logo || '',
+                                })
+                              }
+                              className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-cyan-400 transition-all cursor-pointer"
+                              title={isRtl ? "تعديل اسم وبيانات السكشن" : "Edit section details"}
+                            >
+                              <EditIcon size={13} />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const msg = isRtl
+                                  ? `هل أنت متأكد من حذف سكشن "${b.name}"؟`
+                                  : `Are you sure you want to delete section "${b.name}"?`;
+                                if (window.confirm(msg)) {
+                                  deleteRetroBrand(b.id);
+                                  if (selectedRetroBrandForDevices === b.id && allRetroBrands.length > 1) {
+                                    const fallback = allRetroBrands.find((x) => x.id !== b.id);
+                                    if (fallback) setSelectedRetroBrandForDevices(fallback.id);
+                                  }
+                                  if (showToast) {
+                                    showToast(isRtl ? `تم حذف قسم ${b.name}` : `Deleted section ${b.name}`, 'info');
+                                  }
+                                }
+                              }}
+                              className="p-1.5 rounded-lg bg-pink-500/10 border border-pink-500/25 text-pink-400 hover:bg-pink-500/20 transition-all cursor-pointer"
+                              title={isRtl ? "حذف السكشن" : "Delete section"}
+                            >
+                              <TrashIcon size={13} />
+                            </button>
+                          </div>
+                        </div>
+
                         {/* Top info badge */}
                         <div className="flex items-center justify-between gap-2 mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: b.color || '#06b6d4' }} />
-                            <h4 className="text-sm font-black text-white">{b.name}</h4>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: b.color || '#06b6d4' }} />
+                            <h4 className="text-sm font-black text-white truncate">
+                              {isRtl && b.nameAr ? `${b.nameAr} (${b.name})` : b.name}
+                            </h4>
                           </div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1 shrink-0">
                             <span className="text-[10px] font-mono text-slate-400 uppercase bg-slate-950 px-2 py-0.5 rounded border border-slate-850">
                               {b.id}
                             </span>
-                            {isCustomized ? (
-                              <span className="text-[9px] font-black text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 px-2 py-0.5 rounded-full">
-                                {isRtl ? "معدّلة" : "Custom"}
-                              </span>
-                            ) : (
-                              <span className="text-[9px] font-bold text-slate-500 bg-slate-950 px-2 py-0.5 rounded-full border border-slate-850">
-                                {isRtl ? "أصلية" : "Default"}
+                            {b.hidden && (
+                              <span className="text-[9px] font-black text-amber-300 bg-amber-950/80 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                                {isRtl ? "مخفي" : "Hidden"}
                               </span>
                             )}
                           </div>
@@ -1283,15 +1592,18 @@ export default function AdminDashboard() {
                             src={currentLogo}
                             alt={b.name}
                             className="max-h-[85%] max-w-[85%] object-contain transition-transform duration-300 group-hover/img:scale-105"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = 'none';
+                            }}
                           />
                         </div>
 
-                        {/* Actions bar */}
-                        <div className="mt-4 flex items-center gap-2">
+                        {/* Image Actions bar */}
+                        <div className="mt-3 flex items-center gap-2">
                           {/* Upload from PC */}
                           <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/25 text-xs font-bold cursor-pointer transition-all active:scale-95 text-center">
                             <UploadIcon size={14} />
-                            <span>{isRtl ? "رفع صورة" : "Upload"}</span>
+                            <span>{isRtl ? "رفع شعار" : "Upload Logo"}</span>
                             <input
                               type="file"
                               accept="image/*"
@@ -1339,7 +1651,7 @@ export default function AdminDashboard() {
                                 currentUrl: currentLogo,
                                 type: 'brand'
                               });
-                              setTempRetroUrl(retroBrandLogos[b.id] || '');
+                              setTempRetroUrl(retroBrandLogos[b.id] || b.logo || '');
                             }}
                             className="flex items-center justify-center px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all cursor-pointer"
                             title={isRtl ? "إدخال رابط مباشر" : "Direct URL"}
@@ -1356,11 +1668,46 @@ export default function AdminDashboard() {
                                 if (showToast) showToast(isRtl ? `تمت استعادة الشعار الأصلي لـ ${b.name}` : `Restored default logo for ${b.name}`, 'info');
                               }}
                               className="flex items-center justify-center px-3 py-2 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/25 text-xs font-bold transition-all cursor-pointer"
-                              title={isRtl ? "استعادة الأصلية" : "Restore default"}
+                              title={isRtl ? "استعادة الشعار الأصلي" : "Restore default logo"}
                             >
-                              <TrashIcon size={14} />
+                              ↺
                             </button>
                           )}
+                        </div>
+
+                        {/* Manage Subsections & Add Product Buttons */}
+                        <div className="mt-2.5 pt-2.5 border-t border-slate-800/80 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedRetroBrandForDevices(b.id);
+                              setRetroSubView('devices');
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-[11px] font-bold transition-all cursor-pointer"
+                          >
+                            <span>🎮</span>
+                            <span>
+                              {isRtl
+                                ? `الأجهزة والأقسام (${b.devices.length})`
+                                : `Models & Subsections (${b.devices.length})`}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickAddContext({
+                                brandId: b.id,
+                                deviceId: b.devices[0]?.id || '',
+                                kindId: 'consoles',
+                              });
+                              setQuickAddOpen(true);
+                            }}
+                            className="px-2.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition-all cursor-pointer"
+                            title={isRtl ? "إضافة منتج لهذا السكشن" : "Add product to this section"}
+                          >
+                            + {isRtl ? "منتج" : "Item"}
+                          </button>
                         </div>
                       </div>
                     );
@@ -1368,11 +1715,11 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ) : (
-              /* View 2: Console Devices by Brand */
+              /* View 2: Console Devices by Brand + Product-Type Section Images (Consoles / Games / Accessories) */
               <div className="space-y-6">
-                {/* Brand selection pills */}
+                {/* Brand selection pills (includes all existing + newly created brands) */}
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-                  {RETRO_BRANDS.map((b) => (
+                  {allRetroBrands.map((b) => (
                     <button
                       key={b.id}
                       type="button"
@@ -1383,7 +1730,7 @@ export default function AdminDashboard() {
                           : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
                       }`}
                     >
-                      <span>{b.name}</span>
+                      <span>{isRtl && b.nameAr ? b.nameAr : b.name}</span>
                       <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-black/30">
                         {b.devices.length}
                       </span>
@@ -1393,71 +1740,257 @@ export default function AdminDashboard() {
 
                 {/* Devices Grid */}
                 {(() => {
-                  const currentBrand = RETRO_BRANDS.find((b) => b.id === selectedRetroBrandForDevices) || RETRO_BRANDS[0];
+                  const currentBrand =
+                    allRetroBrands.find((b) => b.id === selectedRetroBrandForDevices) ||
+                    allRetroBrands[0];
+                  if (!currentBrand) return null;
+
                   return (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-                        <span>
-                          {isRtl ? `أجهزة وموديلات ${currentBrand.name} (${currentBrand.devices.length} أجهزة)` : `${currentBrand.name} Devices (${currentBrand.devices.length} models)`}
-                        </span>
+                      {/* Brand Sub-header with Add Console Model & Add Product buttons */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl border border-slate-800 bg-slate-900/50">
+                        <div>
+                          <h4 className="text-sm font-black text-white">
+                            {isRtl
+                              ? `أجهزة وموديلات ${currentBrand.nameAr || currentBrand.name} (${currentBrand.devices.length} أجهزة)`
+                              : `${currentBrand.name} Console Models (${currentBrand.devices.length} models)`}
+                          </h4>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {isRtl
+                              ? "لكل جهاز كونسول يمكنك رفع صورة الجهاز بالإضافة إلى 3 صور مستقلة لأقسام (الكونسول، الألعاب، الإكسسوارات) الخاصة به."
+                              : "Each console model has its own device photo plus 3 independent images for its Consoles, Games, and Accessories cards."}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDeviceFormModal({
+                                mode: 'add',
+                                brandId: currentBrand.id,
+                                id: '',
+                                name: '',
+                                nameAr: '',
+                                tokensText: '',
+                                image: '',
+                              })
+                            }
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-xs font-black text-slate-950 shadow-md hover:scale-105 transition-all cursor-pointer"
+                          >
+                            <PlusIcon size={14} />
+                            <span>
+                              {isRtl
+                                ? `+ إضافة جهاز / قسم فرعي لـ ${currentBrand.name}`
+                                : `+ Add Console Model to ${currentBrand.name}`}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickAddContext({
+                                brandId: currentBrand.id,
+                                deviceId: currentBrand.devices[0]?.id || '',
+                                kindId: 'consoles',
+                              });
+                              setQuickAddOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 px-3.5 py-2 text-xs font-bold text-emerald-300 transition-all cursor-pointer"
+                          >
+                            <PlusIcon size={14} />
+                            <span>{isRtl ? "إضافة منتج لهذا القسم" : "Add Product"}</span>
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {currentBrand.devices.map((d) => {
-                          const deviceKey = `${currentBrand.id}:${d.id}`;
-                          const deviceImg = retroDeviceImages[deviceKey] || d.image;
-                          const isCustomized = Boolean(retroDeviceImages[deviceKey]);
+                      {currentBrand.devices.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 p-10 text-center space-y-3">
+                          <p className="text-sm font-bold text-slate-300">
+                            {isRtl
+                              ? `لا توجد موديلات أجهزة مضافة داخل "${currentBrand.name}" بعد.`
+                              : `No console models added inside "${currentBrand.name}" yet.`}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDeviceFormModal({
+                                mode: 'add',
+                                brandId: currentBrand.id,
+                                id: '',
+                                name: '',
+                                nameAr: '',
+                                tokensText: '',
+                                image: '',
+                              })
+                            }
+                            className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 text-xs font-black text-slate-950 hover:bg-cyan-400 transition-all cursor-pointer"
+                          >
+                            <PlusIcon size={15} />
+                            <span>
+                              {isRtl ? "إضافة أول جهاز كونسول الآن" : "Add First Console Model Now"}
+                            </span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                          {currentBrand.devices.map((d, dIdx) => {
+                            const deviceKey = `${currentBrand.id}:${d.id}`;
+                            const deviceImg = retroDeviceImages[deviceKey] || d.image;
+                            const isCustomized = Boolean(retroDeviceImages[deviceKey]);
 
-                          return (
-                            <div
-                              key={d.id}
-                              className="group flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/60 p-4 hover:border-cyan-500/40 transition-all duration-300"
-                            >
-                              <div className="flex items-center justify-between gap-2 mb-3">
-                                <h4 className="text-xs font-black text-white line-clamp-1">{d.name}</h4>
-                                {isCustomized ? (
-                                  <span className="text-[9px] font-black text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 px-2 py-0.5 rounded-full">
-                                    {isRtl ? "معدّل" : "Custom"}
-                                  </span>
-                                ) : (
-                                  <span className="text-[9px] font-bold text-slate-500 bg-slate-950 px-2 py-0.5 rounded-full border border-slate-850">
-                                    {isRtl ? "افتراضي" : "Default"}
-                                  </span>
-                                )}
-                              </div>
+                            return (
+                              <div
+                                key={d.id}
+                                className={`group flex flex-col justify-between rounded-2xl border p-4 transition-all duration-300 ${
+                                  d.hidden
+                                    ? 'border-amber-500/30 bg-slate-950/70 opacity-65'
+                                    : 'border-slate-800 bg-slate-900/60 hover:border-cyan-500/40'
+                                }`}
+                              >
+                                {/* Top Device Management Bar: Reorder, Hide, Edit, Delete */}
+                                <div className="flex items-center justify-between gap-1 mb-2 pb-2 border-b border-slate-800/80">
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      disabled={dIdx === 0}
+                                      onClick={() => reorderRetroDevice(currentBrand.id, d.id, 'up')}
+                                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold disabled:opacity-30 cursor-pointer"
+                                      title={isRtl ? "تحريك للأمام" : "Move up"}
+                                    >
+                                      ↑
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={dIdx === currentBrand.devices.length - 1}
+                                      onClick={() => reorderRetroDevice(currentBrand.id, d.id, 'down')}
+                                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold disabled:opacity-30 cursor-pointer"
+                                      title={isRtl ? "تحريك للخلف" : "Move down"}
+                                    >
+                                      ↓
+                                    </button>
+                                    <span className="text-[10px] font-mono text-slate-500 px-1">
+                                      {d.id}
+                                    </span>
+                                  </div>
 
-                              <div className="relative aspect-[4/3] w-full rounded-xl bg-black border border-slate-800/90 flex items-center justify-center p-3 overflow-hidden shadow-inner">
-                                {deviceImg ? (
-                                  <img
-                                    src={deviceImg}
-                                    alt={d.name}
-                                    className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
-                                  />
-                                ) : (
-                                  <span className="text-center text-xs text-slate-500">
-                                    {isRtl ? "لا توجد صورة بعد" : "No photo yet"}
-                                  </span>
-                                )}
-                              </div>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleHideRetroDevice(currentBrand.id, d.id)}
+                                      className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer ${
+                                        d.hidden
+                                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                                          : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-cyan-400'
+                                      }`}
+                                      title={d.hidden ? (isRtl ? "إظهار الجهاز" : "Show model") : (isRtl ? "إخفاء الجهاز" : "Hide model")}
+                                    >
+                                      {d.hidden ? <EyeOffIcon size={13} /> : <EyeIcon size={13} />}
+                                    </button>
 
-                              <div className="mt-3 flex items-center gap-2">
-                                <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/25 text-xs font-bold cursor-pointer transition-all text-center active:scale-95">
-                                  <UploadIcon size={14} />
-                                  <span>{isRtl ? "رفع صورة" : "Upload"}</span>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={async (e) => {
-                                      const file = e.target.files?.[0];
-                                      if (!file) return;
-                                      if (showToast) showToast(isRtl ? `جاري رفع صورة ${d.name}...` : `Uploading ${d.name}...`, 'info');
-                                      try {
-                                        const publicUrl = await uploadImageToSupabase(file, 'devices');
-                                        if (publicUrl) {
-                                          updateRetroDeviceImage(currentBrand.id, d.id, publicUrl);
-                                          if (showToast) showToast(isRtl ? `تم تحديث صورة ${d.name}` : `Updated ${d.name}`, 'success');
-                                        } else {
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setDeviceFormModal({
+                                          mode: 'edit',
+                                          brandId: currentBrand.id,
+                                          id: d.id,
+                                          name: d.name,
+                                          nameAr: d.nameAr || '',
+                                          tokensText: (d.tokens || []).join(', '),
+                                          image: deviceImg || '',
+                                        })
+                                      }
+                                      className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-cyan-400 transition-all cursor-pointer"
+                                      title={isRtl ? "تعديل بيانات الجهاز" : "Edit console model"}
+                                    >
+                                      <EditIcon size={13} />
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const msg = isRtl
+                                          ? `هل أنت متأكد من حذف جهاز "${d.name}"؟`
+                                          : `Delete console model "${d.name}"?`;
+                                        if (window.confirm(msg)) {
+                                          deleteRetroDevice(currentBrand.id, d.id);
+                                        }
+                                      }}
+                                      className="p-1.5 rounded-lg bg-pink-500/10 border border-pink-500/25 text-pink-400 hover:bg-pink-500/20 transition-all cursor-pointer"
+                                      title={isRtl ? "حذف الجهاز" : "Delete console model"}
+                                    >
+                                      <TrashIcon size={13} />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between gap-2 mb-3">
+                                  <h4 className="text-sm font-black text-white line-clamp-1">
+                                    {isRtl && d.nameAr ? `${d.nameAr} (${d.name})` : d.name}
+                                  </h4>
+                                  <div className="flex items-center gap-1">
+                                    {d.hidden && (
+                                      <span className="text-[9px] font-black text-amber-300 bg-amber-950/80 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                                        {isRtl ? "مخفي" : "Hidden"}
+                                      </span>
+                                    )}
+                                    {isCustomized ? (
+                                      <span className="text-[9px] font-black text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                                        {isRtl ? "معدّل" : "Custom"}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] font-bold text-slate-500 bg-slate-950 px-2 py-0.5 rounded-full border border-slate-850">
+                                        {isRtl ? "افتراضي" : "Default"}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Main Console Model Image Preview */}
+                                <div className="relative aspect-[4/3] w-full rounded-xl bg-black border border-slate-800/90 flex items-center justify-center p-3 overflow-hidden shadow-inner">
+                                  {deviceImg ? (
+                                    <img
+                                      src={deviceImg}
+                                      alt={d.name}
+                                      className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                                    />
+                                  ) : (
+                                    <span className="text-center text-xs text-slate-500">
+                                      {isRtl ? "لا توجد صورة للجهاز بعد" : "No console photo yet"}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Main Console Image Upload / URL / Reset */}
+                                <div className="mt-3 flex items-center gap-2">
+                                  <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/25 text-xs font-bold cursor-pointer transition-all text-center active:scale-95">
+                                    <UploadIcon size={14} />
+                                    <span>{isRtl ? "صورة الجهاز" : "Console Photo"}</span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+                                        if (showToast) showToast(isRtl ? `جاري رفع صورة ${d.name}...` : `Uploading ${d.name}...`, 'info');
+                                        try {
+                                          const publicUrl = await uploadImageToSupabase(file, 'devices');
+                                          if (publicUrl) {
+                                            updateRetroDeviceImage(currentBrand.id, d.id, publicUrl);
+                                            if (showToast) showToast(isRtl ? `تم تحديث صورة ${d.name}` : `Updated ${d.name}`, 'success');
+                                          } else {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => {
+                                              if (typeof reader.result === 'string') {
+                                                updateRetroDeviceImage(currentBrand.id, d.id, reader.result);
+                                                if (showToast) showToast(isRtl ? `تم حفظ صورة ${d.name} محلياً` : `Saved ${d.name} locally`, 'success');
+                                              }
+                                            };
+                                            reader.readAsDataURL(file);
+                                          }
+                                        } catch {
                                           const reader = new FileReader();
                                           reader.onloadend = () => {
                                             if (typeof reader.result === 'string') {
@@ -1467,56 +2000,223 @@ export default function AdminDashboard() {
                                           };
                                           reader.readAsDataURL(file);
                                         }
-                                      } catch {
-                                        const reader = new FileReader();
-                                        reader.onloadend = () => {
-                                          if (typeof reader.result === 'string') {
-                                            updateRetroDeviceImage(currentBrand.id, d.id, reader.result);
-                                            if (showToast) showToast(isRtl ? `تم حفظ صورة ${d.name} محلياً` : `Saved ${d.name} locally`, 'success');
-                                          }
-                                        };
-                                        reader.readAsDataURL(file);
-                                      }
-                                    }}
-                                  />
-                                </label>
+                                      }}
+                                    />
+                                  </label>
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setRetroUrlModal({
-                                      id: d.id,
-                                      name: `${currentBrand.name} - ${d.name}`,
-                                      currentUrl: deviceImg || '',
-                                      type: 'device',
-                                      brandId: currentBrand.id
-                                    });
-                                    setTempRetroUrl(retroDeviceImages[deviceKey] || '');
-                                  }}
-                                  className="flex items-center justify-center px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition-all cursor-pointer"
-                                  title={isRtl ? "رابط مباشر" : "URL"}
-                                >
-                                  🔗
-                                </button>
-
-                                {isCustomized && (
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      resetRetroDeviceImage(currentBrand.id, d.id);
-                                      if (showToast) showToast(isRtl ? `تمت استعادة الصورة الافتراضية لـ ${d.name}` : `Restored default for ${d.name}`, 'info');
+                                      setRetroUrlModal({
+                                        id: d.id,
+                                        name: `${currentBrand.name} - ${d.name}`,
+                                        currentUrl: deviceImg || '',
+                                        type: 'device',
+                                        brandId: currentBrand.id
+                                      });
+                                      setTempRetroUrl(retroDeviceImages[deviceKey] || d.image || '');
                                     }}
-                                    className="flex items-center justify-center px-3 py-2 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/25 text-xs font-bold transition-all cursor-pointer"
-                                    title={isRtl ? "استعادة الأصلية" : "Reset"}
+                                    className="flex items-center justify-center px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition-all cursor-pointer"
+                                    title={isRtl ? "رابط مباشر" : "URL"}
                                   >
-                                    <TrashIcon size={14} />
+                                    🔗
                                   </button>
-                                )}
+
+                                  {isCustomized && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        resetRetroDeviceImage(currentBrand.id, d.id);
+                                        if (showToast) showToast(isRtl ? `تمت استعادة الصورة الافتراضية لـ ${d.name}` : `Restored default for ${d.name}`, 'info');
+                                      }}
+                                      className="flex items-center justify-center px-3 py-2 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/25 text-xs font-bold transition-all cursor-pointer"
+                                      title={isRtl ? "استعادة الأصلية" : "Reset"}
+                                    >
+                                      ↺
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* ── Issue 3: Product-Type Section Images (Consoles / Games / Accessories) for THIS Console Model ── */}
+                                <div className="mt-4 pt-3 border-t border-slate-800 space-y-2.5">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-black text-cyan-300">
+                                      🖼️ {isRtl ? "صور أقسام نوع المنتج لهذا الجهاز:" : "Product-Type Section Images:"}
+                                    </span>
+                                    <span className="text-[9px] text-slate-400">
+                                      {isRtl ? "مستقلة لكل جهاز" : "Per-model"}
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {RETRO_KINDS.map((k) => {
+                                      const kindKey = `${currentBrand.id}:${d.id}:${k.id}`;
+                                      const kindImg = retroKindImages[kindKey] || d.kindImages?.[k.id] || '';
+                                      const kLabel = isRtl ? k.ar : k.en;
+
+                                      return (
+                                        <div
+                                          key={k.id}
+                                          className="flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/90 p-2 space-y-2"
+                                        >
+                                          <div className="text-[10px] font-bold text-white text-center truncate" title={kLabel}>
+                                            {kLabel}
+                                          </div>
+
+                                          {/* Thumbnail preview */}
+                                          <div className="relative aspect-[4/3] w-full rounded-lg bg-black border border-slate-800/80 flex items-center justify-center overflow-hidden p-1">
+                                            {kindImg ? (
+                                              <img
+                                                src={kindImg}
+                                                alt={`${d.name} ${kLabel}`}
+                                                className="h-full w-full object-contain"
+                                              />
+                                            ) : (
+                                              <span className="text-[9px] text-slate-500 text-center px-1">
+                                                {isRtl ? "افتراضي" : "Placeholder"}
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          {/* Upload / URL / Remove controls */}
+                                          <div className="flex items-center justify-center gap-1">
+                                            <label
+                                              className="flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-[9px] font-bold cursor-pointer transition-all text-center"
+                                              title={isRtl ? `رفع صورة قسم ${kLabel} لـ ${d.name}` : `Upload ${kLabel} image for ${d.name}`}
+                                            >
+                                              <UploadIcon size={11} />
+                                              <span>{isRtl ? "رفع" : "Up"}</span>
+                                              <input
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={async (e) => {
+                                                  const file = e.target.files?.[0];
+                                                  if (!file) return;
+                                                  if (showToast) {
+                                                    showToast(
+                                                      isRtl
+                                                        ? `جاري رفع صورة ${kLabel} (${d.name})...`
+                                                        : `Uploading ${kLabel} image (${d.name})...`,
+                                                      'info'
+                                                    );
+                                                  }
+                                                  try {
+                                                    const publicUrl = await uploadImageToSupabase(file, 'sections');
+                                                    if (publicUrl) {
+                                                      updateRetroKindImage(currentBrand.id, d.id, k.id, publicUrl);
+                                                      if (showToast) {
+                                                        showToast(
+                                                          isRtl
+                                                            ? `تم تحديث صورة ${kLabel} لـ ${d.name}`
+                                                            : `Updated ${kLabel} image for ${d.name}`,
+                                                          'success'
+                                                        );
+                                                      }
+                                                    } else {
+                                                      const reader = new FileReader();
+                                                      reader.onloadend = () => {
+                                                        if (typeof reader.result === 'string') {
+                                                          updateRetroKindImage(currentBrand.id, d.id, k.id, reader.result);
+                                                          if (showToast) {
+                                                            showToast(
+                                                              isRtl
+                                                                ? `تم حفظ صورة ${kLabel} لـ ${d.name} محلياً`
+                                                                : `Saved ${kLabel} image for ${d.name} locally`,
+                                                              'success'
+                                                            );
+                                                          }
+                                                        }
+                                                      };
+                                                      reader.readAsDataURL(file);
+                                                    }
+                                                  } catch {
+                                                    const reader = new FileReader();
+                                                    reader.onloadend = () => {
+                                                      if (typeof reader.result === 'string') {
+                                                        updateRetroKindImage(currentBrand.id, d.id, k.id, reader.result);
+                                                        if (showToast) {
+                                                          showToast(
+                                                            isRtl
+                                                              ? `تم حفظ صورة ${kLabel} لـ ${d.name} محلياً`
+                                                              : `Saved ${kLabel} image for ${d.name} locally`,
+                                                            'success'
+                                                          );
+                                                        }
+                                                      }
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                  }
+                                                }}
+                                              />
+                                            </label>
+
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setRetroUrlModal({
+                                                  id: d.id,
+                                                  name: `${d.name} — ${kLabel}`,
+                                                  currentUrl: kindImg,
+                                                  type: 'kind',
+                                                  brandId: currentBrand.id,
+                                                  kindId: k.id,
+                                                });
+                                                setTempRetroUrl(kindImg);
+                                              }}
+                                              className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[9px] cursor-pointer"
+                                              title={isRtl ? "رابط صورة مباشر" : "Direct Image URL"}
+                                            >
+                                              🔗
+                                            </button>
+
+                                            {kindImg && (
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  resetRetroKindImage(currentBrand.id, d.id, k.id);
+                                                  if (showToast) {
+                                                    showToast(
+                                                      isRtl
+                                                        ? `تمت إزالة صورة ${kLabel} لـ ${d.name}`
+                                                        : `Removed ${kLabel} image for ${d.name}`,
+                                                      'info'
+                                                    );
+                                                  }
+                                                }}
+                                                className="p-1 rounded-lg bg-pink-500/15 hover:bg-pink-500/25 text-pink-400 border border-pink-500/30 text-[9px] cursor-pointer"
+                                                title={isRtl ? "حذف الصورة" : "Remove image"}
+                                              >
+                                                ✕
+                                              </button>
+                                            )}
+                                          </div>
+
+                                          {/* Quick add product directly to this product-type section */}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setQuickAddContext({
+                                                brandId: currentBrand.id,
+                                                deviceId: d.id,
+                                                kindId: k.id,
+                                              });
+                                              setQuickAddOpen(true);
+                                            }}
+                                            className="w-full py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20 text-[9px] font-bold transition-all cursor-pointer"
+                                          >
+                                            + {isRtl ? "إضافة منتج" : "Add Item"}
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -2356,6 +3056,11 @@ export default function AdminDashboard() {
                         <option value="Accessories">Accessories (الملحقات والأكسسوارات)</option>
                         <option value="Laptops">Laptops (اللابتوبات)</option>
                         <option value="Repair Hub">Repair Hub (خدمات الصيانة)</option>
+                        {allRetroBrands.map((b) => (
+                          <option key={`edit-pcat-${b.id}`} value={b.id}>
+                            {b.name} {b.nameAr ? `(${b.nameAr})` : `(${b.id})`}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -2370,6 +3075,7 @@ export default function AdminDashboard() {
                         <option value="">None</option>
                         <option value="Consoles">Consoles (أجهزة الألعاب)</option>
                         <option value="Games">Games (أشرطة وألعاب)</option>
+                        <option value="Accessories">Accessories (الإكسسوارات والمحولات)</option>
                         <option value="Controllers">Controllers (أذرع تحكم)</option>
                         <option value="PC Components">PC Components (قطع كمبيوتر)</option>
                         <option value="Gaming PCs">Gaming PCs (تجميعات كمبيوتر)</option>
@@ -2770,6 +3476,8 @@ export default function AdminDashboard() {
                     updateRetroBrandLogo(retroUrlModal.id, finalUrl);
                   } else if (retroUrlModal.type === 'device' && retroUrlModal.brandId) {
                     updateRetroDeviceImage(retroUrlModal.brandId, retroUrlModal.id, finalUrl);
+                  } else if (retroUrlModal.type === 'kind' && retroUrlModal.brandId && retroUrlModal.kindId) {
+                    updateRetroKindImage(retroUrlModal.brandId, retroUrlModal.id, retroUrlModal.kindId, finalUrl);
                   }
                   if (showToast) showToast(isRtl ? 'تم حفظ رابط الصورة بنجاح' : 'Image URL saved successfully', 'success');
                   setRetroUrlModal(null);
@@ -2783,10 +3491,627 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Add / Edit Retro Brand (Section) Modal */}
+      {brandFormModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl border border-cyan-500/30 bg-slate-900 p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-cyan-400">🏢</span>
+                <h4 className="text-sm font-black text-white">
+                  {brandFormModal.mode === 'add'
+                    ? isRtl
+                      ? "إضافة شركة / سكشن ريترو جديد"
+                      : "Create New Retro Brand / Section"
+                    : isRtl
+                    ? `تعديل سكشن (${brandFormModal.name})`
+                    : `Edit Brand / Section (${brandFormModal.name})`}
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBrandFormModal(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <CloseIcon size={18} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const cleanName = brandFormModal.name.trim() || brandFormModal.nameAr.trim();
+                if (!cleanName) return;
+                const cleanId =
+                  brandFormModal.mode === 'edit'
+                    ? brandFormModal.id
+                    : (brandFormModal.id.trim() || cleanName)
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_-]+/g, '-')
+                        .replace(/^-+|-+$/g, '') || `section-${Date.now()}`;
+
+                if (brandFormModal.mode === 'add') {
+                  addRetroBrand({
+                    id: cleanId,
+                    name: cleanName,
+                    nameAr: brandFormModal.nameAr.trim() || undefined,
+                    color: brandFormModal.color || '#06b6d4',
+                    logo: brandFormModal.logo.trim() || undefined,
+                    devices: [],
+                  });
+                  setSelectedRetroBrandForDevices(cleanId);
+                  if (showToast) {
+                    showToast(
+                      isRtl
+                        ? `تم إنشاء قسم "${cleanName}" بنجاح! يمكنك الآن إضافة موديلات الكونسول والمنتجات بداخله.`
+                        : `Section "${cleanName}" created! You can now add console models and products to it.`,
+                      'success'
+                    );
+                  }
+                } else {
+                  updateRetroBrand(cleanId, {
+                    name: cleanName,
+                    nameAr: brandFormModal.nameAr.trim() || undefined,
+                    color: brandFormModal.color || '#06b6d4',
+                    logo: brandFormModal.logo.trim() || undefined,
+                  });
+                  if (showToast) {
+                    showToast(
+                      isRtl ? `تم تحديث بيانات قسم "${cleanName}"` : `Updated section "${cleanName}"`,
+                      'success'
+                    );
+                  }
+                }
+                setBrandFormModal(null);
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">
+                    {isRtl ? "اسم الشركة / القسم (بالإنجليزية) *" : "Brand / Section Name (EN) *"}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={brandFormModal.name}
+                    onChange={(e) =>
+                      setBrandFormModal({
+                        ...brandFormModal,
+                        name: e.target.value,
+                        id:
+                          brandFormModal.mode === 'add'
+                            ? e.target.value
+                                .toLowerCase()
+                                .replace(/[^a-z0-9_-]+/g, '-')
+                                .replace(/^-+|-+$/g, '')
+                            : brandFormModal.id,
+                      })
+                    }
+                    placeholder="e.g. Bandai / Neo Geo"
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white focus:border-cyan-400 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">
+                    {isRtl ? "اسم الشركة / القسم (بالعربية)" : "Arabic Name (Optional)"}
+                  </label>
+                  <input
+                    type="text"
+                    value={brandFormModal.nameAr}
+                    onChange={(e) => setBrandFormModal({ ...brandFormModal, nameAr: e.target.value })}
+                    placeholder="مثال: بانداي"
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white focus:border-cyan-400 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">
+                    {isRtl ? "معرّف الرابط (Slug / ID)" : "Section Slug / ID"}
+                  </label>
+                  <input
+                    type="text"
+                    disabled={brandFormModal.mode === 'edit'}
+                    value={brandFormModal.id}
+                    onChange={(e) => setBrandFormModal({ ...brandFormModal, id: e.target.value })}
+                    placeholder="e.g. bandai"
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-slate-300 font-mono disabled:opacity-50 focus:border-cyan-400 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">
+                    {isRtl ? "لون السكشن المميز" : "Accent Color"}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={brandFormModal.color}
+                      onChange={(e) => setBrandFormModal({ ...brandFormModal, color: e.target.value })}
+                      className="h-9 w-12 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={brandFormModal.color}
+                      onChange={(e) => setBrandFormModal({ ...brandFormModal, color: e.target.value })}
+                      className="flex-1 rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 text-white font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Logo Upload or URL */}
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                <label className="font-semibold text-slate-300 block">
+                  {isRtl ? "شعار الشركة / السكشن (رفع من الجهاز أو رابط)" : "Section Logo (Upload or URL)"}
+                </label>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 font-bold cursor-pointer shrink-0">
+                    <UploadIcon size={14} />
+                    <span>{isRtl ? "رفع شعار" : "Upload Logo"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const publicUrl = await uploadImageToSupabase(file, 'sections');
+                          if (publicUrl) {
+                            setBrandFormModal((prev) => (prev ? { ...prev, logo: publicUrl } : null));
+                          } else {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              if (typeof reader.result === 'string') {
+                                setBrandFormModal((prev) =>
+                                  prev ? { ...prev, logo: reader.result as string } : null
+                                );
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        } catch {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            if (typeof reader.result === 'string') {
+                              setBrandFormModal((prev) =>
+                                prev ? { ...prev, logo: reader.result as string } : null
+                              );
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    value={brandFormModal.logo}
+                    onChange={(e) => setBrandFormModal({ ...brandFormModal, logo: e.target.value })}
+                    placeholder={isRtl ? "أو الصق رابط الشعار..." : "Or paste logo image URL..."}
+                    className="flex-1 rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white font-mono"
+                  />
+                </div>
+                {brandFormModal.logo && (
+                  <div className="h-24 w-full rounded-xl bg-black border border-slate-800 flex items-center justify-center p-2">
+                    <img src={brandFormModal.logo} alt="Preview" className="max-h-full max-w-full object-contain" />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setBrandFormModal(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-800 bg-slate-800/60 font-bold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                >
+                  {isRtl ? "إلغاء" : "Cancel"}
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
+                >
+                  {brandFormModal.mode === 'add'
+                    ? isRtl
+                      ? "إنشاء السكشن الآن"
+                      : "Create Section"
+                    : isRtl
+                    ? "حفظ التعديلات"
+                    : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Console Model (Subsection) Modal */}
+      {deviceFormModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl border border-cyan-500/30 bg-slate-900 p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-cyan-400">🎮</span>
+                <h4 className="text-sm font-black text-white">
+                  {deviceFormModal.mode === 'add'
+                    ? isRtl
+                      ? "إضافة موديل جهاز كونسول / قسم فرعي جديد"
+                      : "Add New Console Model / Subsection"
+                    : isRtl
+                    ? `تعديل جهاز (${deviceFormModal.name})`
+                    : `Edit Console Model (${deviceFormModal.name})`}
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeviceFormModal(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <CloseIcon size={18} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const cleanName = deviceFormModal.name.trim() || deviceFormModal.nameAr.trim();
+                if (!cleanName) return;
+                const cleanId =
+                  deviceFormModal.mode === 'edit'
+                    ? deviceFormModal.id
+                    : (deviceFormModal.id.trim() || cleanName)
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_-]+/g, '-')
+                        .replace(/^-+|-+$/g, '') || `model-${Date.now()}`;
+
+                const parsedTokens = deviceFormModal.tokensText
+                  .split(',')
+                  .map((t) => t.trim().toLowerCase())
+                  .filter(Boolean);
+                const finalTokens = Array.from(
+                  new Set([
+                    ...parsedTokens,
+                    cleanId.toLowerCase(),
+                    cleanName.toLowerCase(),
+                    ...(deviceFormModal.nameAr.trim() ? [deviceFormModal.nameAr.trim().toLowerCase()] : []),
+                  ])
+                );
+
+                if (deviceFormModal.mode === 'add') {
+                  addRetroDevice(deviceFormModal.brandId, {
+                    id: cleanId,
+                    name: cleanName,
+                    nameAr: deviceFormModal.nameAr.trim() || undefined,
+                    image: deviceFormModal.image.trim(),
+                    tokens: finalTokens,
+                  });
+                  if (showToast) {
+                    showToast(
+                      isRtl
+                        ? `تم إضافة جهاز "${cleanName}" بنجاح مع أقسامه الثلاثة (الكونسول / الألعاب / الإكسسوارات)!`
+                        : `Added console model "${cleanName}" with its 3 product-type sections!`,
+                      'success'
+                    );
+                  }
+                } else {
+                  updateRetroDevice(deviceFormModal.brandId, cleanId, {
+                    name: cleanName,
+                    nameAr: deviceFormModal.nameAr.trim() || undefined,
+                    image: deviceFormModal.image.trim(),
+                    tokens: finalTokens,
+                  });
+                  if (showToast) {
+                    showToast(
+                      isRtl ? `تم تحديث جهاز "${cleanName}"` : `Updated console model "${cleanName}"`,
+                      'success'
+                    );
+                  }
+                }
+                setDeviceFormModal(null);
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">
+                    {isRtl ? "الشركة / السكشن التابع له" : "Parent Brand / Section"}
+                  </label>
+                  <select
+                    value={deviceFormModal.brandId}
+                    disabled={deviceFormModal.mode === 'edit'}
+                    onChange={(e) => setDeviceFormModal({ ...deviceFormModal, brandId: e.target.value })}
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white focus:border-cyan-400 focus:outline-none disabled:opacity-60"
+                  >
+                    {allRetroBrands.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} {b.nameAr ? `(${b.nameAr})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">
+                    {isRtl ? "معرّف الجهاز (Slug / ID)" : "Model Slug / ID"}
+                  </label>
+                  <input
+                    type="text"
+                    disabled={deviceFormModal.mode === 'edit'}
+                    value={deviceFormModal.id}
+                    onChange={(e) => setDeviceFormModal({ ...deviceFormModal, id: e.target.value })}
+                    placeholder="e.g. ps-portal"
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-slate-300 font-mono disabled:opacity-50 focus:border-cyan-400 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">
+                    {isRtl ? "اسم الجهاز (بالإنجليزية) *" : "Console Model Name (EN) *"}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={deviceFormModal.name}
+                    onChange={(e) =>
+                      setDeviceFormModal({
+                        ...deviceFormModal,
+                        name: e.target.value,
+                        id:
+                          deviceFormModal.mode === 'add'
+                            ? e.target.value
+                                .toLowerCase()
+                                .replace(/[^a-z0-9_-]+/g, '-')
+                                .replace(/^-+|-+$/g, '')
+                            : deviceFormModal.id,
+                      })
+                    }
+                    placeholder="e.g. PlayStation Portal"
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white focus:border-cyan-400 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">
+                    {isRtl ? "اسم الجهاز (بالعربية)" : "Arabic Name (Optional)"}
+                  </label>
+                  <input
+                    type="text"
+                    value={deviceFormModal.nameAr}
+                    onChange={(e) => setDeviceFormModal({ ...deviceFormModal, nameAr: e.target.value })}
+                    placeholder="مثال: بلايستيشن بورتال"
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white focus:border-cyan-400 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1 sm:col-span-2">
+                  <label className="font-semibold text-slate-300">
+                    {isRtl
+                      ? "كلمات الربط التلقائي بالمنتجات (مفصولة بفواصل)"
+                      : "Product Matching Keywords / Tokens (Comma-separated)"}
+                  </label>
+                  <input
+                    type="text"
+                    value={deviceFormModal.tokensText}
+                    onChange={(e) => setDeviceFormModal({ ...deviceFormModal, tokensText: e.target.value })}
+                    placeholder="e.g. ps2, playstation 2"
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white font-mono focus:border-cyan-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Console Image Upload or URL */}
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                <label className="font-semibold text-slate-300 block">
+                  {isRtl ? "صورة جهاز الكونسول (رفع أو رابط)" : "Console Model Image (Upload or URL)"}
+                </label>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 font-bold cursor-pointer shrink-0">
+                    <UploadIcon size={14} />
+                    <span>{isRtl ? "رفع صورة" : "Upload Photo"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const publicUrl = await uploadImageToSupabase(file, 'devices');
+                          if (publicUrl) {
+                            setDeviceFormModal((prev) => (prev ? { ...prev, image: publicUrl } : null));
+                          } else {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              if (typeof reader.result === 'string') {
+                                setDeviceFormModal((prev) =>
+                                  prev ? { ...prev, image: reader.result as string } : null
+                                );
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        } catch {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            if (typeof reader.result === 'string') {
+                              setDeviceFormModal((prev) =>
+                                prev ? { ...prev, image: reader.result as string } : null
+                              );
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  <input
+                    type="text"
+                    value={deviceFormModal.image}
+                    onChange={(e) => setDeviceFormModal({ ...deviceFormModal, image: e.target.value })}
+                    placeholder={isRtl ? "أو الصق رابط الصورة..." : "Or paste image URL..."}
+                    className="flex-1 rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white font-mono"
+                  />
+                </div>
+                {deviceFormModal.image && (
+                  <div className="h-24 w-full rounded-xl bg-black border border-slate-800 flex items-center justify-center p-2">
+                    <img src={deviceFormModal.image} alt="Preview" className="max-h-full max-w-full object-contain" />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setDeviceFormModal(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-800 bg-slate-800/60 font-bold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                >
+                  {isRtl ? "إلغاء" : "Cancel"}
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
+                >
+                  {deviceFormModal.mode === 'add'
+                    ? isRtl
+                      ? "إضافة الجهاز الآن"
+                      : "Add Console Model"
+                    : isRtl
+                    ? "حفظ التعديلات"
+                    : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Visual Category Modal */}
+      {visualCatFormModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl border border-cyan-500/30 bg-slate-900 p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h4 className="text-sm font-black text-white">
+                {visualCatFormModal.mode === 'add'
+                  ? isRtl
+                    ? "إضافة قسم جديد لواجهة المتجر"
+                    : "Add New Visual Category"
+                  : isRtl
+                  ? "تعديل القسم"
+                  : "Edit Visual Category"}
+              </h4>
+              <button
+                type="button"
+                onClick={() => setVisualCatFormModal(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+              >
+                <CloseIcon size={18} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const cleanEn = visualCatFormModal.nameEn.trim() || visualCatFormModal.nameAr.trim();
+                const cleanAr = visualCatFormModal.nameAr.trim() || cleanEn;
+                if (!cleanEn) return;
+                const cleanId =
+                  visualCatFormModal.mode === 'edit'
+                    ? visualCatFormModal.id
+                    : cleanEn.toLowerCase().replace(/[^a-z0-9_-]+/g, '-') || `cat-${Date.now()}`;
+
+                if (visualCatFormModal.mode === 'add') {
+                  addVisualCategory({
+                    id: cleanId,
+                    nameEn: cleanEn,
+                    nameAr: cleanAr,
+                    icon: '🎮',
+                    image: visualCatFormModal.image.trim(),
+                    link: visualCatFormModal.link.trim() || `/products?category=${cleanId}`,
+                    accent: visualCatFormModal.accent,
+                  });
+                } else {
+                  updateVisualCategory(cleanId, {
+                    nameEn: cleanEn,
+                    nameAr: cleanAr,
+                    image: visualCatFormModal.image.trim(),
+                    link: visualCatFormModal.link.trim(),
+                    accent: visualCatFormModal.accent,
+                  });
+                }
+                setVisualCatFormModal(null);
+              }}
+              className="space-y-3 text-xs"
+            >
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-300">{isRtl ? "الاسم بالعربية *" : "Arabic Name *"}</label>
+                <input
+                  type="text"
+                  required
+                  value={visualCatFormModal.nameAr}
+                  onChange={(e) => setVisualCatFormModal({ ...visualCatFormModal, nameAr: e.target.value })}
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-white"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-300">{isRtl ? "الاسم بالإنجليزية *" : "English Name *"}</label>
+                <input
+                  type="text"
+                  required
+                  value={visualCatFormModal.nameEn}
+                  onChange={(e) => setVisualCatFormModal({ ...visualCatFormModal, nameEn: e.target.value })}
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-white"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-300">{isRtl ? "رابط التوجيه (Link)" : "Target Link"}</label>
+                <input
+                  type="text"
+                  value={visualCatFormModal.link}
+                  onChange={(e) => setVisualCatFormModal({ ...visualCatFormModal, link: e.target.value })}
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-white font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-300">{isRtl ? "رابط الصورة" : "Image URL"}</label>
+                <input
+                  type="text"
+                  value={visualCatFormModal.image}
+                  onChange={(e) => setVisualCatFormModal({ ...visualCatFormModal, image: e.target.value })}
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-white font-mono"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setVisualCatFormModal(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold"
+                >
+                  {isRtl ? "إلغاء" : "Cancel"}
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-cyan-500 text-slate-950 font-black"
+                >
+                  {isRtl ? "حفظ" : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Floating Add Product Modal Connector */}
       <QuickAddProductModal 
         isOpen={quickAddOpen}
-        onClose={() => setQuickAddOpen(false)}
+        onClose={() => {
+          setQuickAddOpen(false);
+          setQuickAddContext({});
+        }}
+        defaultRetroBrandId={quickAddContext.brandId}
+        defaultRetroDeviceId={quickAddContext.deviceId}
+        defaultRetroKindId={quickAddContext.kindId}
       />
 
     </div>

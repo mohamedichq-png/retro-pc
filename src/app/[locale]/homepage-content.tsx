@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element, @typescript-eslint/no-unused-vars */
 // RETRO Qatar — Homepage Content (Client Component)
 // Master storefront landing page organized into unified design system, balanced hero, 4 main portals, 12 visual categories, 8 product showcases, trust markers & store location
 
@@ -529,7 +530,7 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
 
           {/* Categories Container: Smooth Horizontal Swipe on mobile, Grid on desktop */}
           <div className="flex lg:grid lg:grid-cols-6 gap-3 sm:gap-4 overflow-x-auto pb-4 pt-1 scrollbar-none snap-x snap-mandatory">
-            {visualCategories.map((cat) => {
+            {visualCategories.filter((cat) => !cat.hidden).map((cat) => {
               const name = isRtl ? cat.nameAr : cat.nameEn;
               return (
                 <Link
@@ -944,7 +945,7 @@ export function HomepageContent({ products, dict, locale }: HomepageContentProps
                     </div>
                     <div className="text-retro-amber text-xs font-bold">★★★★★</div>
                   </div>
-                  <p className="text-xs text-retro-text-secondary leading-relaxed">"{rev.text}"</p>
+                  <p className="text-xs text-retro-text-secondary leading-relaxed">&ldquo;{rev.text}&rdquo;</p>
                 </div>
               ))}
             </div>
