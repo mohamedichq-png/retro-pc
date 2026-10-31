@@ -550,7 +550,7 @@ export default function QuickAddProductModal({
 
               <button
                 type="submit"
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:scale-[1.02] hover:shadow-cyan-500/40 transition-all cursor-pointer"
+                className="flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 via-blue-600 to-purple-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:scale-[1.02] hover:shadow-cyan-500/40 transition-all cursor-pointer"
               >
                 <PlusIcon size={16} />
                 <span>{isRtl ? "نشر المنتج فوراً" : "Publish Product Now"}</span>

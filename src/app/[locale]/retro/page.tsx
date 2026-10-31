@@ -126,9 +126,8 @@ function RetroStoreContent() {
         <button
           type="button"
           onClick={handleBack}
-          className="text-sm text-cyan-300 hover:underline cursor-pointer"
+          className={`text-sm text-cyan-300 hover:underline cursor-pointer ${brand ? 'visible' : 'invisible'}`}
           disabled={!brand}
-          style={{ visibility: brand ? 'visible' : 'hidden' }}
         >
           {ar ? '← رجوع' : '← Back'}
         </button>
@@ -204,7 +203,7 @@ function RetroStoreContent() {
                 }
                 className="group rounded-2xl border border-white/10 bg-slate-900/70 overflow-hidden transition hover:border-cyan-400 hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-cyan-400 cursor-pointer"
               >
-                <div className="aspect-[4/3] flex items-center justify-center bg-black p-5">
+                <div className="aspect-4/3 flex items-center justify-center bg-black p-5">
                   {deviceImg ? (
                     <DeviceImage key={deviceImg} src={deviceImg} name={dName} ar={ar} />
                   ) : (
@@ -229,7 +228,7 @@ function RetroStoreContent() {
                 href={`/${locale}/retro/browse/${encodeURIComponent(brand.id)}/${encodeURIComponent(device.id)}/${k.id}`}
                 className="group flex flex-col rounded-2xl border border-white/15 bg-slate-900/80 overflow-hidden text-center transition hover:border-cyan-400 hover:-translate-y-1 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-cyan-400"
               >
-                <div className="aspect-[4/3] w-full flex items-center justify-center bg-black p-5 border-b border-white/10">
+                <div className="aspect-4/3 w-full flex items-center justify-center bg-black p-5 border-b border-white/10">
                   <KindSectionImage
                     key={kindImg || 'placeholder'}
                     src={kindImg}
