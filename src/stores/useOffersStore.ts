@@ -30,6 +30,20 @@ export interface VisualCategory {
   accent: 'cyan' | 'purple' | 'green' | 'pink';
 }
 
+export const DEFAULT_RETRO_BRAND_LOGOS: Record<string, string> = {
+  playstation: '/brand-logos/playstation.png',
+  atari: '/brand-logos/atari.png',
+  xbox: '/brand-logos/xbox.png',
+  sega: '/brand-logos/sega.png',
+  amiga: '/brand-logos/amiga.png',
+  panasonic: '/brand-logos/panasonic.png',
+  nec: '/brand-logos/pc-engine.png',
+  philips: '/brand-logos/philips.webp',
+  arcade: '/brand-logos/arcade.jpg',
+  nintendo: '/brand-logos/nintendo.svg',
+  snk: '/brand-logos/snk.svg',
+};
+
 interface OffersState {
   slides: OfferSlide[];
   addSlide: (slide: OfferSlide) => void;
@@ -46,6 +60,16 @@ interface OffersState {
   // Visual Categories Admin State
   visualCategories: VisualCategory[];
   updateVisualCategory: (id: string, updates: Partial<VisualCategory>) => void;
+
+  // Retro Brand & Section Logos State
+  retroBrandLogos: Record<string, string>;
+  updateRetroBrandLogo: (brandId: string, image: string) => void;
+  resetRetroBrandLogo: (brandId: string) => void;
+
+  // Retro Devices Custom Images State
+  retroDeviceImages: Record<string, string>;
+  updateRetroDeviceImage: (brandId: string, deviceId: string, image: string) => void;
+  resetRetroDeviceImage: (brandId: string, deviceId: string) => void;
 
   // Cloud Sync
   initializeFromCloud: () => Promise<void>;
@@ -112,7 +136,7 @@ const DEFAULT_SLIDES: OfferSlide[] = [
 
 export const useOffersStore = create<OffersState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       slides: DEFAULT_SLIDES,
       addSlide: (slide) => {
         set((s) => {
@@ -170,6 +194,45 @@ export const useOffersStore = create<OffersState>()(
           return { visualCategories: newCats };
         });
       },
+
+      // Retro Brand Section Logos
+      retroBrandLogos: {},
+      updateRetroBrandLogo: (brandId, image) => {
+        set((s) => {
+          const updated = { ...s.retroBrandLogos, [brandId]: image };
+          supabase.from('store_settings').upsert({ id: 'retro_brand_logos', data: updated }).then();
+          return { retroBrandLogos: updated };
+        });
+      },
+      resetRetroBrandLogo: (brandId) => {
+        set((s) => {
+          const updated = { ...s.retroBrandLogos };
+          delete updated[brandId];
+          supabase.from('store_settings').upsert({ id: 'retro_brand_logos', data: updated }).then();
+          return { retroBrandLogos: updated };
+        });
+      },
+
+      // Retro Device Custom Images
+      retroDeviceImages: {},
+      updateRetroDeviceImage: (brandId, deviceId, image) => {
+        set((s) => {
+          const key = `${brandId}:${deviceId}`;
+          const updated = { ...s.retroDeviceImages, [key]: image };
+          supabase.from('store_settings').upsert({ id: 'retro_device_images', data: updated }).then();
+          return { retroDeviceImages: updated };
+        });
+      },
+      resetRetroDeviceImage: (brandId, deviceId) => {
+        set((s) => {
+          const key = `${brandId}:${deviceId}`;
+          const updated = { ...s.retroDeviceImages };
+          delete updated[key];
+          supabase.from('store_settings').upsert({ id: 'retro_device_images', data: updated }).then();
+          return { retroDeviceImages: updated };
+        });
+      },
+
       initializeFromCloud: async () => {
         if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder-domain')) {
           return;
@@ -179,12 +242,20 @@ export const useOffersStore = create<OffersState>()(
           if (!error && data) {
             const vc = data.find((row) => row.id === 'visual_categories');
             const os = data.find((row) => row.id === 'offer_slides');
+            const rbl = data.find((row) => row.id === 'retro_brand_logos');
+            const rdi = data.find((row) => row.id === 'retro_device_images');
             
             if (vc && vc.data) {
               set({ visualCategories: vc.data });
             }
             if (os && os.data) {
               set({ slides: os.data });
+            }
+            if (rbl && rbl.data) {
+              set({ retroBrandLogos: rbl.data });
+            }
+            if (rdi && rdi.data) {
+              set({ retroDeviceImages: rdi.data });
             }
           }
         } catch (err) {

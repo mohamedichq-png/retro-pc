@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element, @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -17,29 +18,18 @@ import {
   ShieldAlertIcon
 } from '@/components/Icons';
 import QuickAddProductModal from '@/components/QuickAddProductModal';
-import { useOffersStore } from '@/stores/useOffersStore';
-import { classifyAllProducts, classifyProduct } from '@/lib/classificationEngine';
-import { FULL_TAXONOMY_TREE } from '@/lib/taxonomy';
+import { useOffersStore, DEFAULT_RETRO_BRAND_LOGOS } from '@/stores/useOffersStore';
+import { RETRO_BRANDS } from '@/lib/retro-navigation';
+import { classifyAllProducts } from '@/lib/classificationEngine';
 import { uploadImageToSupabase, supabase } from '@/lib/supabase';
 import { mapProductToDb } from '@/lib/productsData';
 
-const SAMPLE_IMAGES = [
-  { label: 'Gaming PC Tower', url: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=600&auto=format&fit=crop&q=80' },
-  { label: 'RTX GPU', url: 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=600&auto=format&fit=crop&q=80' },
-  { label: 'Curved Gaming Monitor', url: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=600&auto=format&fit=crop&q=80' },
-  { label: 'Pro Gaming Headset', url: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&auto=format&fit=crop&q=80' },
-  { label: 'RGB Gaming Keyboard', url: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&auto=format&fit=crop&q=80' },
-  { label: 'Game Console Controller', url: 'https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?w=600&auto=format&fit=crop&q=80' },
-];
-
 export default function AdminDashboard() {
   const { 
-    language, 
     isRtl, 
     products, 
     updateProduct, 
     deleteProduct, 
-    addProduct, 
     importProducts,
     showToast,
     loading,
@@ -57,9 +47,15 @@ export default function AdminDashboard() {
   const [syncMessage, setSyncMessage] = useState('');
 
   // Dashboard Filters States
-  const [activeTab, setActiveTab] = useState<'published' | 'draft' | 'banners' | 'taxonomy' | 'visual-categories'>('published');
+  const [activeTab, setActiveTab] = useState<'published' | 'draft' | 'banners' | 'taxonomy' | 'visual-categories' | 'retro-sections'>('published');
   const [searchQuery, setSearchQuery] = useState('');
   const [taxonomyFilter, setTaxonomyFilter] = useState<'all' | 'needs-review' | 'pos' | 'pc' | 'playstation' | 'nintendo' | 'xbox' | 'retro' | 'pc-parts'>('all');
+
+  // Retro Sections View States
+  const [retroSubView, setRetroSubView] = useState<'brands' | 'devices'>('brands');
+  const [selectedRetroBrandForDevices, setSelectedRetroBrandForDevices] = useState<string>('playstation');
+  const [retroUrlModal, setRetroUrlModal] = useState<{ id: string; name: string; currentUrl: string; type: 'brand' | 'device'; brandId?: string } | null>(null);
+  const [tempRetroUrl, setTempRetroUrl] = useState('');
 
   // Quick Taxonomy Modal State
   const [taxonomyEditProduct, setTaxonomyEditProduct] = useState<Product | null>(null);
@@ -85,7 +81,13 @@ export default function AdminDashboard() {
     weeklyOfferEndDate,
     setWeeklyOfferData,
     visualCategories,
-    updateVisualCategory
+    updateVisualCategory,
+    retroBrandLogos,
+    updateRetroBrandLogo,
+    resetRetroBrandLogo,
+    retroDeviceImages,
+    updateRetroDeviceImage,
+    resetRetroDeviceImage
   } = useOffersStore();
 
   // Local form states for Weekly Offer
@@ -718,6 +720,23 @@ export default function AdminDashboard() {
             </button>
 
             <button
+              onClick={() => setActiveTab('retro-sections')}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'retro-sections'
+                  ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20 font-black'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>🕹️</span>
+              <span>{isRtl ? "صور أقسام الريترو" : "Retro Sections"}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                activeTab === 'retro-sections' ? 'bg-slate-950/25 text-slate-950' : 'bg-slate-800 text-cyan-400'
+              }`}>
+                {RETRO_BRANDS.length}
+              </span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('taxonomy')}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'taxonomy'
@@ -814,7 +833,7 @@ export default function AdminDashboard() {
               ].map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => setTaxonomyFilter(tab.id as any)}
+                  onClick={() => setTaxonomyFilter(tab.id as typeof taxonomyFilter)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     taxonomyFilter === tab.id
                       ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md shadow-cyan-500/20'
@@ -992,7 +1011,7 @@ export default function AdminDashboard() {
                       updateProduct(taxonomyEditProduct.id, {
                         mainCategory: taxMainCategory,
                         subCategory: taxSubCategory,
-                        section: taxSection as any,
+                        section: (taxSection || undefined) as Product['section'],
                         platform: taxPlatform,
                         brand: taxBrand,
                         needsClassification: false,
@@ -1096,6 +1115,26 @@ export default function AdminDashboard() {
           </div>
         ) : activeTab === 'visual-categories' ? (
           <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Quick Switch Banner to Retro Sections */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20">
+              <div className="space-y-0.5">
+                <h4 className="text-xs font-bold text-cyan-300">
+                  {isRtl ? "هل تبحث عن صور أقسام وسكشنات الريترو؟ (SEGA, Xbox, Nintendo, PlayStation...)" : "Looking to edit Retro & Console Section Images? (SEGA, Xbox, Nintendo...)"}
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  {isRtl ? "تمت إضافة قسم مخصص للتحكم الكامل بشعارات الشركات وأجهزة الكونسول المعروضة في صفحة الريترو." : "A dedicated section is available to manage all retro console brands and device models."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('retro-sections')}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-black transition-all shrink-0 cursor-pointer shadow-lg shadow-cyan-500/20"
+              >
+                <span>🕹️</span>
+                <span>{isRtl ? "انتقل لصور أقسام الريترو" : "Go to Retro Sections"}</span>
+              </button>
+            </div>
+
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400">
                 {isRtl ? "إدارة صور الأقسام (تسوق حسب الطلب)" : "Visual Categories Management"}
@@ -1133,7 +1172,7 @@ export default function AdminDashboard() {
                               };
                               reader.readAsDataURL(file);
                             }
-                          } catch (error) {
+                          } catch {
                             const reader = new FileReader();
                             reader.onloadend = () => {
                               if (typeof reader.result === 'string') {
@@ -1151,6 +1190,338 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+          </div>
+        ) : activeTab === 'retro-sections' ? (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {/* Top Header & Intro */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-slate-950 shadow-xl backdrop-blur-sm">
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 text-[11px] font-black text-cyan-400 uppercase tracking-wider">
+                  <span>🕹️</span>
+                  <span>{isRtl ? "أقسام وسكشنات الريترو والكونسول" : "Retro & Console Visual Sections"}</span>
+                </div>
+                <h3 className="text-lg font-black text-white tracking-tight">
+                  {isRtl ? "تعديل صور وشعارات السكشنات والشركات" : "Manage Retro Brand & Console Section Images"}
+                </h3>
+                <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
+                  {isRtl 
+                    ? "تحكم بالصور والشعارات المعروضة في صفحة الريترو (SEGA, Xbox, Nintendo, PlayStation, Amiga, Atari, Panasonic 3DO, SNK, Philips, Arcade, PC Engine). يمكنك رفع صورة جديدة أو كتابة رابط مباشر أو استعادة الأصلية."
+                    : "Customize brand logos and console photos displayed across the Retro store page. Upload new images, paste direct URLs, or restore original defaults anytime."}
+                </p>
+              </div>
+
+              {/* Sub-view switcher: Brands vs Devices */}
+              <div className="inline-flex rounded-2xl bg-slate-950 p-1 border border-slate-800 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setRetroSubView('brands')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    retroSubView === 'brands'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🏢 {isRtl ? `سكشنات وماركات الشركات (${RETRO_BRANDS.length})` : `Brands & Sections (${RETRO_BRANDS.length})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRetroSubView('devices')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    retroSubView === 'devices'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  🎮 {isRtl ? "موديلات الكونسول" : "Console Models"}
+                </button>
+              </div>
+            </div>
+
+            {/* View 1: Brands / Sections Grid */}
+            {retroSubView === 'brands' ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+                  <span>{isRtl ? "انقر على 'رفع صورة' لاختيار ملف من حاسوبك، أو '🔗' لإدخال رابط مباشر." : "Click 'Upload' to pick an image from your PC or '🔗' to paste a direct URL."}</span>
+                  <span className="text-cyan-400 font-bold">{RETRO_BRANDS.length} {isRtl ? "سكشن متاح" : "Sections available"}</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {RETRO_BRANDS.map((b) => {
+                    const currentLogo = retroBrandLogos[b.id] || DEFAULT_RETRO_BRAND_LOGOS[b.id] || `/brand-logos/${b.id}.svg`;
+                    const isCustomized = Boolean(retroBrandLogos[b.id]);
+
+                    return (
+                      <div
+                        key={b.id}
+                        className="group relative flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/60 p-4 hover:border-cyan-500/40 hover:shadow-[0_8px_30px_rgba(6,182,212,0.12)] transition-all duration-300"
+                      >
+                        {/* Top info badge */}
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: b.color || '#06b6d4' }} />
+                            <h4 className="text-sm font-black text-white">{b.name}</h4>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-mono text-slate-400 uppercase bg-slate-950 px-2 py-0.5 rounded border border-slate-850">
+                              {b.id}
+                            </span>
+                            {isCustomized ? (
+                              <span className="text-[9px] font-black text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                                {isRtl ? "معدّلة" : "Custom"}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-bold text-slate-500 bg-slate-950 px-2 py-0.5 rounded-full border border-slate-850">
+                                {isRtl ? "أصلية" : "Default"}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Logo Preview Box matching store theme */}
+                        <div className="relative aspect-[16/10] w-full rounded-xl bg-black border border-slate-800/90 flex items-center justify-center p-3 overflow-hidden shadow-inner group/img">
+                          <img
+                            src={currentLogo}
+                            alt={b.name}
+                            className="max-h-[85%] max-w-[85%] object-contain transition-transform duration-300 group-hover/img:scale-105"
+                          />
+                        </div>
+
+                        {/* Actions bar */}
+                        <div className="mt-4 flex items-center gap-2">
+                          {/* Upload from PC */}
+                          <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/25 text-xs font-bold cursor-pointer transition-all active:scale-95 text-center">
+                            <UploadIcon size={14} />
+                            <span>{isRtl ? "رفع صورة" : "Upload"}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                if (showToast) showToast(isRtl ? `جاري رفع صورة ${b.name}...` : `Uploading ${b.name} image...`, 'info');
+                                try {
+                                  const publicUrl = await uploadImageToSupabase(file, 'sections');
+                                  if (publicUrl) {
+                                    updateRetroBrandLogo(b.id, publicUrl);
+                                    if (showToast) showToast(isRtl ? `تم تحديث شعار ${b.name} بنجاح` : `${b.name} logo updated`, 'success');
+                                  } else {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      if (typeof reader.result === 'string') {
+                                        updateRetroBrandLogo(b.id, reader.result);
+                                        if (showToast) showToast(isRtl ? `تم حفظ شعار ${b.name} بنجاح محلياً` : `${b.name} logo saved locally`, 'success');
+                                      }
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                } catch {
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    if (typeof reader.result === 'string') {
+                                      updateRetroBrandLogo(b.id, reader.result);
+                                      if (showToast) showToast(isRtl ? `تم حفظ شعار ${b.name} بنجاح محلياً` : `${b.name} logo saved locally`, 'success');
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+
+                          {/* Direct URL button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRetroUrlModal({
+                                id: b.id,
+                                name: b.name,
+                                currentUrl: currentLogo,
+                                type: 'brand'
+                              });
+                              setTempRetroUrl(retroBrandLogos[b.id] || '');
+                            }}
+                            className="flex items-center justify-center px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all cursor-pointer"
+                            title={isRtl ? "إدخال رابط مباشر" : "Direct URL"}
+                          >
+                            🔗
+                          </button>
+
+                          {/* Reset button if customized */}
+                          {isCustomized && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                resetRetroBrandLogo(b.id);
+                                if (showToast) showToast(isRtl ? `تمت استعادة الشعار الأصلي لـ ${b.name}` : `Restored default logo for ${b.name}`, 'info');
+                              }}
+                              className="flex items-center justify-center px-3 py-2 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/25 text-xs font-bold transition-all cursor-pointer"
+                              title={isRtl ? "استعادة الأصلية" : "Restore default"}
+                            >
+                              <TrashIcon size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* View 2: Console Devices by Brand */
+              <div className="space-y-6">
+                {/* Brand selection pills */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                  {RETRO_BRANDS.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => setSelectedRetroBrandForDevices(b.id)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                        selectedRetroBrandForDevices === b.id
+                          ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20'
+                          : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                      }`}
+                    >
+                      <span>{b.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-black/30">
+                        {b.devices.length}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Devices Grid */}
+                {(() => {
+                  const currentBrand = RETRO_BRANDS.find((b) => b.id === selectedRetroBrandForDevices) || RETRO_BRANDS[0];
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+                        <span>
+                          {isRtl ? `أجهزة وموديلات ${currentBrand.name} (${currentBrand.devices.length} أجهزة)` : `${currentBrand.name} Devices (${currentBrand.devices.length} models)`}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {currentBrand.devices.map((d) => {
+                          const deviceKey = `${currentBrand.id}:${d.id}`;
+                          const deviceImg = retroDeviceImages[deviceKey] || d.image;
+                          const isCustomized = Boolean(retroDeviceImages[deviceKey]);
+
+                          return (
+                            <div
+                              key={d.id}
+                              className="group flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/60 p-4 hover:border-cyan-500/40 transition-all duration-300"
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-3">
+                                <h4 className="text-xs font-black text-white line-clamp-1">{d.name}</h4>
+                                {isCustomized ? (
+                                  <span className="text-[9px] font-black text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                                    {isRtl ? "معدّل" : "Custom"}
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-bold text-slate-500 bg-slate-950 px-2 py-0.5 rounded-full border border-slate-850">
+                                    {isRtl ? "افتراضي" : "Default"}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="relative aspect-[4/3] w-full rounded-xl bg-black border border-slate-800/90 flex items-center justify-center p-3 overflow-hidden shadow-inner">
+                                {deviceImg ? (
+                                  <img
+                                    src={deviceImg}
+                                    alt={d.name}
+                                    className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                                  />
+                                ) : (
+                                  <span className="text-center text-xs text-slate-500">
+                                    {isRtl ? "لا توجد صورة بعد" : "No photo yet"}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="mt-3 flex items-center gap-2">
+                                <label className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/25 text-xs font-bold cursor-pointer transition-all text-center active:scale-95">
+                                  <UploadIcon size={14} />
+                                  <span>{isRtl ? "رفع صورة" : "Upload"}</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      if (showToast) showToast(isRtl ? `جاري رفع صورة ${d.name}...` : `Uploading ${d.name}...`, 'info');
+                                      try {
+                                        const publicUrl = await uploadImageToSupabase(file, 'devices');
+                                        if (publicUrl) {
+                                          updateRetroDeviceImage(currentBrand.id, d.id, publicUrl);
+                                          if (showToast) showToast(isRtl ? `تم تحديث صورة ${d.name}` : `Updated ${d.name}`, 'success');
+                                        } else {
+                                          const reader = new FileReader();
+                                          reader.onloadend = () => {
+                                            if (typeof reader.result === 'string') {
+                                              updateRetroDeviceImage(currentBrand.id, d.id, reader.result);
+                                              if (showToast) showToast(isRtl ? `تم حفظ صورة ${d.name} محلياً` : `Saved ${d.name} locally`, 'success');
+                                            }
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }
+                                      } catch {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                          if (typeof reader.result === 'string') {
+                                            updateRetroDeviceImage(currentBrand.id, d.id, reader.result);
+                                            if (showToast) showToast(isRtl ? `تم حفظ صورة ${d.name} محلياً` : `Saved ${d.name} locally`, 'success');
+                                          }
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                  />
+                                </label>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRetroUrlModal({
+                                      id: d.id,
+                                      name: `${currentBrand.name} - ${d.name}`,
+                                      currentUrl: deviceImg || '',
+                                      type: 'device',
+                                      brandId: currentBrand.id
+                                    });
+                                    setTempRetroUrl(retroDeviceImages[deviceKey] || '');
+                                  }}
+                                  className="flex items-center justify-center px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition-all cursor-pointer"
+                                  title={isRtl ? "رابط مباشر" : "URL"}
+                                >
+                                  🔗
+                                </button>
+
+                                {isCustomized && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      resetRetroDeviceImage(currentBrand.id, d.id);
+                                      if (showToast) showToast(isRtl ? `تمت استعادة الصورة الافتراضية لـ ${d.name}` : `Restored default for ${d.name}`, 'info');
+                                    }}
+                                    className="flex items-center justify-center px-3 py-2 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/25 text-xs font-bold transition-all cursor-pointer"
+                                    title={isRtl ? "استعادة الأصلية" : "Reset"}
+                                  >
+                                    <TrashIcon size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         ) : activeTab === 'banners' ? (
           <div className="space-y-8 animate-in fade-in duration-300">
@@ -1302,7 +1673,7 @@ export default function AdminDashboard() {
                     <label className="text-xs font-semibold text-slate-300">Theme Color</label>
                     <select
                       value={newSlideColor}
-                      onChange={(e) => setNewSlideColor(e.target.value as any)}
+                      onChange={(e) => setNewSlideColor(e.target.value as 'cyan' | 'purple' | 'pink')}
                       className="w-full rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
                     >
                       <option value="cyan">Cyan / Blue</option>
@@ -1435,7 +1806,6 @@ export default function AdminDashboard() {
                 <tbody className="divide-y divide-slate-900/60">
                   {filteredProducts.map((product) => {
                     const hasDiscount = !!product.salePrice;
-                    const price = product.salePrice ?? product.sellingPrice;
                     const isLowStock = product.stockQty > 0 && product.stockQty <= product.lowStockThreshold;
 
                     return (
@@ -1561,7 +1931,6 @@ export default function AdminDashboard() {
             {/* Mobile Card Grid View */}
             <div className="grid grid-cols-1 gap-4 md:hidden">
               {filteredProducts.map((product) => {
-                const hasDiscount = !!product.salePrice;
                 const price = product.salePrice ?? product.sellingPrice;
                 const isLowStock = product.stockQty > 0 && product.stockQty <= product.lowStockThreshold;
 
@@ -1808,7 +2177,7 @@ export default function AdminDashboard() {
                       <label className="text-xs font-semibold text-slate-300">{isRtl ? "نوع المنتج" : "Product Type Classification"}</label>
                       <select
                         value={editProductType}
-                        onChange={(e) => setEditProductType(e.target.value as any)}
+                        onChange={(e) => setEditProductType(e.target.value as typeof editProductType)}
                         className="w-full rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
                       >
                         <option value="PHYSICAL PRODUCT">PHYSICAL PRODUCT</option>
@@ -1844,8 +2213,8 @@ export default function AdminDashboard() {
                       <div className="sm:col-span-3 space-y-2">
                         <label className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-cyan-500/40 bg-cyan-500/5 px-4 py-3 text-xs font-bold text-cyan-300 hover:bg-cyan-500/10 transition-all cursor-pointer">
                           <UploadIcon size={16} />
-                          <span>{isRtl ? "تغيير الصورة الرئيسية" : "Upload Main Card Image"}</span>
-                          <input type="file" accept="image/*" onChange={handleImageFileChange} className="hidden" />
+                          <span>{isUploadingEditImage ? (isRtl ? "جاري الرفع..." : "Uploading...") : (isRtl ? "تغيير الصورة الرئيسية" : "Upload Main Card Image")}</span>
+                          <input type="file" accept="image/*" onChange={handleImageFileChange} className="hidden" disabled={isUploadingEditImage} />
                         </label>
                         <div className="flex gap-2">
                           <input
@@ -2122,7 +2491,7 @@ export default function AdminDashboard() {
                       <label className="text-xs font-semibold text-slate-300">{isRtl ? "حالة توفر المخزون" : "Inventory Stock Status"}</label>
                       <select
                         value={editStockStatus}
-                        onChange={(e) => setEditStockStatus(e.target.value as any)}
+                        onChange={(e) => setEditStockStatus(e.target.value as typeof editStockStatus)}
                         className="w-full rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
                       >
                         <option value="IN STOCK">{isRtl ? "متوفر (IN STOCK)" : "IN STOCK"}</option>
@@ -2137,7 +2506,7 @@ export default function AdminDashboard() {
                       <label className="text-xs font-semibold text-slate-300">{isRtl ? "الحالة التجارية للمنتج" : "Commercial Condition"}</label>
                       <select
                         value={editCondition}
-                        onChange={(e) => setEditCondition(e.target.value as any)}
+                        onChange={(e) => setEditCondition(e.target.value as typeof editCondition)}
                         className="w-full rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
                       >
                         <option value="NEW">{isRtl ? "جديد بالكامل (NEW)" : "NEW"}</option>
@@ -2153,7 +2522,7 @@ export default function AdminDashboard() {
                       <label className="text-xs font-semibold text-slate-300">{isRtl ? "حالة عرض المنتج على الموقع" : "Product Storefront Status"}</label>
                       <select
                         value={editStatus}
-                        onChange={(e) => setEditStatus(e.target.value as any)}
+                        onChange={(e) => setEditStatus(e.target.value as typeof editStatus)}
                         className="w-full rounded-xl bg-slate-900 px-3.5 py-2.5 text-xs text-slate-100 border border-slate-800 focus:border-cyan-400 focus:outline-none"
                       >
                         <option value="published">{isRtl ? "نشط و معروض للبيع (ACTIVE / LIVE)" : "ACTIVE / Live Storefront"}</option>
@@ -2330,6 +2699,86 @@ export default function AdminDashboard() {
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Retro Section / Device Direct URL Input Modal */}
+      {retroUrlModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl border border-cyan-500/30 bg-slate-900 p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-cyan-400">🔗</span>
+                <h4 className="text-sm font-black text-white">
+                  {isRtl ? `تحديد رابط مباشر (${retroUrlModal.name})` : `Direct Image URL (${retroUrlModal.name})`}
+                </h4>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setRetroUrlModal(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <CloseIcon size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-slate-300">
+                {isRtl ? "أدخل رابط الصورة (URL خارجي أو مسار محلي):" : "Enter Image URL (external link or local path):"}
+              </label>
+              <input 
+                type="text" 
+                value={tempRetroUrl}
+                onChange={(e) => setTempRetroUrl(e.target.value)}
+                placeholder={isRtl ? "مثال: https://... أو /brand-logos/..." : "e.g. https://... or /brand-logos/..."}
+                className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-xs text-white focus:border-cyan-400 focus:outline-none font-mono"
+                autoFocus
+              />
+
+              {tempRetroUrl.trim() && (
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-400">{isRtl ? "معاينة الصورة:" : "Image Preview:"}</span>
+                  <div className="aspect-[16/9] w-full rounded-xl bg-black border border-slate-800 flex items-center justify-center p-3 overflow-hidden">
+                    <img 
+                      src={tempRetroUrl.trim()} 
+                      alt="Preview" 
+                      className="max-h-full max-w-full object-contain"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.opacity = '0.3';
+                      }} 
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setRetroUrlModal(null)}
+                className="px-4 py-2 rounded-xl border border-slate-800 bg-slate-800/60 text-xs font-bold text-slate-300 hover:bg-slate-800 cursor-pointer"
+              >
+                {isRtl ? "إلغاء" : "Cancel"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!tempRetroUrl.trim()) return;
+                  const finalUrl = tempRetroUrl.trim();
+                  if (retroUrlModal.type === 'brand') {
+                    updateRetroBrandLogo(retroUrlModal.id, finalUrl);
+                  } else if (retroUrlModal.type === 'device' && retroUrlModal.brandId) {
+                    updateRetroDeviceImage(retroUrlModal.brandId, retroUrlModal.id, finalUrl);
+                  }
+                  if (showToast) showToast(isRtl ? 'تم حفظ رابط الصورة بنجاح' : 'Image URL saved successfully', 'success');
+                  setRetroUrlModal(null);
+                }}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black text-xs shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
+              >
+                {isRtl ? "تأكيد وحفظ" : "Confirm & Save"}
+              </button>
+            </div>
           </div>
         </div>
       )}

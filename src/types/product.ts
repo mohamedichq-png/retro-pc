@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // RETRO Qatar — Product Types
 
 export interface ProductVariation {

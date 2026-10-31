@@ -22,22 +22,28 @@ export const useAuthStore = create<AuthState>()(
 
       setUser: (user) => set({ user }),
       setAdmin: (isAdmin) => set({ isAdmin }),
-      login: (email, pass) => set({ 
-        user: { 
-          id: 'u-1', 
-          email, 
-          name: email.split('@')[0], 
-          isLoggedIn: true
-        } 
-      }),
-      signup: (email, pass, name) => set({ 
-        user: { 
-          id: 'u-2', 
-          email, 
-          name, 
-          isLoggedIn: true
-        } 
-      }),
+      login: (email, pass) => {
+        void pass;
+        set({ 
+          user: { 
+            id: 'u-1', 
+            email, 
+            name: email.split('@')[0], 
+            isLoggedIn: true
+          } 
+        });
+      },
+      signup: (email, pass, name) => {
+        void pass;
+        set({ 
+          user: { 
+            id: 'u-2', 
+            email, 
+            name, 
+            isLoggedIn: true
+          } 
+        });
+      },
       logout: () => set({ user: null, isAdmin: false }),
     }),
     {

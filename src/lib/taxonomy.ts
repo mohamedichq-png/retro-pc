@@ -4,8 +4,7 @@
 import type { 
   TaxonomyMainCategory, 
   TaxonomySection, 
-  TaxonomySubCategory, 
-  MainCategoryId 
+  TaxonomySubCategory 
 } from '@/types/taxonomy';
 
 // Standard 3 Sections for Gaming & Consoles Platforms
