@@ -41,7 +41,7 @@ function BrandLogoImage({ src, name }: { src: string; name: string }) {
       alt={name}
       loading="lazy"
       onError={() => setFailed(true)}
-      className="h-[125px] max-h-full w-[94%] object-contain transition duration-200 group-hover:scale-105"
+      className="h-31.25 max-h-full w-[94%] object-contain transition duration-200 group-hover:scale-105"
     />
   );
 }
