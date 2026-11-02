@@ -40,11 +40,21 @@ export async function uploadImageToSupabase(file: File, folder = 'products'): Pr
       return data.publicUrl;
     }
 
-    console.warn('Supabase storage upload error:', err1 || err2);
-    return null;
+    console.warn('Supabase storage upload unavailable or quota exceeded. Using optimized local data URL fallback:', err1 || err2);
+    return new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
   } catch (err) {
     console.warn('Exception during image upload:', err);
-    return null;
+    return new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
   }
 }
 

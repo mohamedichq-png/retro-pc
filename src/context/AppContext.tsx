@@ -442,15 +442,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const isSupabaseConfigured = 
       process.env.NEXT_PUBLIC_SUPABASE_URL && 
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder-domain');
+
+    // Immediately load local/cached data for instant rendering
+    loadLocalData();
 
     if (isSupabaseConfigured) {
+      const now = Date.now();
+      const lastFetch = Number(sessionStorage.getItem('retro_supabase_last_fetch') || 0);
+      const isBlocked = sessionStorage.getItem('retro_supabase_blocked') === 'true';
+
+      // Avoid hammering Supabase if quota exceeded or fetched within last 5 minutes
+      if ((isBlocked && now - lastFetch < 600000) || (now - lastFetch < 300000)) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       const fetchSupabaseData = async () => {
         try {
           // Fetch products with timeout protection
           const { data: pData, error: pError } = await supabase.from('products').select('*');
-          if (!pError && pData && pData.length > 0) {
+          if (pError) {
+            const status = (pError as any)?.status || (pError as any)?.statusCode;
+            if (status === 402 || pError.message?.includes('402')) {
+              sessionStorage.setItem('retro_supabase_blocked', 'true');
+            }
+            sessionStorage.setItem('retro_supabase_last_fetch', String(Date.now()));
+            loadLocalData();
+            return;
+          }
+
+          if (pData && pData.length > 0) {
+            sessionStorage.removeItem('retro_supabase_blocked');
+            sessionStorage.setItem('retro_supabase_last_fetch', String(Date.now()));
             const cloudProducts = pData.map(mapToProduct);
             const localRaw = localStorage.getItem('retro_products');
             if (localRaw) {
@@ -513,7 +539,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       fetchSupabaseData();
     } else {
-      loadLocalData();
+      setLoading(false);
     }
   }, []);
 

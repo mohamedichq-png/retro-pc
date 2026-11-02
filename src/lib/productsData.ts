@@ -98,11 +98,20 @@ export function mapProductToDb(p: Product): Record<string, unknown> {
   };
 }
 
+let cachedStoreProducts: Product[] | null = null;
+let lastCacheTimestamp = 0;
+const CACHE_TTL_MS = 1000 * 60 * 10; // 10 minutes cache to minimize Supabase egress/bandwidth
+
 /**
  * Get all active products for the storefront.
  * Tries fetching from Supabase first. If unconfigured or empty, falls back to initialProducts.
  */
 export async function getStoreProducts(): Promise<Product[]> {
+  const now = Date.now();
+  if (cachedStoreProducts && cachedStoreProducts.length > 0 && now - lastCacheTimestamp < CACHE_TTL_MS) {
+    return cachedStoreProducts;
+  }
+
   const isSupabaseConfigured = 
     process.env.NEXT_PUBLIC_SUPABASE_URL && 
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
@@ -116,14 +125,16 @@ export async function getStoreProducts(): Promise<Product[]> {
         .order('id', { ascending: true });
 
       if (!error && data && data.length > 0) {
-        return data.map(mapDbToProduct);
+        cachedStoreProducts = data.map(mapDbToProduct);
+        lastCacheTimestamp = Date.now();
+        return cachedStoreProducts;
       }
     } catch (err) {
       console.warn('Supabase fetch failed, using fallback catalog data:', err);
     }
   }
 
-  return initialProducts as unknown as Product[];
+  return (cachedStoreProducts || initialProducts) as unknown as Product[];
 }
 
 /**
