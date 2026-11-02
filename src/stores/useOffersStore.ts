@@ -557,9 +557,6 @@ export const useOffersStore = create<OffersState>()(
       },
 
       initializeFromCloud: async () => {
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder-domain')) {
-          return;
-        }
         try {
           const { data, error } = await supabase.from('store_settings').select('*');
           if (!error && data) {
@@ -577,24 +574,67 @@ export const useOffersStore = create<OffersState>()(
               set({ slides: os.data });
             }
             if (rbl && rbl.data) {
-              set((s) => ({ retroBrandLogos: { ...rbl.data, ...s.retroBrandLogos } }));
+              const cleanLogos: Record<string, string> = {};
+              for (const [k, v] of Object.entries(rbl.data)) {
+                if (typeof v === 'string' && !v.includes('qdozfcplmd')) {
+                  cleanLogos[k] = v;
+                }
+              }
+              set((s) => ({ retroBrandLogos: { ...cleanLogos, ...s.retroBrandLogos } }));
             }
             if (rdi && rdi.data) {
-              set((s) => ({ retroDeviceImages: { ...rdi.data, ...s.retroDeviceImages } }));
+              const cleanDeviceImgs: Record<string, string> = {};
+              for (const [k, v] of Object.entries(rdi.data)) {
+                if (typeof v === 'string' && !v.includes('qdozfcplmd')) {
+                  cleanDeviceImgs[k] = v;
+                }
+              }
+              set((s) => ({ retroDeviceImages: { ...cleanDeviceImgs, ...s.retroDeviceImages } }));
             }
             if (rki && rki.data) {
-              set((s) => ({ retroKindImages: { ...rki.data, ...s.retroKindImages } }));
+              const cleanKindImgs: Record<string, string> = {};
+              for (const [k, v] of Object.entries(rki.data)) {
+                if (typeof v === 'string' && !v.includes('qdozfcplmd')) {
+                  cleanKindImgs[k] = v;
+                }
+              }
+              set((s) => ({ retroKindImages: { ...cleanKindImgs, ...s.retroKindImages } }));
             }
             if (rc && rc.data) {
               const cloudUpdatedAt = typeof rc.data.updatedAt === 'number' ? rc.data.updatedAt : 0;
-              const cloudBrands: RetroBrand[] | undefined = Array.isArray(rc.data)
+              const rawBrands: RetroBrand[] | undefined = Array.isArray(rc.data)
                 ? rc.data
                 : Array.isArray(rc.data.brands)
                 ? rc.data.brands
                 : undefined;
               const localUpdatedAt = get().retroCatalogUpdatedAt || 0;
-              if (cloudBrands && cloudBrands.length > 0 && cloudUpdatedAt > localUpdatedAt) {
-                set({ retroBrands: cloudBrands, retroCatalogUpdatedAt: cloudUpdatedAt });
+              if (rawBrands && rawBrands.length > 0 && cloudUpdatedAt > localUpdatedAt) {
+                const sanitized = rawBrands.map((b) => {
+                  const defB = RETRO_BRANDS.find((x) => x.id === b.id);
+                  const cleanLogo = b.logo && !b.logo.includes('qdozfcplmd') ? b.logo : defB?.logo;
+                  return {
+                    ...(defB || {}),
+                    ...b,
+                    logo: cleanLogo,
+                    devices: (b.devices || []).map((d) => {
+                      const defD = defB?.devices.find((x) => x.id === d.id);
+                      const cleanImg = d.image && !d.image.includes('qdozfcplmd') ? d.image : defD?.image || '';
+                      const cleanKinds = { ...(d.kindImages || {}) };
+                      for (const [k, v] of Object.entries(cleanKinds)) {
+                        if (typeof v === 'string' && v.includes('qdozfcplmd')) {
+                          delete cleanKinds[k as RetroKindId];
+                        }
+                      }
+                      return {
+                        ...(defD || {}),
+                        ...d,
+                        image: cleanImg,
+                        kindImages: cleanKinds,
+                      };
+                    }),
+                  };
+                });
+                set({ retroBrands: sanitized, retroCatalogUpdatedAt: cloudUpdatedAt });
               }
             }
           }
@@ -607,20 +647,59 @@ export const useOffersStore = create<OffersState>()(
       name: 'retro-offers',
       merge: (persistedState, currentState) => {
         const p = (persistedState as Partial<OffersState>) || {};
+        
+        // Clean old dead Supabase storage URLs from local storage cache
+        const cleanBrandLogos: Record<string, string> = {};
+        if (p.retroBrandLogos) {
+          for (const [k, v] of Object.entries(p.retroBrandLogos)) {
+            if (typeof v === 'string' && !v.includes('qdozfcplmd')) {
+              cleanBrandLogos[k] = v;
+            }
+          }
+        }
+
+        const cleanDeviceImgs: Record<string, string> = {};
+        if (p.retroDeviceImages) {
+          for (const [k, v] of Object.entries(p.retroDeviceImages)) {
+            if (typeof v === 'string' && !v.includes('qdozfcplmd')) {
+              cleanDeviceImgs[k] = v;
+            }
+          }
+        }
+
+        const cleanKindImgs: Record<string, string> = {};
+        if (p.retroKindImages) {
+          for (const [k, v] of Object.entries(p.retroKindImages)) {
+            if (typeof v === 'string' && !v.includes('qdozfcplmd')) {
+              cleanKindImgs[k] = v;
+            }
+          }
+        }
+
         const persistedBrands = Array.isArray(p.retroBrands) && p.retroBrands.length > 0 ? p.retroBrands : [];
         const mergedBrands = persistedBrands.length > 0
           ? persistedBrands.map((pb) => {
               const defaultBrand = RETRO_BRANDS.find((db) => db.id === pb.id);
               if (!defaultBrand) return pb;
+              const cleanLogo = pb.logo && !pb.logo.includes('qdozfcplmd') ? pb.logo : defaultBrand.logo;
               return {
                 ...defaultBrand,
                 ...pb,
-                devices: pb.devices.map((pd) => {
+                logo: cleanLogo,
+                devices: (pb.devices || []).map((pd) => {
                   const defaultDev = defaultBrand.devices.find((dd) => dd.id === pd.id);
+                  const cleanDevImg = pd.image && !pd.image.includes('qdozfcplmd') ? pd.image : (defaultDev?.image || '');
+                  const cleanKinds = { ...(pd.kindImages || {}) };
+                  for (const [k, v] of Object.entries(cleanKinds)) {
+                    if (typeof v === 'string' && v.includes('qdozfcplmd')) {
+                      delete cleanKinds[k as RetroKindId];
+                    }
+                  }
                   return {
-                    ...defaultDev,
+                    ...(defaultDev || {}),
                     ...pd,
-                    image: pd.image || defaultDev?.image || '',
+                    image: cleanDevImg,
+                    kindImages: cleanKinds,
                   };
                 }),
               };
@@ -630,6 +709,9 @@ export const useOffersStore = create<OffersState>()(
         return {
           ...currentState,
           ...p,
+          retroBrandLogos: { ...currentState.retroBrandLogos, ...cleanBrandLogos },
+          retroDeviceImages: { ...currentState.retroDeviceImages, ...cleanDeviceImgs },
+          retroKindImages: { ...currentState.retroKindImages, ...cleanKindImgs },
           retroBrands: mergedBrands,
         };
       },

@@ -1,7 +1,7 @@
 // Unified Products Data Access Layer for RETRO Qatar
 // Fetches from Supabase if configured, with graceful fallback to static mockData
 
-import { supabase } from './supabase';
+import { supabase, isSupabaseConfigured, sanitizeImageUrl } from './supabase';
 import { initialProducts } from '@/data/mockData';
 import type { Product, ProductVariation } from '@/types';
 
@@ -28,8 +28,8 @@ export function mapDbToProduct(row: Record<string, unknown>): Product {
     salePrice: (row.sale_price || row.salePrice) ? Number(row.sale_price || row.salePrice) : undefined,
     stockQty: Number(row.stock_qty ?? row.stockQty ?? 0),
     lowStockThreshold: Number(row.low_stock_threshold || row.lowStockThreshold || 2),
-    imageUrl: String(row.image_url || row.imageUrl || '/media/image1.jpeg'),
-    galleryUrls: (row.gallery_urls || row.galleryUrls || []) as string[],
+    imageUrl: sanitizeImageUrl(row.image_url as string || row.imageUrl as string || '/media/image1.jpeg'),
+    galleryUrls: ((row.gallery_urls || row.galleryUrls || []) as string[]).map(u => sanitizeImageUrl(u)),
     specs: (row.specs || {}) as Record<string, unknown>,
     isFeatured: Boolean(row.is_featured ?? row.isFeatured),
     status: (row.status as 'published' | 'draft') || 'published',
@@ -111,11 +111,6 @@ export async function getStoreProducts(): Promise<Product[]> {
   if (cachedStoreProducts && cachedStoreProducts.length > 0 && now - lastCacheTimestamp < CACHE_TTL_MS) {
     return cachedStoreProducts;
   }
-
-  const isSupabaseConfigured = 
-    process.env.NEXT_PUBLIC_SUPABASE_URL && 
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder-domain');
 
   if (isSupabaseConfigured) {
     try {

@@ -21,7 +21,7 @@ import QuickAddProductModal from '@/components/QuickAddProductModal';
 import { useOffersStore, DEFAULT_RETRO_BRAND_LOGOS } from '@/stores/useOffersStore';
 import { RETRO_BRANDS, RETRO_KINDS, type RetroKindId } from '@/lib/retro-navigation';
 import { classifyAllProducts } from '@/lib/classificationEngine';
-import { uploadImageToSupabase, supabase } from '@/lib/supabase';
+import { uploadImageToSupabase, supabase, isSupabaseConfigured, sanitizeImageUrl } from '@/lib/supabase';
 import { mapProductToDb } from '@/lib/productsData';
 
 export default function AdminDashboard() {
@@ -318,6 +318,7 @@ export default function AdminDashboard() {
     if (token === 'authenticated') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsAuthenticated(true);
+      useOffersStore.getState().initializeFromCloud();
     }
   }, []);
 
@@ -327,6 +328,7 @@ export default function AdminDashboard() {
       setIsAuthenticated(true);
       sessionStorage.setItem('retro_admin_auth', 'authenticated');
       setAuthError('');
+      useOffersStore.getState().initializeFromCloud();
     } else {
       setAuthError(isRtl ? 'كلمة المرور غير صحيحة!' : 'Incorrect password!');
     }
@@ -480,7 +482,7 @@ export default function AdminDashboard() {
   };
 
   const handleSyncAllToSupabase = async () => {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder-domain')) {
+    if (!isSupabaseConfigured) {
       alert(isRtl ? 'مفاتيح Supabase غير مفعلة في البيئة!' : 'Supabase is not configured in this environment!');
       return;
     }
@@ -522,6 +524,82 @@ export default function AdminDashboard() {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       console.error('Cloud sync failed:', err);
       alert(isRtl ? `فشلت المزامنة: ${errorMsg}` : `Sync failed: ${errorMsg}`);
+    } finally {
+      setIsSyncingCloud(false);
+      setSyncMessage('');
+    }
+  };
+
+  const handlePullFromSupabase = async () => {
+    setIsSyncingCloud(true);
+    setSyncMessage(isRtl ? 'جاري جلب البيانات من السحابة...' : 'Pulling from cloud...');
+    try {
+      sessionStorage.removeItem('retro_supabase_blocked');
+      sessionStorage.removeItem('retro_supabase_last_fetch');
+      localStorage.removeItem('retro_products');
+
+      const { data, error } = await supabase.from('products').select('*');
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const cloudProducts: Product[] = data.map((dbRow: any) => ({
+          id: dbRow.id,
+          sku: dbRow.sku,
+          barcode: dbRow.barcode || '',
+          nameEn: dbRow.name_en,
+          nameAr: dbRow.name_ar,
+          descriptionEn: dbRow.description_en || '',
+          descriptionAr: dbRow.description_ar || '',
+          category: dbRow.category,
+          subCategory: dbRow.sub_category || '',
+          mainCategory: dbRow.main_category || '',
+          section: dbRow.section || undefined,
+          source: dbRow.source || undefined,
+          brand: dbRow.brand || '',
+          model: dbRow.model || '',
+          condition: dbRow.condition || 'New',
+          costPrice: Number(dbRow.cost_price),
+          sellingPrice: Number(dbRow.selling_price),
+          salePrice: dbRow.sale_price ? Number(dbRow.sale_price) : undefined,
+          stockQty: Number(dbRow.stock_qty),
+          lowStockThreshold: Number(dbRow.low_stock_threshold),
+          imageUrl: sanitizeImageUrl(dbRow.image_url),
+          galleryUrls: (dbRow.gallery_urls || []).map((u: string) => sanitizeImageUrl(u)),
+          specs: dbRow.specs || {},
+          isDigital: dbRow.is_digital,
+          isFeatured: dbRow.is_featured,
+          status: dbRow.status || 'published',
+          variations: dbRow.variations || undefined,
+          productType: dbRow.product_type || 'PHYSICAL PRODUCT',
+          primaryCategory: dbRow.primary_category || '',
+          secondaryCategory: dbRow.secondary_category || '',
+          platform: dbRow.platform || '',
+          generation: dbRow.generation || '',
+          categories: dbRow.categories || [],
+          tags: dbRow.tags || [],
+          collections: dbRow.collections || [],
+          reservedQty: Number(dbRow.reserved_qty || 0),
+          availableQty: Number(dbRow.available_qty || dbRow.stock_qty || 0),
+          stockStatus: dbRow.stock_status || 'IN STOCK',
+          warranty: dbRow.warranty || '',
+          weight: dbRow.weight || '',
+          dimensions: dbRow.dimensions || '',
+          relatedProducts: dbRow.related_products || [],
+          compatibleProducts: dbRow.compatible_products || [],
+          accessories: dbRow.accessories || [],
+        }));
+
+        importProducts(cloudProducts);
+        await useOffersStore.getState().initializeFromCloud();
+
+        if (showToast) {
+          showToast(isRtl ? `تم تحديث ${cloudProducts.length} منتج واستعادة جميع الصور بنجاح!` : `Successfully restored ${cloudProducts.length} products & images!`, 'success');
+        }
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Pull from cloud failed:', err);
+      alert(isRtl ? `فشل تحديث البيانات: ${errorMsg}` : `Failed to pull: ${errorMsg}`);
     } finally {
       setIsSyncingCloud(false);
       setSyncMessage('');
@@ -716,6 +794,17 @@ export default function AdminDashboard() {
             >
               <span>⚡</span>
               <span>{isSyncingCloud ? syncMessage || (isRtl ? "جاري المزامنة..." : "Syncing...") : (isRtl ? "مزامنة السحابة" : "Sync to Cloud")}</span>
+            </button>
+
+            {/* Reload & Restore Images from Supabase Cloud */}
+            <button
+              onClick={handlePullFromSupabase}
+              disabled={isSyncingCloud}
+              title={isRtl ? "تحديث المنتجات وإعادة تحميل الصور من قاعدة بيانات السحابة" : "Reload products and images from cloud database"}
+              className="flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-950/40 px-3.5 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-sm"
+            >
+              <span>🔄</span>
+              <span>{isRtl ? "تحديث الصور والقاعدة" : "Reload DB & Images"}</span>
             </button>
 
             {/* Logout button */}
@@ -972,9 +1061,14 @@ export default function AdminDashboard() {
                           <td className="p-4">
                             <div className="flex items-center gap-3">
                               <img 
-                                src={p.imageUrl} 
+                                src={sanitizeImageUrl(p.imageUrl)} 
                                 alt={p.nameEn} 
                                 className="h-10 w-10 rounded-lg object-cover bg-slate-950 border border-slate-800 shrink-0"
+                                onError={(e) => {
+                                  const target = e.currentTarget as HTMLImageElement;
+                                  target.onerror = null;
+                                  target.src = '/media/image53.jpeg';
+                                }}
                               />
                               <div>
                                 <div className="font-bold text-white line-clamp-1 max-w-[240px]">
@@ -1321,7 +1415,16 @@ export default function AdminDashboard() {
                   </div>
 
                   <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-800 border border-slate-700 group">
-                    <img src={cat.image} alt={isRtl ? cat.nameAr : cat.nameEn} className="w-full h-full object-cover" />
+                    <img
+                      src={sanitizeImageUrl(cat.image)}
+                      alt={isRtl ? cat.nameAr : cat.nameEn}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = '/media/image53.jpeg';
+                      }}
+                    />
                     <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center cursor-pointer transition-opacity">
                       <UploadIcon size={24} className="text-cyan-400 mb-2" />
                       <span className="text-[10px] font-bold text-white text-center px-2">{isRtl ? "تغيير الصورة" : "Change Image"}</span>
@@ -1455,11 +1558,9 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {allRetroBrands.map((b, bIdx) => {
-                    const currentLogo =
-                      retroBrandLogos[b.id] ||
-                      b.logo ||
-                      DEFAULT_RETRO_BRAND_LOGOS[b.id] ||
-                      `/brand-logos/${b.id}.svg`;
+                    const defaultLogo = DEFAULT_RETRO_BRAND_LOGOS[b.id] || `/brand-logos/${b.id}.svg`;
+                    const rawLogo = retroBrandLogos[b.id] || b.logo || defaultLogo;
+                    const currentLogo = sanitizeImageUrl(rawLogo, defaultLogo);
                     const isCustomized = Boolean(retroBrandLogos[b.id] || b.logo);
 
                     return (
@@ -1593,7 +1694,9 @@ export default function AdminDashboard() {
                             alt={b.name}
                             className="max-h-[85%] max-w-[85%] object-contain transition-transform duration-300 group-hover/img:scale-105"
                             onError={(e) => {
-                              (e.currentTarget as HTMLElement).style.display = 'none';
+                              const target = e.currentTarget as HTMLImageElement;
+                              target.onerror = null;
+                              target.src = `/brand-logos/${b.id}.svg`;
                             }}
                           />
                         </div>
@@ -1836,7 +1939,9 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                           {currentBrand.devices.map((d, dIdx) => {
                             const deviceKey = `${currentBrand.id}:${d.id}`;
-                            const deviceImg = retroDeviceImages[deviceKey] || d.image;
+                            const defaultDev = RETRO_BRANDS.find(b => b.id === currentBrand.id)?.devices.find(x => x.id === d.id);
+                            const rawDeviceImg = retroDeviceImages[deviceKey] || d.image || defaultDev?.image || '';
+                            const deviceImg = sanitizeImageUrl(rawDeviceImg, defaultDev?.image || '');
                             const isCustomized = Boolean(retroDeviceImages[deviceKey]);
 
                             return (
@@ -1954,6 +2059,11 @@ export default function AdminDashboard() {
                                       src={deviceImg}
                                       alt={d.name}
                                       className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                                      onError={(e) => {
+                                        const target = e.currentTarget as HTMLImageElement;
+                                        target.onerror = null;
+                                        target.src = defaultDev?.image || '/media/image53.jpeg';
+                                      }}
                                     />
                                   ) : (
                                     <span className="text-center text-xs text-slate-500">
@@ -2051,7 +2161,8 @@ export default function AdminDashboard() {
                                   <div className="grid grid-cols-3 gap-2">
                                     {RETRO_KINDS.map((k) => {
                                       const kindKey = `${currentBrand.id}:${d.id}:${k.id}`;
-                                      const kindImg = retroKindImages[kindKey] || d.kindImages?.[k.id] || '';
+                                      const rawKindImg = retroKindImages[kindKey] || d.kindImages?.[k.id] || '';
+                                      const kindImg = sanitizeImageUrl(rawKindImg, '');
                                       const kLabel = isRtl ? k.ar : k.en;
 
                                       return (
@@ -2070,6 +2181,11 @@ export default function AdminDashboard() {
                                                 src={kindImg}
                                                 alt={`${d.name} ${kLabel}`}
                                                 className="h-full w-full object-contain"
+                                                onError={(e) => {
+                                                  const target = e.currentTarget as HTMLImageElement;
+                                                  target.onerror = null;
+                                                  target.style.display = 'none';
+                                                }}
                                               />
                                             ) : (
                                               <span className="text-[9px] text-slate-500 text-center px-1">
@@ -2513,9 +2629,14 @@ export default function AdminDashboard() {
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             <img 
-                              src={product.imageUrl} 
+                              src={sanitizeImageUrl(product.imageUrl)} 
                               alt={product.nameEn} 
                               className="h-10 w-10 rounded-lg object-cover bg-slate-950 border border-slate-800"
+                              onError={(e) => {
+                                const target = e.currentTarget as HTMLImageElement;
+                                target.onerror = null;
+                                target.src = '/media/image53.jpeg';
+                              }}
                             />
                             <div>
                               <div className="font-bold text-white line-clamp-1">
@@ -2638,9 +2759,14 @@ export default function AdminDashboard() {
                   <div key={product.id} className="relative rounded-2xl border border-slate-900 bg-slate-900/40 p-4 space-y-4">
                     <div className="flex items-center gap-3 border-b border-slate-800/60 pb-3">
                       <img 
-                        src={product.imageUrl} 
+                        src={sanitizeImageUrl(product.imageUrl)} 
                         alt={product.nameEn} 
                         className="h-12 w-12 rounded-xl object-cover bg-slate-950 border border-slate-800"
+                        onError={(e) => {
+                          const target = e.currentTarget as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = '/media/image53.jpeg';
+                        }}
                       />
                       <div className="flex-1">
                         <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-wider block">
@@ -2901,7 +3027,16 @@ export default function AdminDashboard() {
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
                       <div className="relative h-32 rounded-2xl border border-cyan-500/30 bg-slate-900 overflow-hidden flex items-center justify-center">
                         {editImageUrl ? (
-                          <img src={editImageUrl} alt="Primary preview" className="w-full h-full object-contain" />
+                          <img
+                            src={sanitizeImageUrl(editImageUrl)}
+                            alt="Primary preview"
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              const target = e.currentTarget as HTMLImageElement;
+                              target.onerror = null;
+                              target.src = '/media/image53.jpeg';
+                            }}
+                          />
                         ) : (
                           <span className="text-[10px] text-slate-500">No Main Image</span>
                         )}
@@ -2943,7 +3078,16 @@ export default function AdminDashboard() {
                           {editGalleryUrls.map((url, idx) => (
                             <div key={idx} className="relative group border border-slate-800 rounded-xl bg-slate-900 p-2 space-y-1.5">
                               <div className="h-20 w-full overflow-hidden rounded bg-slate-950 flex items-center justify-center relative">
-                                <img src={url} alt={`Gallery ${idx}`} className="h-full object-contain" />
+                                <img
+                                  src={sanitizeImageUrl(url)}
+                                  alt={`Gallery ${idx}`}
+                                  className="h-full object-contain"
+                                  onError={(e) => {
+                                    const target = e.currentTarget as HTMLImageElement;
+                                    target.onerror = null;
+                                    target.src = '/media/image53.jpeg';
+                                  }}
+                                />
                                 <span className="absolute top-1 left-1 bg-slate-900/80 text-[8px] font-bold px-1.5 py-0.5 rounded text-slate-400">
                                   #{idx + 1}
                                 </span>

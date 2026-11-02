@@ -3,14 +3,22 @@ import { createClient } from '@supabase/supabase-js';
 const isOldBlockedProject = (url?: string) => !url || url.includes('qdozfcplmd') || url.includes('placeholder');
 
 const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseUrl: string = isOldBlockedProject(rawUrl)
+export const supabaseUrl: string = isOldBlockedProject(rawUrl)
   ? 'https://vjodbkieotbmphzopgtt.supabase.co'
   : (rawUrl || 'https://vjodbkieotbmphzopgtt.supabase.co');
 
 const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-const supabaseAnonKey: string = (isOldBlockedProject(rawUrl) || !rawKey || rawKey.length < 20 || rawKey.includes('placeholder'))
+export const supabaseAnonKey: string = (isOldBlockedProject(rawUrl) || !rawKey || rawKey.length < 20 || rawKey.includes('placeholder'))
   ? 'sb_publishable_8GU7X8Qxh9JPjcJzcKlBGQ_IeSk8N-e'
   : rawKey;
+
+export const isSupabaseConfigured: boolean = Boolean(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('placeholder'));
+
+export function sanitizeImageUrl(url?: string | null, fallback = '/media/image53.jpeg'): string {
+  if (!url || typeof url !== 'string' || url.trim() === '') return fallback;
+  if (url.includes('qdozfcplmd')) return fallback;
+  return url;
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -19,7 +27,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
  * Automatically tries 'media' bucket, then 'products' bucket.
  */
 export async function uploadImageToSupabase(file: File, folder = 'products'): Promise<string | null> {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder-domain')) {
+  if (!isSupabaseConfigured) {
     return null;
   }
 

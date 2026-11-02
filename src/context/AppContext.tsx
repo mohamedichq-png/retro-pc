@@ -15,7 +15,7 @@ import {
   RepairTicket, 
   Transaction 
 } from '../data/mockData';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, sanitizeImageUrl } from '../lib/supabase';
 import { useOffersStore } from '../stores/useOffersStore';
 
 export interface CartItem {
@@ -218,8 +218,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     salePrice: dbRow.sale_price ? Number(dbRow.sale_price) : undefined,
     stockQty: Number(dbRow.stock_qty),
     lowStockThreshold: Number(dbRow.low_stock_threshold),
-    imageUrl: dbRow.image_url || '',
-    galleryUrls: dbRow.gallery_urls || [],
+    imageUrl: sanitizeImageUrl(dbRow.image_url),
+    galleryUrls: (dbRow.gallery_urls || []).map((u: string) => sanitizeImageUrl(u)),
     specs: dbRow.specs || {},
     isDigital: dbRow.is_digital,
     isFeatured: dbRow.is_featured,
@@ -417,8 +417,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       // Version-based cache invalidation for products
-      // Increment this version string whenever initialProducts is updated
-      const PRODUCTS_VERSION = 'v2026-08-15-consoles-hd-final';
+      // Bumped to force clearance of stale local cache and load clean 375 Supabase products
+      const PRODUCTS_VERSION = 'v2026-11-02-clean-supabase-v4';
       const storedVersion = localStorage.getItem('retro_products_version');
       if (storedVersion !== PRODUCTS_VERSION) {
         // Clear old cached products and reset to latest initialProducts
@@ -426,7 +426,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem('retro_products_version', PRODUCTS_VERSION);
         setProducts(initialProducts);
       } else {
-        setProducts(loadData('retro_products', initialProducts));
+        const cached = loadData<Product[]>('retro_products', initialProducts);
+        // Scrub any dead qdoz URLs that might linger in cached products
+        const sanitizedCached = cached.map((p) => ({
+          ...p,
+          imageUrl: sanitizeImageUrl(p.imageUrl),
+        }));
+        setProducts(sanitizedCached);
       }
 
       setCustomers(loadData('retro_customers', initialCustomers));
@@ -434,42 +440,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setRepairs(loadData('retro_repairs', initialRepairs));
       setTransactions(loadData('retro_transactions', initialTransactions));
 
-      
       const emps = loadData('retro_employees', initialEmployees);
       const defaultCashier = emps.find(e => e.role === 'cashier' || e.role === 'manager') || emps[0];
       setActiveCashier(defaultCashier);
     };
 
-    const isSupabaseConfigured = 
-      process.env.NEXT_PUBLIC_SUPABASE_URL && 
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder-domain');
-
     // Immediately load local/cached data for instant rendering
     loadLocalData();
 
     if (isSupabaseConfigured) {
-      const now = Date.now();
-      const lastFetch = Number(sessionStorage.getItem('retro_supabase_last_fetch') || 0);
-      const isBlocked = sessionStorage.getItem('retro_supabase_blocked') === 'true';
-
-      // Avoid hammering Supabase if quota exceeded or fetched within last 5 minutes
-      if ((isBlocked && now - lastFetch < 600000) || (now - lastFetch < 300000)) {
-        setLoading(false);
-        return;
-      }
+      // Clear any stale block flags from prior failed projects
+      sessionStorage.removeItem('retro_supabase_blocked');
 
       setLoading(true);
       const fetchSupabaseData = async () => {
         try {
-          // Fetch products with timeout protection
+          // Fetch products from new active Supabase project
           const { data: pData, error: pError } = await supabase.from('products').select('*');
           if (pError) {
-            const status = (pError as any)?.status || (pError as any)?.statusCode;
-            if (status === 402 || pError.message?.includes('402')) {
-              sessionStorage.setItem('retro_supabase_blocked', 'true');
-            }
-            sessionStorage.setItem('retro_supabase_last_fetch', String(Date.now()));
+            console.warn('Supabase products fetch warning:', pError);
             loadLocalData();
             return;
           }
@@ -478,28 +467,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             sessionStorage.removeItem('retro_supabase_blocked');
             sessionStorage.setItem('retro_supabase_last_fetch', String(Date.now()));
             const cloudProducts = pData.map(mapToProduct);
+            
+            // Cloud products are primary and authoritative
+            const mergedMap = new Map<string, Product>();
+            for (const cp of cloudProducts) {
+              mergedMap.set(cp.id, cp);
+              if (cp.sku) mergedMap.set(cp.sku, cp);
+            }
+
             const localRaw = localStorage.getItem('retro_products');
             if (localRaw) {
               try {
                 const localList: Product[] = JSON.parse(localRaw);
-                if (Array.isArray(localList) && localList.length > 0) {
-                  const mergedMap = new Map<string, Product>();
-                  for (const cp of cloudProducts) mergedMap.set(cp.id, cp);
+                if (Array.isArray(localList)) {
                   for (const lp of localList) {
-                    if (!mergedMap.has(lp.id) || lp.id.startsWith('prod_')) {
-                      mergedMap.set(lp.id, lp);
+                    if (lp.id.startsWith('prod_') && !mergedMap.has(lp.id) && !mergedMap.has(lp.sku)) {
+                      mergedMap.set(lp.id, { ...lp, imageUrl: sanitizeImageUrl(lp.imageUrl) });
                     }
                   }
-                  setProducts(Array.from(mergedMap.values()));
-                } else {
-                  setProducts(cloudProducts);
                 }
               } catch {
-                setProducts(cloudProducts);
+                // Ignore parse errors
               }
-            } else {
-              setProducts(cloudProducts);
             }
+            
+            const finalList = Array.from(new Set(mergedMap.values()));
+            setProducts(finalList);
+            localStorage.setItem('retro_products', JSON.stringify(finalList));
           } else {
             loadLocalData();
           }
@@ -761,8 +755,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     saveState('retro_transactions', newTxs);
 
     // Sync checkout details to Supabase if configured
-    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (isSupabaseConfigured) {
+        if (isSupabaseConfigured) {
       const syncCheckout = async () => {
         try {
           // 1. Insert transaction
@@ -828,8 +821,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     saveState('retro_repairs', updatedRepairs);
 
     // Sync to Supabase
-    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (isSupabaseConfigured) {
+        if (isSupabaseConfigured) {
       const syncRepair = async () => {
         try {
           const dbRepair = mapToDbRepair(newTicket);
@@ -866,8 +858,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     saveState('retro_repairs', updated);
 
     // Sync to Supabase
-    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (isSupabaseConfigured && updatedTicket) {
+        if (isSupabaseConfigured && updatedTicket) {
       const syncUpdate = async () => {
         try {
           const dbRepair = mapToDbRepair(updatedTicket!);
@@ -898,8 +889,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (isSupabaseConfigured) {
+        if (isSupabaseConfigured) {
       const syncAdd = async () => {
         try {
           const dbProduct = mapToDbProduct(product);
@@ -930,8 +920,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (isSupabaseConfigured && updatedProduct) {
+        if (isSupabaseConfigured && updatedProduct) {
       const syncStock = async () => {
         try {
           await supabase.from('products').update({ stock_qty: Math.max(0, qty) }).eq('id', productId);
@@ -960,8 +949,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (isSupabaseConfigured && updatedProduct) {
+        if (isSupabaseConfigured && updatedProduct) {
       const syncUpdate = async () => {
         try {
           const dbProduct = mapToDbProduct(updatedProduct!);
@@ -985,8 +973,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-    const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (isSupabaseConfigured) {
+        if (isSupabaseConfigured) {
       const syncDelete = async () => {
         try {
           await supabase.from('products').delete().eq('id', productId);
