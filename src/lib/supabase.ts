@@ -1,7 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://vjodbkieotbmphzopgtt.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_8GU7X8Qxh9JPjcJzcKlBGQ_IeSk8N-e';
+const isOldBlockedProject = (url?: string) => !url || url.includes('qdozfcplmd') || url.includes('placeholder');
+
+const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseUrl: string = isOldBlockedProject(rawUrl)
+  ? 'https://vjodbkieotbmphzopgtt.supabase.co'
+  : (rawUrl || 'https://vjodbkieotbmphzopgtt.supabase.co');
+
+const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const supabaseAnonKey: string = (isOldBlockedProject(rawUrl) || !rawKey || rawKey.length < 20 || rawKey.includes('placeholder'))
+  ? 'sb_publishable_8GU7X8Qxh9JPjcJzcKlBGQ_IeSk8N-e'
+  : rawKey;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 

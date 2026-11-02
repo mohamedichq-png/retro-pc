@@ -607,13 +607,30 @@ export const useOffersStore = create<OffersState>()(
       name: 'retro-offers',
       merge: (persistedState, currentState) => {
         const p = (persistedState as Partial<OffersState>) || {};
+        const persistedBrands = Array.isArray(p.retroBrands) && p.retroBrands.length > 0 ? p.retroBrands : [];
+        const mergedBrands = persistedBrands.length > 0
+          ? persistedBrands.map((pb) => {
+              const defaultBrand = RETRO_BRANDS.find((db) => db.id === pb.id);
+              if (!defaultBrand) return pb;
+              return {
+                ...defaultBrand,
+                ...pb,
+                devices: pb.devices.map((pd) => {
+                  const defaultDev = defaultBrand.devices.find((dd) => dd.id === pd.id);
+                  return {
+                    ...defaultDev,
+                    ...pd,
+                    image: pd.image || defaultDev?.image || '',
+                  };
+                }),
+              };
+            })
+          : currentState.retroBrands;
+
         return {
           ...currentState,
           ...p,
-          retroBrands:
-            Array.isArray(p.retroBrands) && p.retroBrands.length > 0
-              ? p.retroBrands
-              : currentState.retroBrands,
+          retroBrands: mergedBrands,
         };
       },
     }

@@ -84,6 +84,8 @@ const suppliedBrandLogos: Record<string, string> = {
   nec: '/brand-logos/pc-engine.png',
   philips: '/brand-logos/philips.webp',
   arcade: '/brand-logos/arcade.jpg',
+  nintendo: '/brand-logos/nintendo.svg',
+  snk: '/brand-logos/snk.svg',
 };
 
 function RetroStoreContent() {
@@ -190,7 +192,9 @@ function RetroStoreContent() {
       ) : !device ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
           {activeDevices.map((d) => {
-            const deviceImg = retroDeviceImages[`${brand.id}:${d.id}`] || d.image;
+            const defaultBrand = RETRO_BRANDS.find((b) => b.id === brand.id);
+            const defaultDev = defaultBrand?.devices.find((x) => x.id === d.id);
+            const deviceImg = retroDeviceImages[`${brand.id}:${d.id}`] || d.image || defaultDev?.image || '';
             const dName = ar && d.nameAr ? d.nameAr : d.name;
             return (
               <button
@@ -221,7 +225,14 @@ function RetroStoreContent() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-4xl mx-auto">
           {RETRO_KINDS.map((k) => {
             const kindKey = `${brand.id}:${device.id}:${k.id}`;
-            const kindImg = retroKindImages[kindKey] || device.kindImages?.[k.id] || '';
+            const customKindImg = retroKindImages[kindKey] || device.kindImages?.[k.id];
+            const defaultKindImg =
+              k.id === 'consoles'
+                ? (retroDeviceImages[`${brand.id}:${device.id}`] || device.image)
+                : k.id === 'accessories'
+                ? '/media/catalog/retro-gaming-classics/speedlink-competition-pro-usb-sports-tournament-edition.webp'
+                : '/media/catalog/retro-gaming-classics/family-computer-r915-hd-600-games.webp';
+            const kindImg = customKindImg || defaultKindImg || '';
             return (
               <Link
                 key={k.id}
