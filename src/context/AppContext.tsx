@@ -532,6 +532,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       fetchSupabaseData();
+
+      // Keep website synchronized automatically when switching tabs or focusing window
+      const handleSyncOnFocus = () => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          fetchSupabaseData();
+        }
+      };
+      window.addEventListener('focus', handleSyncOnFocus);
+      document.addEventListener('visibilitychange', handleSyncOnFocus);
+
+      // Listen for Realtime Supabase database updates
+      const realtimeChannel = supabase
+        .channel('db-live-sync')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+          fetchSupabaseData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, () => {
+          useOffersStore.getState().initializeFromCloud();
+        })
+        .subscribe();
+
+      return () => {
+        window.removeEventListener('focus', handleSyncOnFocus);
+        document.removeEventListener('visibilitychange', handleSyncOnFocus);
+        supabase.removeChannel(realtimeChannel);
+      };
     } else {
       setLoading(false);
     }
