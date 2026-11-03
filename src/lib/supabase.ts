@@ -1,15 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-const isOldBlockedProject = (url?: string) => !url || url.includes('qdozfcplmd') || url.includes('placeholder');
+const isOldBlockedProject = (url?: string) => !url || url.includes('qdozfcplmd') || url.includes('vjodbkieotbmphzopgtt') || url.includes('placeholder');
 
 const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 export const supabaseUrl: string = isOldBlockedProject(rawUrl)
-  ? 'https://vjodbkieotbmphzopgtt.supabase.co'
-  : (rawUrl || 'https://vjodbkieotbmphzopgtt.supabase.co');
+  ? 'https://kqtkwwgxmsnjqwylsopq.supabase.co'
+  : (rawUrl || 'https://kqtkwwgxmsnjqwylsopq.supabase.co');
 
 const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 export const supabaseAnonKey: string = (isOldBlockedProject(rawUrl) || !rawKey || rawKey.length < 20 || rawKey.includes('placeholder'))
-  ? 'sb_publishable_8GU7X8Qxh9JPjcJzcKlBGQ_IeSk8N-e'
+  ? 'sb_publishable_f-3DLGzU9xi5NpB_eWhnYg_Vbl7Akr7'
   : rawKey;
 
 export const isSupabaseConfigured: boolean = Boolean(supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('placeholder'));
