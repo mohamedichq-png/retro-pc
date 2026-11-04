@@ -2,7 +2,7 @@ const fs = require('fs');
 const { Client } = require('pg');
 
 async function runMigration(password) {
-  const projectRef = 'vjodbkieotbmphzopgtt';
+  const projectRef = 'kqtkwwgxmsnjqwylsopq';
   // Try direct connection or connection pooler
   const connectionStrings = [
     `postgresql://postgres.${projectRef}:${encodeURIComponent(password)}@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres`,
