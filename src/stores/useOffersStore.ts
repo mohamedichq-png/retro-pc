@@ -115,8 +115,17 @@ interface OffersState {
   updateRetroPcCategoryImage: (nodeId: string, image: string) => void;
   resetRetroPcCategoryImage: (nodeId: string) => void;
 
-  // Cloud Sync
+  // Cloud Sync & Bulk Import
   initializeFromCloud: () => Promise<void>;
+  importStoreSettings: (payload: {
+    visualCategories?: VisualCategory[];
+    slides?: OfferSlide[];
+    retroBrands?: RetroBrand[];
+    retroBrandLogos?: Record<string, string>;
+    retroDeviceImages?: Record<string, string>;
+    retroKindImages?: Record<string, string>;
+    retroPcCategories?: RetroPcCategoryNode[];
+  }) => Promise<void>;
 }
 
 const DEFAULT_SLIDES: OfferSlide[] = [
@@ -799,39 +808,38 @@ export const useOffersStore = create<OffersState>()(
             if (rbl && rbl.data) {
               const cleanLogos: Record<string, string> = {};
               for (const [k, v] of Object.entries(rbl.data)) {
-                if (typeof v === 'string' && !v.includes('qdozfcplmd')) {
+                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd')) {
                   cleanLogos[k] = v;
                 }
               }
-              set((s) => ({ retroBrandLogos: { ...cleanLogos, ...s.retroBrandLogos } }));
+              set({ retroBrandLogos: cleanLogos });
             }
             if (rdi && rdi.data) {
               const cleanDeviceImgs: Record<string, string> = {};
               for (const [k, v] of Object.entries(rdi.data)) {
-                if (typeof v === 'string' && !v.includes('qdozfcplmd')) {
+                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd')) {
                   cleanDeviceImgs[k] = v;
                 }
               }
-              set((s) => ({ retroDeviceImages: { ...cleanDeviceImgs, ...s.retroDeviceImages } }));
+              set({ retroDeviceImages: cleanDeviceImgs });
             }
             if (rki && rki.data) {
               const cleanKindImgs: Record<string, string> = {};
               for (const [k, v] of Object.entries(rki.data)) {
-                if (typeof v === 'string' && !v.includes('qdozfcplmd')) {
+                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd')) {
                   cleanKindImgs[k] = v;
                 }
               }
-              set((s) => ({ retroKindImages: { ...cleanKindImgs, ...s.retroKindImages } }));
+              set({ retroKindImages: cleanKindImgs });
             }
             if (rc && rc.data) {
-              const cloudUpdatedAt = typeof rc.data.updatedAt === 'number' ? rc.data.updatedAt : 0;
+              const cloudUpdatedAt = typeof rc.data.updatedAt === 'number' ? rc.data.updatedAt : Date.now();
               const rawBrands: RetroBrand[] | undefined = Array.isArray(rc.data)
                 ? rc.data
                 : Array.isArray(rc.data.brands)
                 ? rc.data.brands
                 : undefined;
-              const localUpdatedAt = get().retroCatalogUpdatedAt || 0;
-              if (rawBrands && rawBrands.length > 0 && cloudUpdatedAt > localUpdatedAt) {
+              if (rawBrands && rawBrands.length > 0) {
                 const sanitized = rawBrands.map((b) => {
                   const defB = RETRO_BRANDS.find((x) => x.id === b.id);
                   const cleanLogo = b.logo && !b.logo.includes('qdozfcplmd') ? b.logo : defB?.logo;
@@ -861,14 +869,13 @@ export const useOffersStore = create<OffersState>()(
               }
             }
             if (rpc && rpc.data) {
-              const cloudPcUpdatedAt = typeof rpc.data.updatedAt === 'number' ? rpc.data.updatedAt : 0;
+              const cloudPcUpdatedAt = typeof rpc.data.updatedAt === 'number' ? rpc.data.updatedAt : Date.now();
               const rawPcCats: RetroPcCategoryNode[] | undefined = Array.isArray(rpc.data)
                 ? rpc.data
                 : Array.isArray(rpc.data.categories)
                 ? rpc.data.categories
                 : undefined;
-              const localPcUpdatedAt = get().retroPcCatalogUpdatedAt || 0;
-              if (rawPcCats && rawPcCats.length > 0 && cloudPcUpdatedAt > localPcUpdatedAt) {
+              if (rawPcCats && rawPcCats.length > 0) {
                 set({
                   retroPcCategories: sanitizeRetroPcTree(rawPcCats),
                   retroPcCatalogUpdatedAt: cloudPcUpdatedAt,
@@ -878,6 +885,57 @@ export const useOffersStore = create<OffersState>()(
           }
         } catch (err) {
           console.error("Failed to fetch store settings from cloud:", err);
+        }
+      },
+
+      importStoreSettings: async (payload) => {
+        const now = Date.now();
+        const updates: Partial<OffersState> = {};
+        const rowsToUpsert: Array<{ id: string; data: unknown; updated_at: string }> = [];
+        const isoNow = new Date().toISOString();
+
+        if (Array.isArray(payload.visualCategories)) {
+          updates.visualCategories = payload.visualCategories;
+          rowsToUpsert.push({ id: 'visual_categories', data: payload.visualCategories, updated_at: isoNow });
+        }
+        if (Array.isArray(payload.slides)) {
+          updates.slides = payload.slides;
+          rowsToUpsert.push({ id: 'offer_slides', data: payload.slides, updated_at: isoNow });
+        }
+        if (Array.isArray(payload.retroBrands)) {
+          updates.retroBrands = payload.retroBrands;
+          updates.retroCatalogUpdatedAt = now;
+          rowsToUpsert.push({ id: 'retro_catalog', data: { brands: payload.retroBrands, updatedAt: now }, updated_at: isoNow });
+        }
+        if (payload.retroBrandLogos && typeof payload.retroBrandLogos === 'object') {
+          updates.retroBrandLogos = payload.retroBrandLogos;
+          rowsToUpsert.push({ id: 'retro_brand_logos', data: payload.retroBrandLogos, updated_at: isoNow });
+        }
+        if (payload.retroDeviceImages && typeof payload.retroDeviceImages === 'object') {
+          updates.retroDeviceImages = payload.retroDeviceImages;
+          rowsToUpsert.push({ id: 'retro_device_images', data: payload.retroDeviceImages, updated_at: isoNow });
+        }
+        if (payload.retroKindImages && typeof payload.retroKindImages === 'object') {
+          updates.retroKindImages = payload.retroKindImages;
+          rowsToUpsert.push({ id: 'retro_kind_images', data: payload.retroKindImages, updated_at: isoNow });
+        }
+        if (Array.isArray(payload.retroPcCategories)) {
+          const cleanTree = sanitizeRetroPcTree(payload.retroPcCategories);
+          updates.retroPcCategories = cleanTree;
+          updates.retroPcCatalogUpdatedAt = now;
+          rowsToUpsert.push({ id: 'retro_pc_catalog', data: { categories: cleanTree, updatedAt: now }, updated_at: isoNow });
+        }
+
+        if (Object.keys(updates).length > 0) {
+          set(updates as Partial<OffersState>);
+        }
+
+        if (rowsToUpsert.length > 0) {
+          try {
+            await supabase.from('store_settings').upsert(rowsToUpsert);
+          } catch (err) {
+            console.error("Failed to sync imported store settings to cloud:", err);
+          }
         }
       },
     }),

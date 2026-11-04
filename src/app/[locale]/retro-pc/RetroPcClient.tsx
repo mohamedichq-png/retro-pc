@@ -113,15 +113,18 @@ export default function RetroPcClient({
     return (currentNode.children || []).filter((child) => !child.hidden);
   }, [currentNode, treeRoots]);
 
-  // Merge server & real-time client products from Supabase
+  // Merge server & real-time client products from Supabase (deduplicated by SKU/ID)
   const mergedProducts = useMemo(() => {
-    if (!clientProducts || clientProducts.length === 0) return serverProducts;
     const map = new Map<string, Product>();
     for (const sp of serverProducts) {
-      map.set(sp.id, sp);
+      const key = (sp.sku || sp.id).trim().toUpperCase();
+      map.set(key, sp);
     }
-    for (const cp of clientProducts) {
-      map.set(cp.id, cp as unknown as Product);
+    if (clientProducts && clientProducts.length > 0) {
+      for (const cp of clientProducts) {
+        const key = (cp.sku || cp.id).trim().toUpperCase();
+        map.set(key, cp as unknown as Product);
+      }
     }
     return Array.from(map.values());
   }, [serverProducts, clientProducts]);

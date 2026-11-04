@@ -10,6 +10,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import type { Product } from '@/types';
 import type { Dictionary, Locale } from '@/i18n/dictionaries';
 import { MAIN_CATEGORIES } from '@/lib/constants';
+import { useApp } from '@/context/AppContext';
 
 interface ProductsContentProps {
   dict: Dictionary;
@@ -78,8 +79,22 @@ export function ProductsContent({ dict, locale, initialProducts, categorySlug }:
   const isRtl = locale === 'ar';
   const searchParams = useSearchParams();
   const initialSearch = searchParams.get('search') || '';
-  
-  const [products] = useState<Product[]>(initialProducts);
+  const { products: clientProducts } = useApp();
+
+  const products = useMemo(() => {
+    const map = new Map<string, Product>();
+    for (const sp of initialProducts) {
+      const key = (sp.sku || sp.id).trim().toUpperCase();
+      map.set(key, sp);
+    }
+    if (clientProducts && clientProducts.length > 0) {
+      for (const cp of clientProducts) {
+        const key = (cp.sku || cp.id).trim().toUpperCase();
+        map.set(key, cp as unknown as Product);
+      }
+    }
+    return Array.from(map.values());
+  }, [initialProducts, clientProducts]);
   const [filters, setFilters] = useState({
     categories: [] as string[],
     brands: [] as string[],

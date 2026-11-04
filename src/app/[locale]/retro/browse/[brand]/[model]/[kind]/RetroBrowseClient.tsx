@@ -120,13 +120,16 @@ export default function RetroBrowseClient({
   const kind = RETRO_KINDS.find((x) => x.id === kindId) || RETRO_KINDS[0];
 
   const mergedProducts = useMemo(() => {
-    if (!clientProducts || clientProducts.length === 0) return serverProducts;
     const map = new Map<string, Product>();
     for (const sp of serverProducts) {
-      map.set(sp.id, sp);
+      const key = (sp.sku || sp.id).trim().toUpperCase();
+      map.set(key, sp);
     }
-    for (const cp of clientProducts) {
-      map.set(cp.id, cp as unknown as Product);
+    if (clientProducts && clientProducts.length > 0) {
+      for (const cp of clientProducts) {
+        const key = (cp.sku || cp.id).trim().toUpperCase();
+        map.set(key, cp as unknown as Product);
+      }
     }
     return Array.from(map.values());
   }, [serverProducts, clientProducts]);

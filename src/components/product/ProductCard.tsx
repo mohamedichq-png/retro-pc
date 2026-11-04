@@ -31,8 +31,12 @@ export function ProductCard({ product, dict, locale }: ProductCardProps) {
   const href = `/${locale}/product/${product.slug || product.id}`;
   
   const [isHovered, setIsHovered] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+
+  React.useEffect(() => {
+    setImageFailed(false);
+  }, [product.imageUrl]);
   
   const { addItem } = useCartStore();
   const { items: wishlistItems, toggle: toggleWishlist } = useWishlistStore();
@@ -132,19 +136,14 @@ export function ProductCard({ product, dict, locale }: ProductCardProps) {
     >
       {/* ── Image & Badges ── */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-retro-bg-input p-2 flex items-center justify-center">
-        
-        {/* Skeleton shimmer before image loads */}
-        {!imageLoaded && (
-          <div className="absolute inset-2 skeleton rounded-xl" />
-        )}
-
-        {product.imageUrl ? (
+        {product.imageUrl && !imageFailed ? (
           <img 
+            key={product.imageUrl}
             src={product.imageUrl} 
             alt={name}
             loading="lazy"
-            onLoad={() => setImageLoaded(true)}
-            className={`h-full w-full object-contain object-center rounded-xl transition-all duration-500 group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onError={() => setImageFailed(true)}
+            className="h-full w-full object-contain object-center rounded-xl transition-all duration-500 group-hover:scale-105 opacity-100"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-retro-text-dim">

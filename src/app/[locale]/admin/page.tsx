@@ -23,7 +23,7 @@ import { useOffersStore, DEFAULT_RETRO_BRAND_LOGOS } from '@/stores/useOffersSto
 import { RETRO_BRANDS, RETRO_KINDS, type RetroKindId } from '@/lib/retro-navigation';
 import { RETRO_PC_CATEGORIES, flattenRetroPcTree, findRetroPcNodeWithTrailById } from '@/lib/retro-pc-navigation';
 import { classifyAllProducts } from '@/lib/classificationEngine';
-import { uploadImageToSupabase, supabase, isSupabaseConfigured, sanitizeImageUrl } from '@/lib/supabase';
+import { uploadImageToSupabase, compressImageFileToDataUrl, supabase, isSupabaseConfigured, sanitizeImageUrl } from '@/lib/supabase';
 import { mapProductToDb } from '@/lib/productsData';
 
 export default function AdminDashboard() {
@@ -53,8 +53,8 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [taxonomyFilter, setTaxonomyFilter] = useState<string>('all');
 
-  // Retro Sections View States
-  const [retroSubView, setRetroSubView] = useState<'brands' | 'devices'>('brands');
+  // Retro Sections View States ('all' shows Level 1 + Level 2 + Level 3 together)
+  const [retroSubView, setRetroSubView] = useState<'all' | 'brands' | 'devices'>('all');
   const [selectedRetroBrandForDevices, setSelectedRetroBrandForDevices] = useState<string>('playstation');
   const [retroUrlModal, setRetroUrlModal] = useState<{
     id: string;
@@ -156,6 +156,7 @@ export default function AdminDashboard() {
     updateRetroKindImage,
     resetRetroKindImage,
     retroPcCategories,
+    importStoreSettings,
   } = useOffersStore();
 
   const allRetroBrands = useMemo(
@@ -414,35 +415,76 @@ export default function AdminDashboard() {
 
     setIsUploadingEditImage(true);
     try {
-      const publicUrl = await uploadImageToSupabase(file, 'products');
+      const publicUrl = (await uploadImageToSupabase(file, 'products')) || (await compressImageFileToDataUrl(file));
       if (publicUrl) {
         setEditImageUrl(publicUrl);
-        if (showToast) showToast(isRtl ? 'تم رفع الصورة للسحابة بنجاح!' : 'Image uploaded to cloud!', 'success');
-      } else {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            setEditImageUrl(reader.result);
-          }
-        };
-        reader.readAsDataURL(file);
+        if (editingProduct) {
+          updateProduct(editingProduct.id, { imageUrl: publicUrl });
+        }
+        if (showToast) {
+          showToast(
+            isRtl
+              ? 'تم رفع وحفظ صورة المنتج في قاعدة البيانات السحابية فوراً!'
+              : 'Product image uploaded & saved to cloud database!',
+            'success'
+          );
+        }
       }
     } catch {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setEditImageUrl(reader.result);
+      const fallbackUrl = await compressImageFileToDataUrl(file);
+      if (fallbackUrl) {
+        setEditImageUrl(fallbackUrl);
+        if (editingProduct) {
+          updateProduct(editingProduct.id, { imageUrl: fallbackUrl });
         }
-      };
-      reader.readAsDataURL(file);
+      }
     } finally {
       setIsUploadingEditImage(false);
     }
   };
 
+  const handleQuickRowImageUpload = async (product: Product, file?: File | null) => {
+    if (!file) return;
+    if (showToast) {
+      showToast(
+        isRtl
+          ? `جاري رفع وحفظ صورة "${product.nameAr || product.nameEn}"...`
+          : `Uploading image for "${product.nameEn}"...`,
+        'info'
+      );
+    }
+    try {
+      const publicUrl = (await uploadImageToSupabase(file, 'products')) || (await compressImageFileToDataUrl(file));
+      if (publicUrl) {
+        updateProduct(product.id, { imageUrl: publicUrl });
+      }
+    } catch {
+      const fallbackUrl = await compressImageFileToDataUrl(file);
+      if (fallbackUrl) {
+        updateProduct(product.id, { imageUrl: fallbackUrl });
+      }
+    }
+  };
+
+  const buildFullExportPayload = () => ({
+    version: '2026-11-04',
+    exportedAt: new Date().toISOString(),
+    products,
+    storeSettings: {
+      visualCategories,
+      slides,
+      retroBrands: allRetroBrands,
+      retroBrandLogos,
+      retroDeviceImages,
+      retroKindImages,
+      retroPcCategories: allRetroPcCategories,
+    },
+  });
+
   const handleExportJSON = () => {
+    const payload = buildFullExportPayload();
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-      JSON.stringify(products, null, 2)
+      JSON.stringify(payload, null, 2)
     )}`;
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', jsonString);
@@ -451,15 +493,20 @@ export default function AdminDashboard() {
     downloadAnchor.click();
     downloadAnchor.remove();
     if (showToast) {
-      showToast(isRtl ? 'تم تصدير ملف البيانات بنجاح!' : 'Catalog exported successfully!', 'success');
+      showToast(
+        isRtl
+          ? 'تم تصدير ملف البيانات الكامل (المنتجات + صور الأقسام والسكشنات) بنجاح!'
+          : 'Complete catalog & section images exported successfully!',
+        'success'
+      );
     }
   };
 
   const handleCopyJSON = async () => {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(products, null, 2));
+      await navigator.clipboard.writeText(JSON.stringify(buildFullExportPayload(), null, 2));
       if (showToast) {
-        showToast(isRtl ? 'تم نسخ جميع بيانات المنتجات إلى الحافظة!' : 'All products copied to clipboard!', 'success');
+        showToast(isRtl ? 'تم نسخ جميع بيانات المنتجات والأقسام إلى الحافظة!' : 'All products & sections copied to clipboard!', 'success');
       } else {
         alert(isRtl ? 'تم نسخ البيانات!' : 'Data copied!');
       }
@@ -473,14 +520,29 @@ export default function AdminDashboard() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const content = event.target?.result as string;
         const parsed = JSON.parse(content);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          importProducts(parsed);
+          importProducts(parsed, true);
+        } else if (parsed && typeof parsed === 'object') {
+          if (Array.isArray(parsed.products) && parsed.products.length > 0) {
+            importProducts(parsed.products, true);
+          }
+          if (parsed.storeSettings && typeof parsed.storeSettings === 'object') {
+            await importStoreSettings(parsed.storeSettings);
+          }
+          if (showToast) {
+            showToast(
+              isRtl
+                ? 'تم استيراد ومزامنة المنتجات وصور الأقسام في قاعدة البيانات السحابية بنجاح!'
+                : 'Imported & synced products and section images to cloud database!',
+              'success'
+            );
+          }
         } else {
-          alert(isRtl ? 'صيغة الملف غير صحيحة. يجب أن يحتوي على مصفوفة منتجات.' : 'Invalid file format. Must contain an array of products.');
+          alert(isRtl ? 'صيغة الملف غير صحيحة. يجب أن يحتوي على بيانات المنتجات أو الأقسام.' : 'Invalid file format.');
         }
       } catch {
         alert(isRtl ? 'حدث خطأ أثناء قراءة الملف.' : 'Error reading JSON file.');
@@ -506,7 +568,7 @@ export default function AdminDashboard() {
 
       for (let i = 0; i < dbProducts.length; i += chunkSize) {
         const chunk = dbProducts.slice(i, i + chunkSize);
-        const { error } = await supabase.from('products').upsert(chunk, { onConflict: 'id' });
+        const { error } = await supabase.from('products').upsert(chunk, { onConflict: 'sku' });
         if (error) {
           console.error('Supabase bulk upsert chunk error:', error);
           throw error;
@@ -599,7 +661,7 @@ export default function AdminDashboard() {
           accessories: dbRow.accessories || [],
         }));
 
-        importProducts(cloudProducts);
+        importProducts(cloudProducts, false);
         await useOffersStore.getState().initializeFromCloud();
 
         if (showToast) {
@@ -1509,6 +1571,48 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+
+            {/* Direct Quick-Access to Level 2 & Level 3 Subcategory Images for All Brands */}
+            <div className="rounded-2xl border border-purple-500/25 bg-slate-900/60 p-5 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-sm font-black text-white">
+                    🎮 {isRtl ? "تخصيص صور الأقسام الفرعية (المستوى الثاني والثالث: الأجهزة وسكشنات الكونسول / الألعاب / الإكسسوارات)" : "Customize Level 2 & Level 3 Subcategory Images (Console Models & Product-Type Sections)"}
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {isRtl
+                      ? "اضغط على أي شركة لفتح وتغيير صور أجهزتها الفرعية (مثل PS1, PS2, PSP, PS Vita) وصور سكشنات (الكونسول، الألعاب، الإكسسوارات) الخاصة بكل جهاز فوراً:"
+                      : "Click any brand below to directly upload & customize its console model images (PS1, PS2, PSP, PS Vita...) and product-type cards (Consoles, Games, Accessories):"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {allRetroBrands.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedRetroBrandForDevices(b.id);
+                      setRetroSubView('all');
+                      setActiveTab('retro-sections');
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-slate-950 hover:bg-cyan-500 hover:text-slate-950 px-3.5 py-2 text-xs font-bold text-cyan-300 transition-all cursor-pointer"
+                  >
+                    <span>🕹️</span>
+                    <span>{isRtl && b.nameAr ? `${b.nameAr} (${b.name})` : b.name}</span>
+                    <span className="text-[10px] opacity-75">({b.devices.length})</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('retro-pc-sections')}
+                  className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-slate-950 hover:bg-emerald-500 hover:text-slate-950 px-3.5 py-2 text-xs font-bold text-emerald-300 transition-all cursor-pointer"
+                >
+                  <span>🖥️</span>
+                  <span>{isRtl ? "أقسام Retro PC الفرعية" : "Retro PC Subcategories"}</span>
+                </button>
+              </div>
+            </div>
           </div>
         ) : activeTab === 'retro-sections' ? (
           <div className="space-y-6 animate-in fade-in duration-300">
@@ -1517,42 +1621,53 @@ export default function AdminDashboard() {
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 text-[11px] font-black text-cyan-400 uppercase tracking-wider">
                   <span>🕹️</span>
-                  <span>{isRtl ? "أقسام وسكشنات الريترو والكونسول" : "Retro & Console Visual Sections"}</span>
+                  <span>{isRtl ? "أقسام وسكشنات الريترو والكونسول (المستويات 1 و 2 و 3)" : "Retro & Console Visual Sections (Levels 1, 2 & 3)"}</span>
                 </div>
                 <h3 className="text-lg font-black text-white tracking-tight">
                   {isRtl ? "إدارة السكشنات، موديلات الكونسول، وصور أقسام المنتجات" : "Manage Retro Brands, Console Models & Product-Type Section Images"}
                 </h3>
                 <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
                   {isRtl 
-                    ? "تحكم كامل بالشركات (السكشنات)، موديلات الأجهزة (الأقسام الفرعية)، وصور البطاقات الثلاث لكل جهاز (الكونسول، الألعاب، الإكسسوارات). يمكنك إضافة سكشنات وأجهزة جديدة، إعادة الترتيب، الإخفاء، أو الحذف مع الحفظ الدائم."
-                    : "Full control over Retro brands/sections, console models, and the 3 product-type cards (Consoles, Games, Accessories) per console model. Add new sections/models, reorder, hide, delete, and upload images permanently."}
+                    ? "تحكم كامل بالمستوى الأول (الشركات)، والمستوى الثاني (الأجهزة مثل PS1, PS2, PSP, PS Vita)، والمستوى الثالث (بطاقات الكونسول، الألعاب، الإكسسوارات لكل جهاز) مع حفظ سحابي تلقائي وفوري."
+                    : "Full control over Level 1 (Brands), Level 2 (Console Models), and Level 3 (Consoles, Games, Accessories cards per model) with instant automatic cloud persistence."}
                 </p>
               </div>
 
-              {/* Sub-view switcher: Brands vs Devices */}
+              {/* Sub-view switcher: All vs Brands vs Devices */}
               <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <div className="inline-flex rounded-2xl bg-slate-950 p-1 border border-slate-800">
                   <button
                     type="button"
+                    onClick={() => setRetroSubView('all')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      retroSubView === 'all'
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🌟 {isRtl ? "كل المستويات (1 + 2 + 3)" : "All Levels (1 + 2 + 3)"}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setRetroSubView('brands')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       retroSubView === 'brands'
                         ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    🏢 {isRtl ? `سكشنات الشركات (${allRetroBrands.length})` : `Brands & Sections (${allRetroBrands.length})`}
+                    🏢 {isRtl ? `المستوى 1: الشركات (${allRetroBrands.length})` : `Level 1: Brands (${allRetroBrands.length})`}
                   </button>
                   <button
                     type="button"
                     onClick={() => setRetroSubView('devices')}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       retroSubView === 'devices'
                         ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    🎮 {isRtl ? "موديلات الكونسول وصور الأقسام" : "Console Models & Section Images"}
+                    🎮 {isRtl ? "المستويان 2 و 3: الأجهزة والسكشنات" : "Levels 2 & 3: Models & Sections"}
                   </button>
                 </div>
 
@@ -1576,17 +1691,17 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* View 1: Brands / Sections Grid */}
-            {retroSubView === 'brands' ? (
+            {/* View 1: Level 1 Brands / Sections Grid */}
+            {(retroSubView === 'all' || retroSubView === 'brands') && (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 px-1">
-                  <span>
-                    {isRtl
-                      ? "يمكنك تعديل شعار كل شركة، إعادة ترتيبها (↑↓)، إخفاؤها، حذفها، أو الدخول لإدارة موديلات الأجهزة والمنتجات بداخلها."
-                      : "Upload brand logos, reorder (↑↓), hide/show, delete, or click 'Manage Models & Content' to manage subsections and products."}
+                  <span className="font-bold text-white">
+                    🏢 {isRtl
+                      ? "المستوى الأول: الأقسام والشركات الرئيسية — ارفع شعار كل شركة أو اضغط (الأجهزة والأقسام) لتخصيص أجهزتها:"
+                      : "Level 1: Main Brands & Sections — Upload brand logos or click (Models & Subsections) to customize its consoles:"}
                   </span>
                   <span className="text-cyan-400 font-bold">
-                    {allRetroBrands.length} {isRtl ? "سكشن متاح" : "Sections available"}
+                    {allRetroBrands.length} {isRtl ? "شركة / قسم رئيسي" : "Main Brands"}
                   </span>
                 </div>
 
@@ -1851,9 +1966,18 @@ export default function AdminDashboard() {
                   })}
                 </div>
               </div>
-            ) : (
+            )}
+
+            {(retroSubView === 'all' || retroSubView === 'devices') && (
               /* View 2: Console Devices by Brand + Product-Type Section Images (Consoles / Games / Accessories) */
-              <div className="space-y-6">
+              <div className="space-y-5 pt-4 border-t border-slate-800/80">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                  <span className="text-xs font-bold text-cyan-300">
+                    🎮 {isRtl
+                      ? "المستويان الثاني والثالث: اختر الشركة لتغيير صور أجهزتها الفرعية (PS1, PS2, PSP, PS Vita...) وصور السكشنات الثلاثة (الكونسول، الألعاب، الإكسسوارات) داخل كل جهاز:"
+                      : "Levels 2 & 3: Select a brand below to customize its console models and the 3 product-type section cards (Consoles, Games, Accessories) per console:"}
+                  </span>
+                </div>
                 {/* Brand selection pills (includes all existing + newly created brands) */}
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
                   {allRetroBrands.map((b) => (
@@ -2674,16 +2798,34 @@ export default function AdminDashboard() {
                       <tr key={product.id} className="hover:bg-slate-900/30 transition-colors">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
-                            <img 
-                              src={sanitizeImageUrl(product.imageUrl)} 
-                              alt={product.nameEn} 
-                              className="h-10 w-10 rounded-lg object-cover bg-slate-950 border border-slate-800"
-                              onError={(e) => {
-                                const target = e.currentTarget as HTMLImageElement;
-                                target.onerror = null;
-                                target.src = '/media/image53.jpeg';
-                              }}
-                            />
+                            <label
+                              className="relative h-11 w-11 rounded-lg overflow-hidden bg-slate-950 border border-slate-800 hover:border-cyan-400 cursor-pointer shrink-0 group/thumb"
+                              title={isRtl ? "اضغط لتغيير وحفظ صورة المنتج فوراً" : "Click to upload & save product image immediately"}
+                            >
+                              <img 
+                                key={product.imageUrl}
+                                src={sanitizeImageUrl(product.imageUrl)} 
+                                alt={product.nameEn} 
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  const target = e.currentTarget as HTMLImageElement;
+                                  target.onerror = null;
+                                  target.src = '/media/image53.jpeg';
+                                }}
+                              />
+                              <span className="absolute inset-0 bg-black/65 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center text-cyan-400 transition-opacity">
+                                <UploadIcon size={14} />
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  handleQuickRowImageUpload(product, e.target.files?.[0]);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
                             <div>
                               <div className="font-bold text-white line-clamp-1">
                                 {isRtl ? product.nameAr : product.nameEn}
@@ -2761,6 +2903,22 @@ export default function AdminDashboard() {
 
                         <td className="p-4">
                           <div className="flex items-center justify-center gap-2">
+                            <label
+                              className="p-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500 hover:text-slate-950 transition-all cursor-pointer"
+                              title={isRtl ? "رفع وتغيير صورة المنتج مباشرة" : "Upload & save product photo"}
+                            >
+                              <UploadIcon size={14} />
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  handleQuickRowImageUpload(product, e.target.files?.[0]);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+
                             <button
                               onClick={() => handleToggleStatus(product)}
                               className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
@@ -2776,6 +2934,7 @@ export default function AdminDashboard() {
                             <button
                               onClick={() => handleOpenEdit(product)}
                               className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-300 hover:border-cyan-500 hover:text-cyan-400 transition-all cursor-pointer"
+                              title={isRtl ? "تعديل بيانات المنتج" : "Edit product"}
                             >
                               <EditIcon size={14} />
                             </button>
@@ -2783,6 +2942,7 @@ export default function AdminDashboard() {
                             <button
                               onClick={() => handleDelete(product.id)}
                               className="p-1.5 rounded-lg border border-pink-500/20 bg-pink-500/5 text-pink-500 hover:bg-pink-500 hover:text-white transition-all cursor-pointer"
+                              title={isRtl ? "حذف المنتج" : "Delete product"}
                             >
                               <TrashIcon size={14} />
                             </button>
@@ -2804,16 +2964,28 @@ export default function AdminDashboard() {
                 return (
                   <div key={product.id} className="relative rounded-2xl border border-slate-900 bg-slate-900/40 p-4 space-y-4">
                     <div className="flex items-center gap-3 border-b border-slate-800/60 pb-3">
-                      <img 
-                        src={sanitizeImageUrl(product.imageUrl)} 
-                        alt={product.nameEn} 
-                        className="h-12 w-12 rounded-xl object-cover bg-slate-950 border border-slate-800"
-                        onError={(e) => {
-                          const target = e.currentTarget as HTMLImageElement;
-                          target.onerror = null;
-                          target.src = '/media/image53.jpeg';
-                        }}
-                      />
+                      <label className="relative h-12 w-12 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 cursor-pointer shrink-0">
+                        <img 
+                          key={product.imageUrl}
+                          src={sanitizeImageUrl(product.imageUrl)} 
+                          alt={product.nameEn} 
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            const target = e.currentTarget as HTMLImageElement;
+                            target.onerror = null;
+                            target.src = '/media/image53.jpeg';
+                          }}
+                        />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            handleQuickRowImageUpload(product, e.target.files?.[0]);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
                       <div className="flex-1">
                         <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-wider block">
                           {product.brand}

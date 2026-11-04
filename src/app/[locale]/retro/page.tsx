@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { RETRO_BRANDS, RETRO_KINDS } from '@/lib/retro-navigation';
@@ -99,6 +99,10 @@ function RetroStoreContent() {
   const retroBrandLogos = useOffersStore((s) => s.retroBrandLogos);
   const retroDeviceImages = useOffersStore((s) => s.retroDeviceImages);
   const retroKindImages = useOffersStore((s) => s.retroKindImages);
+
+  useEffect(() => {
+    useOffersStore.getState().initializeFromCloud();
+  }, []);
 
   const activeBrands = (retroBrands && retroBrands.length > 0 ? retroBrands : RETRO_BRANDS).filter(
     (b) => !b.hidden
@@ -229,9 +233,7 @@ function RetroStoreContent() {
             const defaultKindImg =
               k.id === 'consoles'
                 ? (retroDeviceImages[`${brand.id}:${device.id}`] || device.image)
-                : k.id === 'accessories'
-                ? '/media/catalog/retro-gaming-classics/speedlink-competition-pro-usb-sports-tournament-edition.webp'
-                : '/media/catalog/retro-gaming-classics/family-computer-r915-hd-600-games.webp';
+                : '';
             const kindImg = customKindImg || defaultKindImg || '';
             return (
               <Link

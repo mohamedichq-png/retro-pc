@@ -78,7 +78,7 @@ interface AppContextType {
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   deleteProduct: (productId: string) => void;
   updateProductStock: (productId: string, qty: number) => void;
-  importProducts: (newProducts: Product[]) => void;
+  importProducts: (newProducts: Product[], syncToCloud?: boolean) => void;
   addCustomer: (customer: Customer) => void;
   updateCustomerPoints: (customerId: string, points: number) => void;
 }
@@ -246,54 +246,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     accessories: dbRow.accessories || [],
   });
 
-  const mapToDbProduct = (p: Product) => ({
-    id: p.id,
-    sku: p.sku,
-    barcode: p.barcode || null,
-    name_en: p.nameEn,
-    name_ar: p.nameAr,
-    description_en: p.descriptionEn || null,
-    description_ar: p.descriptionAr || null,
-    category: p.category,
-    sub_category: p.subCategory || null,
-    main_category: p.mainCategory || null,
-    section: p.section || null,
-    source: p.source || null,
-    brand: p.brand || null,
-    model: p.model || null,
-    condition: p.condition,
-    cost_price: p.costPrice,
-    selling_price: p.sellingPrice,
-    sale_price: p.salePrice || null,
-    stock_qty: p.stockQty,
-    low_stock_threshold: p.lowStockThreshold,
-    image_url: p.imageUrl || null,
-    gallery_urls: p.galleryUrls || null,
-    specs: p.specs || {},
-    is_digital: p.isDigital || false,
-    is_featured: p.isFeatured || false,
-    status: p.status || 'published',
-    variations: p.variations || null,
-    
-    // Upgraded Fields
-    product_type: p.productType || 'PHYSICAL PRODUCT',
-    primary_category: p.primaryCategory || '',
-    secondary_category: p.secondaryCategory || '',
-    platform: p.platform || null,
-    generation: p.generation || null,
-    categories: p.categories || [],
-    tags: p.tags || [],
-    collections: p.collections || [],
-    reserved_qty: p.reservedQty || 0,
-    available_qty: p.availableQty || p.stockQty || 0,
-    stock_status: p.stockStatus || 'IN STOCK',
-    warranty: p.warranty || '',
-    weight: p.weight || '',
-    dimensions: p.dimensions || '',
-    related_products: p.relatedProducts || [],
-    compatible_products: p.compatibleProducts || [],
-    accessories: p.accessories || [],
-  });
+  const isUuid = (val?: string) =>
+    Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+
+  const mapToDbProduct = (p: Product) => {
+    const payload: Record<string, any> = {
+      sku: p.sku,
+      barcode: p.barcode || null,
+      name_en: p.nameEn,
+      name_ar: p.nameAr,
+      description_en: p.descriptionEn || null,
+      description_ar: p.descriptionAr || null,
+      category: p.category,
+      sub_category: p.subCategory || null,
+      main_category: p.mainCategory || null,
+      section: p.section || null,
+      source: p.source || null,
+      brand: p.brand || null,
+      model: p.model || null,
+      condition: p.condition,
+      cost_price: p.costPrice,
+      selling_price: p.sellingPrice,
+      sale_price: p.salePrice || null,
+      stock_qty: p.stockQty,
+      low_stock_threshold: p.lowStockThreshold,
+      image_url: p.imageUrl || null,
+      gallery_urls: p.galleryUrls || null,
+      specs: p.specs || {},
+      is_digital: p.isDigital || false,
+      is_featured: p.isFeatured || false,
+      status: p.status || 'published',
+      variations: p.variations || null,
+      
+      // Upgraded Fields
+      product_type: p.productType || 'PHYSICAL PRODUCT',
+      primary_category: p.primaryCategory || '',
+      secondary_category: p.secondaryCategory || '',
+      platform: p.platform || null,
+      generation: p.generation || null,
+      categories: p.categories || [],
+      tags: p.tags || [],
+      collections: p.collections || [],
+      reserved_qty: p.reservedQty || 0,
+      available_qty: p.availableQty || p.stockQty || 0,
+      stock_status: p.stockStatus || 'IN STOCK',
+      warranty: p.warranty || '',
+      weight: p.weight || '',
+      dimensions: p.dimensions || '',
+      related_products: p.relatedProducts || [],
+      compatible_products: p.compatibleProducts || [],
+      accessories: p.accessories || [],
+      updated_at: new Date().toISOString(),
+    };
+
+    if (isUuid(p.id)) {
+      payload.id = p.id;
+    }
+
+    return payload;
+  };
 
   const mapToCustomer = (dbRow: any): Customer => ({
     id: dbRow.id,
@@ -417,17 +428,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       // Version-based cache invalidation for products
-      // Bumped to force clearance of stale local cache and load clean 375 Supabase products
-      const PRODUCTS_VERSION = 'v2026-11-02-clean-supabase-v4';
+      const PRODUCTS_VERSION = 'v2026-11-04-clean-supabase-v5';
       const storedVersion = localStorage.getItem('retro_products_version');
       if (storedVersion !== PRODUCTS_VERSION) {
-        // Clear old cached products and reset to latest initialProducts
         localStorage.removeItem('retro_products');
         localStorage.setItem('retro_products_version', PRODUCTS_VERSION);
-        setProducts(initialProducts);
+        setProducts(isSupabaseConfigured ? [] : initialProducts);
       } else {
-        const cached = loadData<Product[]>('retro_products', initialProducts);
-        // Scrub any dead qdoz URLs that might linger in cached products
+        const cached = loadData<Product[]>('retro_products', isSupabaseConfigured ? [] : initialProducts);
         const sanitizedCached = cached.map((p) => ({
           ...p,
           imageUrl: sanitizeImageUrl(p.imageUrl),
@@ -455,11 +463,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setLoading(true);
       const fetchSupabaseData = async () => {
         try {
-          // Fetch products from new active Supabase project
+          // Fetch products from active Supabase project
           const { data: pData, error: pError } = await supabase.from('products').select('*');
           if (pError) {
             console.warn('Supabase products fetch warning:', pError);
-            loadLocalData();
             return;
           }
 
@@ -468,34 +475,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             sessionStorage.setItem('retro_supabase_last_fetch', String(Date.now()));
             const cloudProducts = pData.map(mapToProduct);
             
-            // Cloud products are primary and authoritative
-            const mergedMap = new Map<string, Product>();
+            // Deduplicate cloud products by SKU / ID so no duplicate cards ever appear
+            const bySkuOrId = new Map<string, Product>();
             for (const cp of cloudProducts) {
-              mergedMap.set(cp.id, cp);
-              if (cp.sku) mergedMap.set(cp.sku, cp);
-            }
-
-            const localRaw = localStorage.getItem('retro_products');
-            if (localRaw) {
-              try {
-                const localList: Product[] = JSON.parse(localRaw);
-                if (Array.isArray(localList)) {
-                  for (const lp of localList) {
-                    if (lp.id.startsWith('prod_') && !mergedMap.has(lp.id) && !mergedMap.has(lp.sku)) {
-                      mergedMap.set(lp.id, { ...lp, imageUrl: sanitizeImageUrl(lp.imageUrl) });
-                    }
-                  }
-                }
-              } catch {
-                // Ignore parse errors
-              }
+              const key = (cp.sku || cp.id).trim().toUpperCase();
+              bySkuOrId.set(key, cp);
             }
             
-            const finalList = Array.from(new Set(mergedMap.values()));
+            const finalList = Array.from(bySkuOrId.values());
             setProducts(finalList);
-            localStorage.setItem('retro_products', JSON.stringify(finalList));
+            saveState('retro_products', finalList);
           } else {
-            loadLocalData();
+            setProducts(initialProducts);
           }
 
           // Fetch customers
@@ -522,11 +513,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setTransactions(tData.map(mapToTransaction));
           }
         } catch {
-          // Graceful fallback to verified local dataset
-          loadLocalData();
+          // Graceful fallback
         } finally {
           setLoading(false);
-          // Initialize Visual Categories and Banners from Supabase
+          // Initialize Visual Categories, Retro Sections, and Banners from Supabase
           useOffersStore.getState().initializeFromCloud();
         }
       };
@@ -537,6 +527,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const handleSyncOnFocus = () => {
         if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
           fetchSupabaseData();
+          useOffersStore.getState().initializeFromCloud();
         }
       };
       window.addEventListener('focus', handleSyncOnFocus);
@@ -563,9 +554,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // Save changes helper
+  // Save changes helper with safe quota handling
   const saveState = (key: string, data: any) => {
-    localStorage.setItem(key, JSON.stringify(data));
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (err) {
+      console.warn(`Local storage quota warning (${key}):`, err);
+    }
   };
 
   // Language translation helper
@@ -904,10 +899,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // ERP Product / Inventory updates
   const addProduct = (product: Product) => {
     setProducts(prev => {
-      const exists = prev.find(p => p.sku === product.sku);
+      const exists = prev.find(p => p.sku === product.sku || p.id === product.id);
       let updated;
       if (exists) {
-        updated = prev.map(p => p.sku === product.sku ? product : p);
+        updated = prev.map(p => (p.sku === product.sku || p.id === product.id) ? product : p);
       } else {
         updated = [product, ...prev];
       }
@@ -915,11 +910,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-        if (isSupabaseConfigured) {
+    if (isSupabaseConfigured) {
       const syncAdd = async () => {
         try {
           const dbProduct = mapToDbProduct(product);
-          await supabase.from('products').upsert(dbProduct, { onConflict: 'sku' });
+          const { data, error } = await supabase
+            .from('products')
+            .upsert(dbProduct, { onConflict: 'sku' })
+            .select('*')
+            .single();
+          if (error) throw error;
+          if (data?.id && data.id !== product.id) {
+            setProducts(prev => {
+              const updated = prev.map(p => p.sku === product.sku ? { ...p, id: data.id } : p);
+              saveState('retro_products', updated);
+              return updated;
+            });
+          }
           showToast(language === 'ar' ? 'تم حفظ ونشر المنتج سحابياً!' : 'Product saved and synced to cloud!', 'success');
         } catch (err) {
           console.error("Supabase addProduct failed:", err);
@@ -933,24 +940,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateProductStock = (productId: string, qty: number) => {
-    let updatedProduct: Product | undefined;
+    const safeQty = Math.max(0, qty);
+    const existing = products.find(p => p.id === productId);
     setProducts(prev => {
-      const updated = prev.map(p => {
-        if (p.id === productId) {
-          updatedProduct = { ...p, stockQty: Math.max(0, qty) };
-          return updatedProduct;
-        }
-        return p;
-      });
+      const updated = prev.map(p => p.id === productId ? { ...p, stockQty: safeQty } : p);
       saveState('retro_products', updated);
       return updated;
     });
 
-        if (isSupabaseConfigured && updatedProduct) {
+    if (isSupabaseConfigured) {
       const syncStock = async () => {
         try {
-          await supabase.from('products').update({ stock_qty: Math.max(0, qty) }).eq('id', productId);
-          showToast(language === 'ar' ? 'تم تحديث المخزون بنجاح!' : 'Stock updated successfully!', 'success');
+          if (isUuid(productId)) {
+            await supabase.from('products').update({ stock_qty: safeQty, updated_at: new Date().toISOString() }).eq('id', productId);
+          } else if (existing?.sku) {
+            await supabase.from('products').update({ stock_qty: safeQty, updated_at: new Date().toISOString() }).eq('sku', existing.sku);
+          }
+          showToast(language === 'ar' ? 'تم تحديث المخزون سحابياً بنجاح!' : 'Stock updated in cloud!', 'success');
         } catch (err) {
           console.error("Supabase updateProductStock failed:", err);
         }
@@ -962,12 +968,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateProduct = (productId: string, updates: Partial<Product>) => {
-    let updatedProduct: Product | undefined;
+    const existing = products.find(
+      p => p.id === productId || (updates.sku && p.sku === updates.sku)
+    );
+    const mergedProduct: Product | undefined = existing ? { ...existing, ...updates } : undefined;
+
     setProducts(prev => {
       const updated = prev.map(p => {
-        if (p.id === productId) {
-          updatedProduct = { ...p, ...updates };
-          return updatedProduct;
+        if (p.id === productId || (existing && p.sku === existing.sku)) {
+          return { ...p, ...updates };
         }
         return p;
       });
@@ -975,15 +984,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return updated;
     });
 
-        if (isSupabaseConfigured && updatedProduct) {
+    if (isSupabaseConfigured) {
       const syncUpdate = async () => {
         try {
-          const dbProduct = mapToDbProduct(updatedProduct!);
-          await supabase.from('products').update(dbProduct).eq('id', productId);
-          showToast(language === 'ar' ? 'تم تعديل تفاصيل المنتج!' : 'Product details modified!', 'success');
+          if (mergedProduct) {
+            const dbProduct = mapToDbProduct(mergedProduct);
+            if (isUuid(productId)) {
+              const { error } = await supabase.from('products').update(dbProduct).eq('id', productId);
+              if (error && mergedProduct.sku) {
+                const { error: err2 } = await supabase.from('products').upsert(dbProduct, { onConflict: 'sku' });
+                if (err2) throw err2;
+              } else if (error) {
+                throw error;
+              }
+            } else if (mergedProduct.sku) {
+              const { data, error } = await supabase
+                .from('products')
+                .upsert(dbProduct, { onConflict: 'sku' })
+                .select('id')
+                .single();
+              if (error) throw error;
+              if (data?.id) {
+                setProducts(prev => {
+                  const next = prev.map(p => p.sku === mergedProduct.sku ? { ...p, id: data.id } : p);
+                  saveState('retro_products', next);
+                  return next;
+                });
+              }
+            }
+          } else {
+            // Partial update fallback when product wasn't in local array yet
+            const partialDb: Record<string, any> = { updated_at: new Date().toISOString() };
+            if (updates.imageUrl !== undefined) partialDb.image_url = updates.imageUrl;
+            if (updates.nameAr !== undefined) partialDb.name_ar = updates.nameAr;
+            if (updates.nameEn !== undefined) partialDb.name_en = updates.nameEn;
+            if (updates.sellingPrice !== undefined) partialDb.selling_price = updates.sellingPrice;
+            if (updates.salePrice !== undefined) partialDb.sale_price = updates.salePrice;
+            if (updates.stockQty !== undefined) partialDb.stock_qty = updates.stockQty;
+            if (updates.status !== undefined) partialDb.status = updates.status;
+            if (updates.category !== undefined) partialDb.category = updates.category;
+            if (updates.subCategory !== undefined) partialDb.sub_category = updates.subCategory;
+            if (updates.mainCategory !== undefined) partialDb.main_category = updates.mainCategory;
+            if (updates.section !== undefined) partialDb.section = updates.section;
+
+            if (isUuid(productId)) {
+              const { error } = await supabase.from('products').update(partialDb).eq('id', productId);
+              if (error) throw error;
+            } else if (updates.sku) {
+              const { error } = await supabase.from('products').update(partialDb).eq('sku', updates.sku);
+              if (error) throw error;
+            }
+          }
+          showToast(language === 'ar' ? 'تم حفظ التعديلات في قاعدة البيانات السحابية بنجاح!' : 'Saved permanently to cloud database!', 'success');
         } catch (err) {
           console.error("Supabase updateProduct failed:", err);
-          showToast(language === 'ar' ? 'تم التعديل محلياً' : 'Changes saved locally', 'info');
+          showToast(language === 'ar' ? 'تم حفظ التعديل محلياً (تعذر الاتصال بالسحابة)' : 'Saved locally (cloud sync warning)', 'info');
         }
       };
       syncUpdate();
@@ -993,16 +1048,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteProduct = (productId: string) => {
+    const existing = products.find(p => p.id === productId);
     setProducts(prev => {
       const updated = prev.filter(p => p.id !== productId);
       saveState('retro_products', updated);
       return updated;
     });
 
-        if (isSupabaseConfigured) {
+    if (isSupabaseConfigured) {
       const syncDelete = async () => {
         try {
-          await supabase.from('products').delete().eq('id', productId);
+          if (isUuid(productId)) {
+            await supabase.from('products').delete().eq('id', productId);
+          } else if (existing?.sku) {
+            await supabase.from('products').delete().eq('sku', existing.sku);
+          }
           showToast(language === 'ar' ? 'تم حذف المنتج من السحابة!' : 'Product deleted from cloud!', 'success');
         } catch (err) {
           console.error("Supabase deleteProduct failed:", err);
@@ -1015,12 +1075,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const importProducts = (newProducts: Product[]) => {
+  const importProducts = (newProducts: Product[], syncToCloud = true) => {
     if (!Array.isArray(newProducts) || newProducts.length === 0) return;
-    setProducts(newProducts);
-    saveState('retro_products', newProducts);
-    localStorage.setItem('retro_products_version', 'v2026-08-18-imported-custom');
-    showToast(language === 'ar' ? `تم استيراد ${newProducts.length} منتج بنجاح!` : `Imported ${newProducts.length} products!`, 'success');
+    const bySkuOrId = new Map<string, Product>();
+    for (const p of newProducts) {
+      const key = (p.sku || p.id).trim().toUpperCase();
+      bySkuOrId.set(key, p);
+    }
+    const deduped = Array.from(bySkuOrId.values());
+    setProducts(deduped);
+    saveState('retro_products', deduped);
+    localStorage.setItem('retro_products_version', 'v2026-11-04-clean-supabase-v5');
+
+    if (syncToCloud && isSupabaseConfigured) {
+      const syncImport = async () => {
+        try {
+          const dbRows = deduped.map(mapToDbProduct);
+          const chunkSize = 40;
+          for (let i = 0; i < dbRows.length; i += chunkSize) {
+            const chunk = dbRows.slice(i, i + chunkSize);
+            await supabase.from('products').upsert(chunk, { onConflict: 'sku' });
+          }
+          showToast(
+            language === 'ar'
+              ? `تم استيراد ومزامنة ${deduped.length} منتج في قاعدة البيانات السحابية!`
+              : `Imported & synced ${deduped.length} products to cloud DB!`,
+            'success'
+          );
+        } catch (err) {
+          console.error("Supabase importProducts sync error:", err);
+          showToast(
+            language === 'ar'
+              ? `تم استيراد ${deduped.length} منتج محلياً`
+              : `Imported ${deduped.length} products locally`,
+            'info'
+          );
+        }
+      };
+      syncImport();
+    } else {
+      showToast(language === 'ar' ? `تم تحديث ${deduped.length} منتج بنجاح!` : `Loaded ${deduped.length} products!`, 'success');
+    }
   };
 
   const addCustomer = (customer: Customer) => {

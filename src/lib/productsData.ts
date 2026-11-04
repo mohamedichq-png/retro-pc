@@ -51,10 +51,11 @@ export function mapDbToProduct(row: Record<string, unknown>): Product {
   };
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Convert Product to Supabase Database row
 export function mapProductToDb(p: Product): Record<string, unknown> {
-  return {
-    id: p.id,
+  const payload: Record<string, unknown> = {
     sku: p.sku,
     barcode: p.barcode,
     name_en: p.nameEn,
@@ -76,13 +77,12 @@ export function mapProductToDb(p: Product): Record<string, unknown> {
     low_stock_threshold: p.lowStockThreshold,
     image_url: p.imageUrl,
     gallery_urls: p.galleryUrls || [],
-    specs: p.specs || {},
+    specs: { ...(p.specs || {}), ...(p.needsClassification !== undefined ? { needsClassification: Boolean(p.needsClassification) } : {}) },
     is_featured: Boolean(p.isFeatured),
     status: p.status || 'published',
     slug: p.slug || undefined,
     variations: p.variations || [],
-    needs_classification: Boolean(p.needsClassification),
-    product_type: p.productType,
+    product_type: p.productType || 'PHYSICAL PRODUCT',
     primary_category: p.primaryCategory,
     secondary_category: p.secondaryCategory,
     categories: p.categories || [],
@@ -96,22 +96,25 @@ export function mapProductToDb(p: Product): Record<string, unknown> {
     stock_status: p.stockStatus,
     updated_at: new Date().toISOString(),
   };
+
+  if (p.id && UUID_REGEX.test(p.id)) {
+    payload.id = p.id;
+  }
+
+  return payload;
 }
 
 let cachedStoreProducts: Product[] | null = null;
-let lastCacheTimestamp = 0;
-const CACHE_TTL_MS = 1000 * 60 * 10; // 10 minutes cache to minimize Supabase egress/bandwidth
+
+export function invalidateProductsCache(): void {
+  cachedStoreProducts = null;
+}
 
 /**
  * Get all active products for the storefront.
- * Tries fetching from Supabase first. If unconfigured or empty, falls back to initialProducts.
+ * Fetches fresh data directly from Supabase without stale caching so image updates appear immediately.
  */
 export async function getStoreProducts(): Promise<Product[]> {
-  const now = Date.now();
-  if (cachedStoreProducts && cachedStoreProducts.length > 0 && now - lastCacheTimestamp < CACHE_TTL_MS) {
-    return cachedStoreProducts;
-  }
-
   if (isSupabaseConfigured) {
     try {
       const { data, error } = await supabase
@@ -121,7 +124,6 @@ export async function getStoreProducts(): Promise<Product[]> {
 
       if (!error && data && data.length > 0) {
         cachedStoreProducts = data.map(mapDbToProduct);
-        lastCacheTimestamp = Date.now();
         return cachedStoreProducts;
       }
     } catch (err) {
