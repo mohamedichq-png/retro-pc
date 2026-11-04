@@ -414,6 +414,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     created_at: t.createdAt,
   });
 
+  // Save changes helper with safe quota handling
+  const saveState = (key: string, data: any) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (err) {
+      console.warn(`Local storage quota warning (${key}):`, err);
+    }
+  };
+
   // Initialize DB from Supabase or LocalStorage Fallback
   useEffect(() => {
     const localLang = localStorage.getItem('retro_lang');
@@ -553,15 +562,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setLoading(false);
     }
   }, []);
-
-  // Save changes helper with safe quota handling
-  const saveState = (key: string, data: any) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (err) {
-      console.warn(`Local storage quota warning (${key}):`, err);
-    }
-  };
 
   // Language translation helper
   const t = (key: string): string => {

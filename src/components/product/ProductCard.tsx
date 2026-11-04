@@ -31,12 +31,9 @@ export function ProductCard({ product, dict, locale }: ProductCardProps) {
   const href = `/${locale}/product/${product.slug || product.id}`;
   
   const [isHovered, setIsHovered] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
-
-  React.useEffect(() => {
-    setImageFailed(false);
-  }, [product.imageUrl]);
+  const imageFailed = Boolean(product.imageUrl && failedImageUrl === product.imageUrl);
   
   const { addItem } = useCartStore();
   const { items: wishlistItems, toggle: toggleWishlist } = useWishlistStore();
@@ -142,7 +139,7 @@ export function ProductCard({ product, dict, locale }: ProductCardProps) {
             src={product.imageUrl} 
             alt={name}
             loading="lazy"
-            onError={() => setImageFailed(true)}
+            onError={() => setFailedImageUrl(product.imageUrl)}
             className="h-full w-full object-contain object-center rounded-xl transition-all duration-500 group-hover:scale-105 opacity-100"
           />
         ) : (

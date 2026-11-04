@@ -21,7 +21,7 @@ import QuickAddProductModal from '@/components/QuickAddProductModal';
 import RetroPcAdminManager from '@/components/admin/RetroPcAdminManager';
 import { useOffersStore, DEFAULT_RETRO_BRAND_LOGOS } from '@/stores/useOffersStore';
 import { RETRO_BRANDS, RETRO_KINDS, type RetroKindId } from '@/lib/retro-navigation';
-import { RETRO_PC_CATEGORIES, flattenRetroPcTree, findRetroPcNodeWithTrailById } from '@/lib/retro-pc-navigation';
+import { RETRO_PC_CATEGORIES, flattenRetroPcTree } from '@/lib/retro-pc-navigation';
 import { classifyAllProducts } from '@/lib/classificationEngine';
 import { uploadImageToSupabase, compressImageFileToDataUrl, supabase, isSupabaseConfigured, sanitizeImageUrl } from '@/lib/supabase';
 import { mapProductToDb } from '@/lib/productsData';

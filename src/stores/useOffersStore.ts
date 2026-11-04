@@ -299,7 +299,7 @@ function sanitizeRetroPcTree(nodes: RetroPcCategoryNode[]): RetroPcCategoryNode[
 
 export const useOffersStore = create<OffersState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       slides: DEFAULT_SLIDES,
       addSlide: (slide) => {
         set((s) => {
