@@ -18,8 +18,10 @@ import {
   ShieldAlertIcon
 } from '@/components/Icons';
 import QuickAddProductModal from '@/components/QuickAddProductModal';
+import RetroPcAdminManager from '@/components/admin/RetroPcAdminManager';
 import { useOffersStore, DEFAULT_RETRO_BRAND_LOGOS } from '@/stores/useOffersStore';
 import { RETRO_BRANDS, RETRO_KINDS, type RetroKindId } from '@/lib/retro-navigation';
+import { RETRO_PC_CATEGORIES, flattenRetroPcTree, findRetroPcNodeWithTrailById } from '@/lib/retro-pc-navigation';
 import { classifyAllProducts } from '@/lib/classificationEngine';
 import { uploadImageToSupabase, supabase, isSupabaseConfigured, sanitizeImageUrl } from '@/lib/supabase';
 import { mapProductToDb } from '@/lib/productsData';
@@ -47,7 +49,7 @@ export default function AdminDashboard() {
   const [syncMessage, setSyncMessage] = useState('');
 
   // Dashboard Filters States
-  const [activeTab, setActiveTab] = useState<'published' | 'draft' | 'banners' | 'taxonomy' | 'visual-categories' | 'retro-sections'>('published');
+  const [activeTab, setActiveTab] = useState<'published' | 'draft' | 'banners' | 'taxonomy' | 'visual-categories' | 'retro-sections' | 'retro-pc-sections'>('published');
   const [searchQuery, setSearchQuery] = useState('');
   const [taxonomyFilter, setTaxonomyFilter] = useState<string>('all');
 
@@ -96,11 +98,12 @@ export default function AdminDashboard() {
     accent: 'cyan' | 'purple' | 'green' | 'pink';
   } | null>(null);
 
-  // Quick Add Product context for pre-selecting a Retro Section / Console / Kind
+  // Quick Add Product context for pre-selecting a Retro Section / Console / Kind or Retro PC Category
   const [quickAddContext, setQuickAddContext] = useState<{
     brandId?: string;
     deviceId?: string;
     kindId?: RetroKindId;
+    pcCategoryId?: string;
   }>({});
 
   // Quick Taxonomy Modal State
@@ -152,11 +155,17 @@ export default function AdminDashboard() {
     retroKindImages,
     updateRetroKindImage,
     resetRetroKindImage,
+    retroPcCategories,
   } = useOffersStore();
 
   const allRetroBrands = useMemo(
     () => (retroBrands && retroBrands.length > 0 ? retroBrands : RETRO_BRANDS),
     [retroBrands]
+  );
+
+  const allRetroPcCategories = useMemo(
+    () => (retroPcCategories && retroPcCategories.length > 0 ? retroPcCategories : RETRO_PC_CATEGORIES),
+    [retroPcCategories]
   );
 
   // Local form states for Weekly Offer
@@ -506,9 +515,10 @@ export default function AdminDashboard() {
         setSyncMessage(isRtl ? `تمت مزامنة ${syncedCount} من ${dbProducts.length}...` : `Synced ${syncedCount}/${dbProducts.length}...`);
       }
 
-      // Also sync Retro Sections, Console Models, Product-Type Images, and Visual Categories
+      // Also sync Retro Sections, Retro PC Categories, Console Models, Product-Type Images, and Visual Categories
       await supabase.from('store_settings').upsert([
         { id: 'retro_catalog', data: { brands: allRetroBrands, updatedAt: Date.now() }, updated_at: new Date().toISOString() },
+        { id: 'retro_pc_catalog', data: { categories: allRetroPcCategories, updatedAt: Date.now() }, updated_at: new Date().toISOString() },
         { id: 'retro_brand_logos', data: retroBrandLogos, updated_at: new Date().toISOString() },
         { id: 'retro_device_images', data: retroDeviceImages, updated_at: new Date().toISOString() },
         { id: 'retro_kind_images', data: retroKindImages, updated_at: new Date().toISOString() },
@@ -630,7 +640,14 @@ export default function AdminDashboard() {
       productType: editProductType,
       primaryCategory: editPrimaryCategory,
       secondaryCategory: editSecondaryCategory,
-      categories: [editPrimaryCategory, ...(editSecondaryCategory ? [editSecondaryCategory] : [])],
+      subCategory: editSecondaryCategory || editingProduct.subCategory,
+      categories: Array.from(
+        new Set([
+          editPrimaryCategory,
+          ...(editSecondaryCategory ? [editSecondaryCategory] : []),
+          ...(editingProduct.categories || []),
+        ])
+      ),
       platform: editPlatform || undefined,
       generation: editGeneration || undefined,
       tags: editTags.split(',').map(t => t.trim()).filter(Boolean),
@@ -908,6 +925,23 @@ export default function AdminDashboard() {
                 activeTab === 'retro-sections' ? 'bg-slate-950/25 text-slate-950' : 'bg-slate-800 text-cyan-400'
               }`}>
                 {allRetroBrands.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('retro-pc-sections')}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'retro-pc-sections'
+                  ? 'bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 text-slate-950 shadow-md shadow-cyan-500/20 font-black'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>🖥️</span>
+              <span>{isRtl ? "أقسام Retro PC" : "Retro PC Categories"}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                activeTab === 'retro-pc-sections' ? 'bg-slate-950/25 text-slate-950' : 'bg-slate-800 text-emerald-400'
+              }`}>
+                {allRetroPcCategories.length}
               </span>
             </button>
 
@@ -2339,6 +2373,18 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+        ) : activeTab === 'retro-pc-sections' ? (
+          <RetroPcAdminManager
+            isRtl={isRtl}
+            products={products}
+            updateProduct={updateProduct}
+            onOpenQuickAddProduct={(retroPcCatId) => {
+              setQuickAddContext({ pcCategoryId: retroPcCatId });
+              setQuickAddOpen(true);
+            }}
+            onEditProduct={(prod) => handleOpenEdit(prod)}
+            showToast={showToast}
+          />
         ) : activeTab === 'banners' ? (
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Slide List */}
@@ -3226,6 +3272,13 @@ export default function AdminDashboard() {
                         <option value="Retro Gaming">Retro Gaming (ألعاب ومنصات قديمة)</option>
                         <option value="PlayStation 2">PlayStation 2</option>
                         <option value="Classic Nintendo">Classic Nintendo</option>
+                        <optgroup label={isRtl ? "أقسام وفئات Retro PC" : "Retro PC Categories & Subcategories"}>
+                          {flattenRetroPcTree(allRetroPcCategories, isRtl ? 'ar' : 'en').map((opt) => (
+                            <option key={`edit-pccat-${opt.node.id}`} value={opt.node.id}>
+                              {'\u00A0'.repeat(opt.depth * 2)}{opt.label} ({opt.node.id})
+                            </option>
+                          ))}
+                        </optgroup>
                       </select>
                     </div>
 
@@ -4256,6 +4309,7 @@ export default function AdminDashboard() {
         defaultRetroBrandId={quickAddContext.brandId}
         defaultRetroDeviceId={quickAddContext.deviceId}
         defaultRetroKindId={quickAddContext.kindId}
+        defaultRetroPcCategoryId={quickAddContext.pcCategoryId}
       />
 
     </div>

@@ -5,6 +5,12 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../lib/supabase';
 import { RETRO_BRANDS, type RetroBrand, type RetroDevice, type RetroKindId } from '../lib/retro-navigation';
+import {
+  RETRO_PC_CATEGORIES,
+  findRetroPcNodeWithTrailById,
+  collectSubtreeIds,
+  type RetroPcCategoryNode,
+} from '../lib/retro-pc-navigation';
 
 export interface OfferSlide {
   key: string;
@@ -97,6 +103,18 @@ interface OffersState {
   updateRetroKindImage: (brandId: string, deviceId: string, kindId: RetroKindId, image: string) => void;
   resetRetroKindImage: (brandId: string, deviceId: string, kindId: RetroKindId) => void;
 
+  // Dynamic Retro PC Multi-Level Categories & Subcategories Tree
+  retroPcCategories: RetroPcCategoryNode[];
+  retroPcCatalogUpdatedAt: number;
+  addRetroPcCategory: (parentId: string | null, newNode: RetroPcCategoryNode) => void;
+  updateRetroPcCategory: (nodeId: string, updates: Partial<Omit<RetroPcCategoryNode, 'id' | 'children'>>) => void;
+  deleteRetroPcCategory: (nodeId: string) => void;
+  toggleHideRetroPcCategory: (nodeId: string) => void;
+  reorderRetroPcCategory: (nodeId: string, direction: 'up' | 'down') => void;
+  moveRetroPcCategory: (nodeId: string, newParentId: string | null) => void;
+  updateRetroPcCategoryImage: (nodeId: string, image: string) => void;
+  resetRetroPcCategoryImage: (nodeId: string) => void;
+
   // Cloud Sync
   initializeFromCloud: () => Promise<void>;
 }
@@ -166,6 +184,109 @@ const syncRetroCatalogToCloud = (brands: RetroBrand[], updatedAt: number) => {
     .upsert({ id: 'retro_catalog', data: { brands, updatedAt }, updated_at: new Date().toISOString() })
     .then();
 };
+
+const syncRetroPcCatalogToCloud = (categories: RetroPcCategoryNode[], updatedAt: number) => {
+  supabase
+    .from('store_settings')
+    .upsert({ id: 'retro_pc_catalog', data: { categories, updatedAt }, updated_at: new Date().toISOString() })
+    .then();
+};
+
+function insertNodeInTree(
+  nodes: RetroPcCategoryNode[],
+  parentId: string | null,
+  newNode: RetroPcCategoryNode
+): RetroPcCategoryNode[] {
+  if (!parentId) {
+    const exists = nodes.some((n) => n.id.toLowerCase() === newNode.id.toLowerCase());
+    return exists
+      ? nodes.map((n) =>
+          n.id.toLowerCase() === newNode.id.toLowerCase()
+            ? { ...n, ...newNode, children: newNode.children?.length ? newNode.children : n.children }
+            : n
+        )
+      : [...nodes, { ...newNode, children: newNode.children || [] }];
+  }
+
+  return nodes.map((n) => {
+    if (n.id.toLowerCase() === parentId.toLowerCase()) {
+      const children = n.children || [];
+      const exists = children.some((c) => c.id.toLowerCase() === newNode.id.toLowerCase());
+      const nextChildren = exists
+        ? children.map((c) =>
+            c.id.toLowerCase() === newNode.id.toLowerCase()
+              ? { ...c, ...newNode, children: newNode.children?.length ? newNode.children : c.children }
+              : c
+          )
+        : [...children, { ...newNode, children: newNode.children || [] }];
+      return { ...n, children: nextChildren };
+    }
+    if (n.children && n.children.length > 0) {
+      return { ...n, children: insertNodeInTree(n.children, parentId, newNode) };
+    }
+    return n;
+  });
+}
+
+function updateNodeInTree(
+  nodes: RetroPcCategoryNode[],
+  nodeId: string,
+  updater: (node: RetroPcCategoryNode) => RetroPcCategoryNode
+): RetroPcCategoryNode[] {
+  return nodes.map((n) => {
+    if (n.id.toLowerCase() === nodeId.toLowerCase()) {
+      return updater(n);
+    }
+    if (n.children && n.children.length > 0) {
+      return { ...n, children: updateNodeInTree(n.children, nodeId, updater) };
+    }
+    return n;
+  });
+}
+
+function deleteNodeFromTree(nodes: RetroPcCategoryNode[], nodeId: string): RetroPcCategoryNode[] {
+  return nodes
+    .filter((n) => n.id.toLowerCase() !== nodeId.toLowerCase())
+    .map((n) => ({
+      ...n,
+      children: n.children && n.children.length > 0 ? deleteNodeFromTree(n.children, nodeId) : [],
+    }));
+}
+
+function reorderNodeInTree(
+  nodes: RetroPcCategoryNode[],
+  nodeId: string,
+  direction: 'up' | 'down'
+): RetroPcCategoryNode[] {
+  const idx = nodes.findIndex((n) => n.id.toLowerCase() === nodeId.toLowerCase());
+  if (idx !== -1) {
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= nodes.length) return nodes;
+    const copy = [...nodes];
+    const [moved] = copy.splice(idx, 1);
+    copy.splice(targetIdx, 0, moved);
+    return copy;
+  }
+  return nodes.map((n) => ({
+    ...n,
+    children: n.children && n.children.length > 0 ? reorderNodeInTree(n.children, nodeId, direction) : [],
+  }));
+}
+
+function sanitizeRetroPcTree(nodes: RetroPcCategoryNode[]): RetroPcCategoryNode[] {
+  return (nodes || []).map((n) => {
+    const defaultMatch = findRetroPcNodeWithTrailById(RETRO_PC_CATEGORIES, n.id);
+    const defaultImg = defaultMatch?.current.image || '';
+    const cleanImg = n.image && !n.image.includes('qdozfcplmd') ? n.image : defaultImg;
+    return {
+      ...(defaultMatch?.current || {}),
+      ...n,
+      image: cleanImg,
+      tokens: Array.isArray(n.tokens) ? n.tokens : defaultMatch?.current.tokens || [n.id],
+      children: sanitizeRetroPcTree(n.children || []),
+    };
+  });
+}
 
 export const useOffersStore = create<OffersState>()(
   persist(
@@ -556,6 +677,107 @@ export const useOffersStore = create<OffersState>()(
         });
       },
 
+      // Dynamic Retro PC Multi-Level Categories & Subcategories Tree
+      retroPcCategories: RETRO_PC_CATEGORIES,
+      retroPcCatalogUpdatedAt: 0,
+
+      addRetroPcCategory: (parentId, newNode) => {
+        set((s) => {
+          const now = Date.now();
+          const nextTree = insertNodeInTree(s.retroPcCategories, parentId, newNode);
+          syncRetroPcCatalogToCloud(nextTree, now);
+          return { retroPcCategories: nextTree, retroPcCatalogUpdatedAt: now };
+        });
+      },
+
+      updateRetroPcCategory: (nodeId, updates) => {
+        set((s) => {
+          const now = Date.now();
+          const nextTree = updateNodeInTree(s.retroPcCategories, nodeId, (node) => ({
+            ...node,
+            ...updates,
+          }));
+          syncRetroPcCatalogToCloud(nextTree, now);
+          return { retroPcCategories: nextTree, retroPcCatalogUpdatedAt: now };
+        });
+      },
+
+      deleteRetroPcCategory: (nodeId) => {
+        set((s) => {
+          const now = Date.now();
+          const nextTree = deleteNodeFromTree(s.retroPcCategories, nodeId);
+          syncRetroPcCatalogToCloud(nextTree, now);
+          return { retroPcCategories: nextTree, retroPcCatalogUpdatedAt: now };
+        });
+      },
+
+      toggleHideRetroPcCategory: (nodeId) => {
+        set((s) => {
+          const now = Date.now();
+          const nextTree = updateNodeInTree(s.retroPcCategories, nodeId, (node) => ({
+            ...node,
+            hidden: !node.hidden,
+          }));
+          syncRetroPcCatalogToCloud(nextTree, now);
+          return { retroPcCategories: nextTree, retroPcCatalogUpdatedAt: now };
+        });
+      },
+
+      reorderRetroPcCategory: (nodeId, direction) => {
+        set((s) => {
+          const now = Date.now();
+          const nextTree = reorderNodeInTree(s.retroPcCategories, nodeId, direction);
+          syncRetroPcCatalogToCloud(nextTree, now);
+          return { retroPcCategories: nextTree, retroPcCatalogUpdatedAt: now };
+        });
+      },
+
+      moveRetroPcCategory: (nodeId, newParentId) => {
+        set((s) => {
+          const found = findRetroPcNodeWithTrailById(s.retroPcCategories, nodeId);
+          if (!found) return s;
+          const targetNode = found.current;
+          // Prevent moving a category into itself or one of its own descendants
+          if (newParentId) {
+            const subtreeIds = collectSubtreeIds(targetNode);
+            if (subtreeIds.includes(newParentId.toLowerCase())) {
+              return s;
+            }
+          }
+          const now = Date.now();
+          const withoutTarget = deleteNodeFromTree(s.retroPcCategories, nodeId);
+          const nextTree = insertNodeInTree(withoutTarget, newParentId, targetNode);
+          syncRetroPcCatalogToCloud(nextTree, now);
+          return { retroPcCategories: nextTree, retroPcCatalogUpdatedAt: now };
+        });
+      },
+
+      updateRetroPcCategoryImage: (nodeId, image) => {
+        set((s) => {
+          const now = Date.now();
+          const nextTree = updateNodeInTree(s.retroPcCategories, nodeId, (node) => ({
+            ...node,
+            image,
+          }));
+          syncRetroPcCatalogToCloud(nextTree, now);
+          return { retroPcCategories: nextTree, retroPcCatalogUpdatedAt: now };
+        });
+      },
+
+      resetRetroPcCategoryImage: (nodeId) => {
+        set((s) => {
+          const now = Date.now();
+          const defaultMatch = findRetroPcNodeWithTrailById(RETRO_PC_CATEGORIES, nodeId);
+          const defaultImg = defaultMatch?.current.image || '';
+          const nextTree = updateNodeInTree(s.retroPcCategories, nodeId, (node) => ({
+            ...node,
+            image: defaultImg,
+          }));
+          syncRetroPcCatalogToCloud(nextTree, now);
+          return { retroPcCategories: nextTree, retroPcCatalogUpdatedAt: now };
+        });
+      },
+
       initializeFromCloud: async () => {
         try {
           const { data, error } = await supabase.from('store_settings').select('*');
@@ -566,6 +788,7 @@ export const useOffersStore = create<OffersState>()(
             const rdi = data.find((row) => row.id === 'retro_device_images');
             const rki = data.find((row) => row.id === 'retro_kind_images');
             const rc = data.find((row) => row.id === 'retro_catalog');
+            const rpc = data.find((row) => row.id === 'retro_pc_catalog');
             
             if (vc && vc.data && Array.isArray(vc.data)) {
               set({ visualCategories: vc.data });
@@ -637,6 +860,21 @@ export const useOffersStore = create<OffersState>()(
                 set({ retroBrands: sanitized, retroCatalogUpdatedAt: cloudUpdatedAt });
               }
             }
+            if (rpc && rpc.data) {
+              const cloudPcUpdatedAt = typeof rpc.data.updatedAt === 'number' ? rpc.data.updatedAt : 0;
+              const rawPcCats: RetroPcCategoryNode[] | undefined = Array.isArray(rpc.data)
+                ? rpc.data
+                : Array.isArray(rpc.data.categories)
+                ? rpc.data.categories
+                : undefined;
+              const localPcUpdatedAt = get().retroPcCatalogUpdatedAt || 0;
+              if (rawPcCats && rawPcCats.length > 0 && cloudPcUpdatedAt > localPcUpdatedAt) {
+                set({
+                  retroPcCategories: sanitizeRetroPcTree(rawPcCats),
+                  retroPcCatalogUpdatedAt: cloudPcUpdatedAt,
+                });
+              }
+            }
           }
         } catch (err) {
           console.error("Failed to fetch store settings from cloud:", err);
@@ -706,6 +944,10 @@ export const useOffersStore = create<OffersState>()(
             })
           : currentState.retroBrands;
 
+        const persistedPcCats = Array.isArray(p.retroPcCategories) && p.retroPcCategories.length > 0
+          ? sanitizeRetroPcTree(p.retroPcCategories)
+          : currentState.retroPcCategories;
+
         return {
           ...currentState,
           ...p,
@@ -713,6 +955,7 @@ export const useOffersStore = create<OffersState>()(
           retroDeviceImages: { ...currentState.retroDeviceImages, ...cleanDeviceImgs },
           retroKindImages: { ...currentState.retroKindImages, ...cleanKindImgs },
           retroBrands: mergedBrands,
+          retroPcCategories: persistedPcCats,
         };
       },
     }

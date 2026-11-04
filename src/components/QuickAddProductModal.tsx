@@ -8,6 +8,11 @@ import { CloseIcon, UploadIcon, SparklesIcon, CheckIcon, PlusIcon } from './Icon
 import { uploadImageToSupabase } from '@/lib/supabase';
 import { useOffersStore } from '@/stores/useOffersStore';
 import { RETRO_BRANDS, RETRO_KINDS } from '@/lib/retro-navigation';
+import {
+  RETRO_PC_CATEGORIES,
+  flattenRetroPcTree,
+  findRetroPcNodeWithTrailById,
+} from '@/lib/retro-pc-navigation';
 
 interface QuickAddProductModalProps {
   isOpen: boolean;
@@ -15,6 +20,7 @@ interface QuickAddProductModalProps {
   defaultRetroBrandId?: string;
   defaultRetroDeviceId?: string;
   defaultRetroKindId?: 'consoles' | 'games' | 'accessories';
+  defaultRetroPcCategoryId?: string;
 }
 
 const SAMPLE_IMAGES = [
@@ -32,10 +38,21 @@ export default function QuickAddProductModal({
   defaultRetroBrandId,
   defaultRetroDeviceId,
   defaultRetroKindId,
+  defaultRetroPcCategoryId,
 }: QuickAddProductModalProps) {
   const { addProduct, isRtl } = useApp();
   const retroBrands = useOffersStore((s) => s.retroBrands);
+  const retroPcCategories = useOffersStore((s) => s.retroPcCategories);
   const allRetroBrands = retroBrands && retroBrands.length > 0 ? retroBrands : RETRO_BRANDS;
+  const allRetroPcCategories =
+    retroPcCategories && retroPcCategories.length > 0
+      ? retroPcCategories
+      : RETRO_PC_CATEGORIES;
+
+  const flatRetroPcOptions = React.useMemo(
+    () => flattenRetroPcTree(allRetroPcCategories, isRtl ? 'ar' : 'en'),
+    [allRetroPcCategories, isRtl]
+  );
 
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
@@ -43,6 +60,7 @@ export default function QuickAddProductModal({
   const [retroBrandId, setRetroBrandId] = useState<string>('');
   const [retroDeviceId, setRetroDeviceId] = useState<string>('');
   const [retroKindId, setRetroKindId] = useState<'consoles' | 'games' | 'accessories'>('consoles');
+  const [retroPcCategoryId, setRetroPcCategoryId] = useState<string>('');
   const [brand, setBrand] = useState('Sony');
   const [sellingPrice, setSellingPrice] = useState<number | ''>('');
   const [salePrice, setSalePrice] = useState<number | ''>('');
@@ -58,8 +76,23 @@ export default function QuickAddProductModal({
   const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
-    if (isOpen && defaultRetroBrandId) {
+    if (isOpen && defaultRetroPcCategoryId) {
+      setRetroBrandId('');
+      setRetroDeviceId('');
+      setCategory('PC');
+      setRetroPcCategoryId(defaultRetroPcCategoryId);
+      const pcTrail = findRetroPcNodeWithTrailById(allRetroPcCategories, defaultRetroPcCategoryId);
+      if (pcTrail && pcTrail.breadcrumbs.length >= 2) {
+        setBrand(pcTrail.breadcrumbs[1].name);
+      } else if (pcTrail) {
+        setBrand(pcTrail.current.name);
+      }
+      if (pcTrail?.current.image) {
+        setImageUrl(pcTrail.current.image);
+      }
+    } else if (isOpen && defaultRetroBrandId) {
       const targetBrand = allRetroBrands.find((b) => b.id === defaultRetroBrandId);
+      setRetroPcCategoryId('');
       setCategory('Retro Gaming');
       setRetroBrandId(defaultRetroBrandId);
       if (targetBrand) {
@@ -72,7 +105,15 @@ export default function QuickAddProductModal({
         setRetroKindId(defaultRetroKindId);
       }
     }
-  }, [isOpen, defaultRetroBrandId, defaultRetroDeviceId, defaultRetroKindId, allRetroBrands]);
+  }, [
+    isOpen,
+    defaultRetroBrandId,
+    defaultRetroDeviceId,
+    defaultRetroKindId,
+    defaultRetroPcCategoryId,
+    allRetroBrands,
+    allRetroPcCategories,
+  ]);
 
   if (!isOpen) return null;
 
@@ -115,7 +156,16 @@ export default function QuickAddProductModal({
     e.preventDefault();
     if (!nameAr.trim() || !sellingPrice) return;
 
-    const finalCategory = selectedRetroBrand ? selectedRetroBrand.id : category;
+    const selectedPcTrail = retroPcCategoryId
+      ? findRetroPcNodeWithTrailById(allRetroPcCategories, retroPcCategoryId)
+      : null;
+
+    const finalCategory = selectedPcTrail
+      ? selectedPcTrail.breadcrumbs[0]?.id || 'PC'
+      : selectedRetroBrand
+      ? selectedRetroBrand.id
+      : category;
+
     const mappedSection =
       retroKindId === 'games'
         ? 'games-cds'
@@ -129,20 +179,49 @@ export default function QuickAddProductModal({
         ? 'Accessories'
         : 'Consoles';
 
+    const pcTrailIds = selectedPcTrail
+      ? selectedPcTrail.breadcrumbs.map((b) => b.id)
+      : [];
+
     const newProduct: Product = {
       id: `prod_${Date.now()}`,
-      sku: `RET-${Math.floor(1000 + Math.random() * 9000)}`,
+      sku: `${selectedPcTrail ? 'PC' : 'RET'}-${Math.floor(1000 + Math.random() * 9000)}`,
       barcode: `690${Math.floor(100000000 + Math.random() * 900000000)}`,
-      model: selectedRetroDevice ? selectedRetroDevice.name : nameEn.trim() || nameAr.trim(),
+      model: selectedPcTrail
+        ? selectedPcTrail.current.name
+        : selectedRetroDevice
+        ? selectedRetroDevice.name
+        : nameEn.trim() || nameAr.trim(),
       nameEn: nameEn.trim() || nameAr.trim(),
       nameAr: nameAr.trim(),
       category: finalCategory,
-      mainCategory: selectedRetroBrand ? selectedRetroBrand.id : finalCategory.toLowerCase(),
-      subCategory: selectedRetroDevice ? selectedRetroDevice.id : mappedSection,
+      mainCategory: selectedPcTrail
+        ? selectedPcTrail.breadcrumbs[0]?.id || 'pc'
+        : selectedRetroBrand
+        ? selectedRetroBrand.id
+        : finalCategory.toLowerCase(),
+      subCategory: selectedPcTrail
+        ? selectedPcTrail.current.id
+        : selectedRetroDevice
+        ? selectedRetroDevice.id
+        : mappedSection,
       section: selectedRetroBrand ? mappedSection : undefined,
-      platform: selectedRetroDevice ? selectedRetroDevice.name : selectedRetroBrand?.name,
-      generation: selectedRetroDevice ? selectedRetroDevice.id : undefined,
-      brand: brand.trim() || selectedRetroBrand?.name || 'RETRO',
+      source: selectedPcTrail ? 'PC' : undefined,
+      platform: selectedPcTrail
+        ? selectedPcTrail.current.name
+        : selectedRetroDevice
+        ? selectedRetroDevice.name
+        : selectedRetroBrand?.name,
+      generation: selectedPcTrail
+        ? selectedPcTrail.current.id
+        : selectedRetroDevice
+        ? selectedRetroDevice.id
+        : undefined,
+      brand:
+        brand.trim() ||
+        (selectedPcTrail && selectedPcTrail.breadcrumbs[1]
+          ? selectedPcTrail.breadcrumbs[1].name
+          : selectedRetroBrand?.name || 'RETRO'),
       sellingPrice: Number(sellingPrice),
       salePrice: salePrice ? Number(salePrice) : undefined,
       costPrice: Math.round(Number(sellingPrice) * 0.7),
@@ -158,18 +237,33 @@ export default function QuickAddProductModal({
         Condition: condition,
         Origin: 'Original Sealed',
         ...(selectedRetroDevice ? { platform: selectedRetroDevice.name, generation: selectedRetroDevice.id } : {}),
+        ...(selectedPcTrail ? { categoryPath: pcTrailIds.join(' / ') } : {}),
       },
-      productType: selectedRetroBrand || finalCategory === 'Retro Gaming' ? 'RETRO PRODUCT' : productType,
-      primaryCategory: selectedRetroBrand ? 'Retro Gaming' : finalCategory,
-      secondaryCategory: selectedRetroBrand ? mappedSecondary : undefined,
-      categories: [
-        finalCategory,
-        ...(selectedRetroBrand ? [selectedRetroBrand.name] : []),
-        ...(selectedRetroDevice ? [selectedRetroDevice.name] : []),
-      ],
+      productType:
+        selectedRetroBrand || finalCategory === 'Retro Gaming'
+          ? 'RETRO PRODUCT'
+          : productType,
+      primaryCategory: selectedPcTrail
+        ? 'PC'
+        : selectedRetroBrand
+        ? 'Retro Gaming'
+        : finalCategory,
+      secondaryCategory: selectedPcTrail
+        ? selectedPcTrail.current.id
+        : selectedRetroBrand
+        ? mappedSecondary
+        : undefined,
+      categories: selectedPcTrail
+        ? Array.from(new Set(['PC', ...pcTrailIds]))
+        : [
+            finalCategory,
+            ...(selectedRetroBrand ? [selectedRetroBrand.name] : []),
+            ...(selectedRetroDevice ? [selectedRetroDevice.name] : []),
+          ],
       tags: [
         brand,
         finalCategory,
+        ...pcTrailIds,
         ...(selectedRetroDevice ? [selectedRetroDevice.id, selectedRetroDevice.name] : []),
       ],
       stockStatus: (Number(stockQty) || 1) > 0 ? 'IN STOCK' : 'OUT OF STOCK',
@@ -371,6 +465,45 @@ export default function QuickAddProductModal({
                   </select>
                 </div>
               </div>
+            </div>
+
+            {/* Retro PC Category & Subcategory Assignment */}
+            <div className="rounded-2xl border border-purple-500/25 bg-slate-900/50 p-4 space-y-2.5">
+              <div className="text-xs font-bold text-purple-300">
+                🖥️ {isRtl ? "أو ربط بقسم / فئة فرعية في Retro PC (المعالجات، كروت الشاشة، الرامات...)" : "Or Assign to Retro PC Category / Subcategory"}
+              </div>
+              <select
+                value={retroPcCategoryId}
+                onChange={(e) => {
+                  const nextPcCatId = e.target.value;
+                  setRetroPcCategoryId(nextPcCatId);
+                  if (nextPcCatId) {
+                    setRetroBrandId('');
+                    setRetroDeviceId('');
+                    setCategory('PC');
+                    const found = findRetroPcNodeWithTrailById(allRetroPcCategories, nextPcCatId);
+                    if (found && found.breadcrumbs.length >= 2) {
+                      setBrand(found.breadcrumbs[1].name);
+                    } else if (found) {
+                      setBrand(found.current.name);
+                    }
+                  }
+                }}
+                className="w-full rounded-xl bg-slate-950 px-3 py-2.5 text-xs text-slate-100 border border-slate-800 focus:border-purple-400 focus:outline-none"
+              >
+                <option value="">
+                  {isRtl
+                    ? "-- غير مرتبط بقسم Retro PC (أو اختر القسم الفرعي هنا) --"
+                    : "-- Not assigned to Retro PC (or select category path) --"}
+                </option>
+                {flatRetroPcOptions.map((opt) => (
+                  <option key={opt.node.id} value={opt.node.id}>
+                    {'\u00A0'.repeat(opt.depth * 3)}
+                    {opt.depth > 0 ? '↳ ' : '▣ '}
+                    {opt.label} ({opt.node.id})
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Inputs Grid */}
