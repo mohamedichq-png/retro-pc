@@ -123,17 +123,17 @@ export default function RetroPcClient({
     return (currentNode.children || []).filter((child) => !child.hidden);
   }, [currentNode, treeRoots]);
 
-  // Merge server & real-time client products from Supabase (deduplicated by SKU/ID)
+  // Merge server & real-time client products from Supabase (deduplicated by ID)
   const mergedProducts = useMemo(() => {
     const map = new Map<string, Product>();
     for (const sp of serverProducts) {
-      const key = (sp.sku || sp.id).trim().toUpperCase();
-      map.set(key, sp);
+      const key = sp.id || (sp.sku ? sp.sku.trim().toUpperCase() : '');
+      if (key) map.set(key, sp);
     }
     if (clientProducts && clientProducts.length > 0) {
       for (const cp of clientProducts) {
-        const key = (cp.sku || cp.id).trim().toUpperCase();
-        map.set(key, cp as unknown as Product);
+        const key = cp.id || (cp.sku ? cp.sku.trim().toUpperCase() : '');
+        if (key) map.set(key, cp as unknown as Product);
       }
     }
     return Array.from(map.values());

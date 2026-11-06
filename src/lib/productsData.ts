@@ -126,8 +126,7 @@ export async function getStoreProducts(): Promise<Product[]> {
         const raw = data.map(mapDbToProduct);
         const map = new Map<string, Product>();
         for (const item of raw) {
-          const key = (item.sku || item.id).trim().toUpperCase();
-          map.set(key, item);
+          map.set(item.id, item);
         }
         cachedStoreProducts = Array.from(map.values());
         return cachedStoreProducts;
@@ -140,8 +139,7 @@ export async function getStoreProducts(): Promise<Product[]> {
   const baseList = (cachedStoreProducts || initialProducts) as unknown as Product[];
   const map = new Map<string, Product>();
   for (const item of baseList) {
-    const key = (item.sku || item.id).trim().toUpperCase();
-    map.set(key, item);
+    map.set(item.id, item);
   }
   return Array.from(map.values());
 }

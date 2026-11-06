@@ -52,3 +52,4 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.init_storage_bucket() TO anon, authenticated, service_role;
+

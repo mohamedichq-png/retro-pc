@@ -484,14 +484,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             sessionStorage.setItem('retro_supabase_last_fetch', String(Date.now()));
             const cloudProducts = pData.map(mapToProduct);
             
-            // Deduplicate cloud products by SKU / ID so no duplicate cards ever appear
-            const bySkuOrId = new Map<string, Product>();
+            // Preserve all valid database products by unique ID
+            const byId = new Map<string, Product>();
             for (const cp of cloudProducts) {
-              const key = (cp.sku || cp.id).trim().toUpperCase();
-              bySkuOrId.set(key, cp);
+              byId.set(cp.id, cp);
             }
             
-            const finalList = Array.from(bySkuOrId.values());
+            const finalList = Array.from(byId.values());
             setProducts(finalList);
             saveState('retro_products', finalList);
           } else {

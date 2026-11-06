@@ -311,7 +311,7 @@ function sanitizeRetroPcTree(nodes: RetroPcCategoryNode[]): RetroPcCategoryNode[
     const defaultMatch = findRetroPcNodeWithTrailById(RETRO_PC_CATEGORIES, n.id);
     const defaultImg = defaultMatch?.current.image || '';
     let cleanImg = n.image;
-    if (!cleanImg || cleanImg.includes('qdozfcplmd') || cleanImg.startsWith('data:')) {
+    if (!cleanImg || cleanImg.includes('qdozfcplmd')) {
       cleanImg = defaultImg;
     }
     return {
@@ -835,7 +835,7 @@ export const useOffersStore = create<OffersState>()(
             if (rbl && rbl.data) {
               const cleanLogos: Record<string, string> = {};
               for (const [k, v] of Object.entries(rbl.data)) {
-                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd') && !v.startsWith('data:')) {
+                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd')) {
                   cleanLogos[k] = v;
                 }
               }
@@ -844,7 +844,7 @@ export const useOffersStore = create<OffersState>()(
             if (rdi && rdi.data) {
               const cleanDeviceImgs: Record<string, string> = {};
               for (const [k, v] of Object.entries(rdi.data)) {
-                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd') && !v.startsWith('data:')) {
+                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd')) {
                   cleanDeviceImgs[k] = v;
                 }
               }
@@ -853,7 +853,7 @@ export const useOffersStore = create<OffersState>()(
             if (rki && rki.data) {
               const cleanKindImgs: Record<string, string> = {};
               for (const [k, v] of Object.entries(rki.data)) {
-                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd') && !v.startsWith('data:')) {
+                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd')) {
                   cleanKindImgs[k] = v;
                 }
               }
