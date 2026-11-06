@@ -233,7 +233,9 @@ function RetroStoreContent() {
             const defaultKindImg =
               k.id === 'consoles'
                 ? (retroDeviceImages[`${brand.id}:${device.id}`] || device.image)
-                : '';
+                : k.id === 'accessories'
+                ? '/media/catalog/retro-gaming-classics/speedlink-competition-pro-usb-sports-tournament-edition.webp'
+                : '/media/catalog/retro-gaming-classics/family-computer-r915-hd-600-games.webp';
             const kindImg = customKindImg || defaultKindImg || '';
             return (
               <Link
