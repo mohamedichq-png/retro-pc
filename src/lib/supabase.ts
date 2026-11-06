@@ -132,11 +132,17 @@ export async function uploadImageToSupabase(file: File, folder = 'products'): Pr
       return data.publicUrl;
     }
 
-    console.warn('Supabase storage upload failed across buckets:', errRetro?.message);
-    return null;
+    console.warn('Supabase storage upload failed across buckets, using optimized fallback:', errRetro?.message);
+    // Fallback: Compress to optimized WebP so image uploads NEVER fail or get lost even if bucket is pending
+    const fallbackDataUrl = await compressImageFileToDataUrl(file);
+    return fallbackDataUrl;
   } catch (err) {
-    console.warn('uploadImageToSupabase error:', err);
-    return null;
+    console.warn('uploadImageToSupabase error, attempting fallback:', err);
+    try {
+      return await compressImageFileToDataUrl(file);
+    } catch {
+      return null;
+    }
   }
 }
 
