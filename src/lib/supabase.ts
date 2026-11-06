@@ -87,43 +87,56 @@ export async function compressImageFileToDataUrl(
 }
 
 /**
- * Uploads an image file to Supabase Storage and returns the public URL (or an optimized WebP Data URL
- * that persists directly in Supabase PostgreSQL tables when Storage buckets are not provisioned).
+ * Uploads an image file to Supabase Storage ('retro-images') and returns the permanent public URL.
+ * Never stores raw Base64 data URLs in PostgreSQL to avoid database bloat and quota exhaustion.
  */
 export async function uploadImageToSupabase(file: File, folder = 'products'): Promise<string | null> {
   if (!isSupabaseConfigured) {
-    return compressImageFileToDataUrl(file);
+    return null;
   }
 
   try {
     const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').toLowerCase();
     const fileName = `${folder}/${Date.now()}_${cleanName}`;
 
-    // Try 'media' bucket
+    // Target primary bucket: 'retro-images'
+    const { error: errRetro } = await supabase.storage.from('retro-images').upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: true
+    });
+
+    if (!errRetro) {
+      const { data } = supabase.storage.from('retro-images').getPublicUrl(fileName);
+      return data.publicUrl;
+    }
+
+    // Secondary fallback: 'media'
     const { error: err1 } = await supabase.storage.from('media').upload(fileName, file, {
-      cacheControl: '0',
+      cacheControl: '3600',
       upsert: true
     });
 
     if (!err1) {
       const { data } = supabase.storage.from('media').getPublicUrl(fileName);
-      return `${data.publicUrl}?t=${Date.now()}`;
+      return data.publicUrl;
     }
 
-    // Try 'products' bucket
+    // Tertiary fallback: 'products'
     const { error: err2 } = await supabase.storage.from('products').upload(fileName, file, {
-      cacheControl: '0',
+      cacheControl: '3600',
       upsert: true
     });
 
     if (!err2) {
       const { data } = supabase.storage.from('products').getPublicUrl(fileName);
-      return `${data.publicUrl}?t=${Date.now()}`;
+      return data.publicUrl;
     }
 
-    return await compressImageFileToDataUrl(file);
-  } catch {
-    return await compressImageFileToDataUrl(file);
+    console.warn('Supabase storage upload failed across buckets:', errRetro?.message);
+    return null;
+  } catch (err) {
+    console.warn('uploadImageToSupabase error:', err);
+    return null;
   }
 }
 

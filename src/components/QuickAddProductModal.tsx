@@ -131,22 +131,14 @@ export default function QuickAddProductModal({
       if (publicUrl) {
         setImageUrl(publicUrl);
       } else {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            setImageUrl(reader.result);
-          }
-        };
-        reader.readAsDataURL(file);
+        alert(
+          isRtl
+            ? 'تعذر رفع الصورة إلى سلة retro-images. يرجى التأكد من تشغيل ملف supabase_storage_setup.sql في Supabase.'
+            : 'Failed to upload image to retro-images. Please ensure supabase_storage_setup.sql has been executed in Supabase.'
+        );
       }
-    } catch {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setImageUrl(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('QuickAdd image upload error:', err);
     } finally {
       setIsUploading(false);
     }

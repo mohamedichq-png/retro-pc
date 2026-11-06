@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { ProductGrid } from '@/components/product/ProductGrid';
 import { RETRO_BRANDS, RETRO_KINDS } from '@/lib/retro-navigation';
@@ -88,6 +88,10 @@ export default function RetroBrowseClient({
   const ar = locale === 'ar';
   const retroBrands = useOffersStore((s) => s.retroBrands);
   const { products: clientProducts } = useApp();
+
+  useEffect(() => {
+    useOffersStore.getState().initializeFromCloud();
+  }, []);
 
   const allBrands = useMemo(
     () => (retroBrands && retroBrands.length > 0 ? retroBrands : RETRO_BRANDS),

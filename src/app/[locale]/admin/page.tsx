@@ -415,7 +415,7 @@ export default function AdminDashboard() {
 
     setIsUploadingEditImage(true);
     try {
-      const publicUrl = (await uploadImageToSupabase(file, 'products')) || (await compressImageFileToDataUrl(file));
+      const publicUrl = await uploadImageToSupabase(file, 'products');
       if (publicUrl) {
         setEditImageUrl(publicUrl);
         if (editingProduct) {
@@ -424,20 +424,23 @@ export default function AdminDashboard() {
         if (showToast) {
           showToast(
             isRtl
-              ? 'تم رفع وحفظ صورة المنتج في قاعدة البيانات السحابية فوراً!'
-              : 'Product image uploaded & saved to cloud database!',
+              ? 'تم رفع وحفظ صورة المنتج في سلة retro-images السحابية بنجاح!'
+              : 'Product image uploaded to retro-images & saved to cloud database!',
             'success'
           );
         }
-      }
-    } catch {
-      const fallbackUrl = await compressImageFileToDataUrl(file);
-      if (fallbackUrl) {
-        setEditImageUrl(fallbackUrl);
-        if (editingProduct) {
-          updateProduct(editingProduct.id, { imageUrl: fallbackUrl });
+      } else {
+        if (showToast) {
+          showToast(
+            isRtl
+              ? 'تعذر رفع الصورة إلى سلة retro-images. يرجى التأكد من تشغيل supabase_storage_setup.sql في Supabase.'
+              : 'Failed to upload to retro-images. Please ensure supabase_storage_setup.sql is executed.',
+            'error'
+          );
         }
       }
+    } catch (err) {
+      console.error('Image upload error:', err);
     } finally {
       setIsUploadingEditImage(false);
     }
@@ -454,15 +457,29 @@ export default function AdminDashboard() {
       );
     }
     try {
-      const publicUrl = (await uploadImageToSupabase(file, 'products')) || (await compressImageFileToDataUrl(file));
+      const publicUrl = await uploadImageToSupabase(file, 'products');
       if (publicUrl) {
         updateProduct(product.id, { imageUrl: publicUrl });
+        if (showToast) {
+          showToast(
+            isRtl
+              ? `تم تحديث وحفظ صورة "${product.nameAr || product.nameEn}" بنجاح!`
+              : `Image for "${product.nameEn}" uploaded and updated!`,
+            'success'
+          );
+        }
+      } else {
+        if (showToast) {
+          showToast(
+            isRtl
+              ? 'تعذر رفع الصورة. تأكد من تشغيل supabase_storage_setup.sql'
+              : 'Failed to upload image. Ensure supabase_storage_setup.sql is executed.',
+            'error'
+          );
+        }
       }
-    } catch {
-      const fallbackUrl = await compressImageFileToDataUrl(file);
-      if (fallbackUrl) {
-        updateProduct(product.id, { imageUrl: fallbackUrl });
-      }
+    } catch (err) {
+      console.error('Quick image upload error:', err);
     }
   };
 

@@ -532,22 +532,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       fetchSupabaseData();
 
-      // Keep website synchronized automatically when switching tabs or focusing window
+      // Keep website synchronized automatically when switching tabs or focusing window (throttled to at most once every 60s)
+      let lastSyncTime = Date.now();
       const handleSyncOnFocus = () => {
         if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-          fetchSupabaseData();
-          useOffersStore.getState().initializeFromCloud();
+          const now = Date.now();
+          if (now - lastSyncTime > 60_000) {
+            lastSyncTime = now;
+            fetchSupabaseData();
+            useOffersStore.getState().initializeFromCloud();
+          }
         }
       };
       window.addEventListener('focus', handleSyncOnFocus);
       document.addEventListener('visibilitychange', handleSyncOnFocus);
 
-      // Listen for Realtime Supabase database updates
+      // Listen for Realtime Supabase database updates (debounced)
+      let realtimeDebounceTimer: NodeJS.Timeout | null = null;
+      const debouncedFetch = () => {
+        if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
+        realtimeDebounceTimer = setTimeout(() => {
+          fetchSupabaseData();
+        }, 1200);
+      };
+
       const realtimeChannel = supabase
         .channel('db-live-sync')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-          fetchSupabaseData();
-        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, debouncedFetch)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, () => {
           useOffersStore.getState().initializeFromCloud();
         })
@@ -556,6 +567,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return () => {
         window.removeEventListener('focus', handleSyncOnFocus);
         document.removeEventListener('visibilitychange', handleSyncOnFocus);
+        if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
         supabase.removeChannel(realtimeChannel);
       };
     } else {

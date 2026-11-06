@@ -647,8 +647,8 @@ export default function RetroPcAdminManager({
                           if (showToast) {
                             showToast(
                               isRtl
-                                ? `جاري رفع صورة ${node.nameAr || node.name}...`
-                                : `Uploading image for ${node.name}...`,
+                                ? `جاري رفع صورة ${node.nameAr || node.name} إلى سحابة Supabase (retro-images)...`
+                                : `Uploading image for ${node.name} to Supabase Storage (retro-images)...`,
                               'info'
                             );
                           }
@@ -662,42 +662,31 @@ export default function RetroPcAdminManager({
                               if (showToast) {
                                 showToast(
                                   isRtl
-                                    ? `تم تحديث صورة ${node.nameAr || node.name}`
-                                    : `Updated image for ${node.name}`,
+                                    ? `تم رفع وحفظ صورة "${node.nameAr || node.name}" بنجاح!`
+                                    : `Uploaded and saved image for "${node.name}" successfully!`,
                                   'success'
                                 );
                               }
                             } else {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                if (typeof reader.result === 'string') {
-                                  updateRetroPcCategoryImage(
-                                    node.id,
-                                    reader.result
-                                  );
-                                  if (showToast) {
-                                    showToast(
-                                      isRtl
-                                        ? `تم حفظ صورة ${node.nameAr || node.name}`
-                                        : `Saved image for ${node.name}`,
-                                      'success'
-                                    );
-                                  }
-                                }
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          } catch {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              if (typeof reader.result === 'string') {
-                                updateRetroPcCategoryImage(
-                                  node.id,
-                                  reader.result
+                              if (showToast) {
+                                showToast(
+                                  isRtl
+                                    ? `تعذر رفع الصورة إلى سلة retro-images. يرجى التأكد من تشغيل ملف supabase_storage_setup.sql في Supabase.`
+                                    : `Failed to upload image to retro-images. Please ensure supabase_storage_setup.sql has been run.`,
+                                  'error'
                                 );
                               }
-                            };
-                            reader.readAsDataURL(file);
+                            }
+                          } catch (err) {
+                            console.error('Image upload failed:', err);
+                            if (showToast) {
+                              showToast(
+                                isRtl
+                                  ? `حدث خطأ أثناء رفع الصورة.`
+                                  : `Error uploading image.`,
+                                  'error'
+                              );
+                            }
                           }
                         }}
                       />
@@ -1124,6 +1113,14 @@ export default function RetroPcAdminManager({
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
+                        if (showToast) {
+                          showToast(
+                            isRtl
+                              ? 'جاري رفع الصورة إلى سحابة Supabase...'
+                              : 'Uploading image to Supabase Storage...',
+                            'info'
+                          );
+                        }
                         try {
                           const publicUrl = await uploadImageToSupabase(
                             file,
@@ -1133,31 +1130,26 @@ export default function RetroPcAdminManager({
                             setCatFormModal((prev) =>
                               prev ? { ...prev, image: publicUrl } : null
                             );
-                          } else {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              if (typeof reader.result === 'string') {
-                                setCatFormModal((prev) =>
-                                  prev
-                                    ? { ...prev, image: reader.result as string }
-                                    : null
-                                );
-                              }
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        } catch {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            if (typeof reader.result === 'string') {
-                              setCatFormModal((prev) =>
-                                prev
-                                  ? { ...prev, image: reader.result as string }
-                                  : null
+                            if (showToast) {
+                              showToast(
+                                isRtl
+                                  ? 'تم رفع الصورة بنجاح!'
+                                  : 'Image uploaded successfully!',
+                                'success'
                               );
                             }
-                          };
-                          reader.readAsDataURL(file);
+                          } else {
+                            if (showToast) {
+                              showToast(
+                                isRtl
+                                  ? 'تعذر رفع الصورة إلى سلة retro-images. تأكد من تشغيل supabase_storage_setup.sql'
+                                  : 'Failed to upload image. Please check retro-images bucket setup.',
+                                'error'
+                              );
+                            }
+                          }
+                        } catch (err) {
+                          console.error('Upload error in modal:', err);
                         }
                       }}
                     />

@@ -187,18 +187,42 @@ const DEFAULT_SLIDES: OfferSlide[] = [
   }
 ];
 
-const syncRetroCatalogToCloud = (brands: RetroBrand[], updatedAt: number) => {
-  supabase
-    .from('store_settings')
-    .upsert({ id: 'retro_catalog', data: { brands, updatedAt }, updated_at: new Date().toISOString() })
-    .then();
+export const syncRetroCatalogToCloud = async (brands: RetroBrand[], updatedAt: number): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('store_settings')
+      .upsert(
+        { id: 'retro_catalog', data: { brands, updatedAt }, updated_at: new Date().toISOString() },
+        { onConflict: 'id' }
+      );
+    if (error) {
+      console.warn('Error syncing retro_catalog to cloud:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Exception syncing retro_catalog to cloud:', err);
+    return false;
+  }
 };
 
-const syncRetroPcCatalogToCloud = (categories: RetroPcCategoryNode[], updatedAt: number) => {
-  supabase
-    .from('store_settings')
-    .upsert({ id: 'retro_pc_catalog', data: { categories, updatedAt }, updated_at: new Date().toISOString() })
-    .then();
+export const syncRetroPcCatalogToCloud = async (categories: RetroPcCategoryNode[], updatedAt: number): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('store_settings')
+      .upsert(
+        { id: 'retro_pc_catalog', data: { categories, updatedAt }, updated_at: new Date().toISOString() },
+        { onConflict: 'id' }
+      );
+    if (error) {
+      console.warn('Error syncing retro_pc_catalog to cloud:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Exception syncing retro_pc_catalog to cloud:', err);
+    return false;
+  }
 };
 
 function insertNodeInTree(
@@ -286,7 +310,10 @@ function sanitizeRetroPcTree(nodes: RetroPcCategoryNode[]): RetroPcCategoryNode[
   return (nodes || []).map((n) => {
     const defaultMatch = findRetroPcNodeWithTrailById(RETRO_PC_CATEGORIES, n.id);
     const defaultImg = defaultMatch?.current.image || '';
-    const cleanImg = n.image && !n.image.includes('qdozfcplmd') ? n.image : defaultImg;
+    let cleanImg = n.image;
+    if (!cleanImg || cleanImg.includes('qdozfcplmd') || cleanImg.startsWith('data:')) {
+      cleanImg = defaultImg;
+    }
     return {
       ...(defaultMatch?.current || {}),
       ...n,
@@ -808,7 +835,7 @@ export const useOffersStore = create<OffersState>()(
             if (rbl && rbl.data) {
               const cleanLogos: Record<string, string> = {};
               for (const [k, v] of Object.entries(rbl.data)) {
-                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd')) {
+                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd') && !v.startsWith('data:')) {
                   cleanLogos[k] = v;
                 }
               }
@@ -817,7 +844,7 @@ export const useOffersStore = create<OffersState>()(
             if (rdi && rdi.data) {
               const cleanDeviceImgs: Record<string, string> = {};
               for (const [k, v] of Object.entries(rdi.data)) {
-                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd')) {
+                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd') && !v.startsWith('data:')) {
                   cleanDeviceImgs[k] = v;
                 }
               }
@@ -826,7 +853,7 @@ export const useOffersStore = create<OffersState>()(
             if (rki && rki.data) {
               const cleanKindImgs: Record<string, string> = {};
               for (const [k, v] of Object.entries(rki.data)) {
-                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd')) {
+                if (typeof v === 'string' && v.trim() !== '' && !v.includes('qdozfcplmd') && !v.startsWith('data:')) {
                   cleanKindImgs[k] = v;
                 }
               }

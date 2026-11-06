@@ -123,7 +123,13 @@ export async function getStoreProducts(): Promise<Product[]> {
         .order('id', { ascending: true });
 
       if (!error && data && data.length > 0) {
-        cachedStoreProducts = data.map(mapDbToProduct);
+        const raw = data.map(mapDbToProduct);
+        const map = new Map<string, Product>();
+        for (const item of raw) {
+          const key = (item.sku || item.id).trim().toUpperCase();
+          map.set(key, item);
+        }
+        cachedStoreProducts = Array.from(map.values());
         return cachedStoreProducts;
       }
     } catch (err) {
@@ -131,7 +137,13 @@ export async function getStoreProducts(): Promise<Product[]> {
     }
   }
 
-  return (cachedStoreProducts || initialProducts) as unknown as Product[];
+  const baseList = (cachedStoreProducts || initialProducts) as unknown as Product[];
+  const map = new Map<string, Product>();
+  for (const item of baseList) {
+    const key = (item.sku || item.id).trim().toUpperCase();
+    map.set(key, item);
+  }
+  return Array.from(map.values());
 }
 
 /**

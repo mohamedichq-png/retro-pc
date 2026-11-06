@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProductGrid } from '@/components/product/ProductGrid';
@@ -59,12 +59,14 @@ function CategoryCardImage({
 interface RetroPcClientProps {
   locale: Locale;
   serverProducts: Product[];
+  serverCategories?: RetroPcCategoryNode[];
   dict: Dictionary;
 }
 
 export default function RetroPcClient({
   locale,
   serverProducts,
+  serverCategories,
   dict,
 }: RetroPcClientProps) {
   const ar = locale === 'ar';
@@ -74,23 +76,31 @@ export default function RetroPcClient({
   const retroPcCategories = useOffersStore((s) => s.retroPcCategories);
   const { products: clientProducts } = useApp();
 
+  useEffect(() => {
+    useOffersStore.getState().initializeFromCloud();
+  }, []);
+
   const treeRoots = useMemo(() => {
     const base =
       retroPcCategories && retroPcCategories.length > 0
         ? retroPcCategories
+        : serverCategories && serverCategories.length > 0
+        ? serverCategories
         : RETRO_PC_CATEGORIES;
     return base.filter((c) => !c.hidden);
-  }, [retroPcCategories]);
+  }, [retroPcCategories, serverCategories]);
 
   const allPcNodeIds = useMemo(() => {
     const flat = flattenRetroPcTree(
       retroPcCategories && retroPcCategories.length > 0
         ? retroPcCategories
+        : serverCategories && serverCategories.length > 0
+        ? serverCategories
         : RETRO_PC_CATEGORIES,
       ar ? 'ar' : 'en'
     );
     return new Set(flat.map((item) => item.node.id.toLowerCase()));
-  }, [retroPcCategories, ar]);
+  }, [retroPcCategories, serverCategories, ar]);
 
   // Parse current path from ?path=processors/intel/core-i7
   const pathParam = searchParams.get('path') || '';
