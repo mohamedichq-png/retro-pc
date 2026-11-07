@@ -187,6 +187,25 @@ const DEFAULT_SLIDES: OfferSlide[] = [
   }
 ];
 
+export const syncSettingToCloud = async (id: string, data: unknown): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('store_settings')
+      .upsert(
+        { id, data, updated_at: new Date().toISOString() },
+        { onConflict: 'id' }
+      );
+    if (error) {
+      console.warn(`Error syncing ${id} to store_settings:`, error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn(`Exception syncing ${id} to store_settings:`, err);
+    return false;
+  }
+};
+
 export const syncRetroCatalogToCloud = async (brands: RetroBrand[], updatedAt: number): Promise<boolean> => {
   try {
     const { error } = await supabase
@@ -331,21 +350,21 @@ export const useOffersStore = create<OffersState>()(
       addSlide: (slide) => {
         set((s) => {
           const newSlides = [slide, ...s.slides];
-          supabase.from('store_settings').upsert({ id: 'offer_slides', data: newSlides }).then();
+          syncSettingToCloud('offer_slides', newSlides);
           return { slides: newSlides };
         });
       },
       removeSlide: (key) => {
         set((s) => {
           const newSlides = s.slides.filter((x) => x.key !== key);
-          supabase.from('store_settings').upsert({ id: 'offer_slides', data: newSlides }).then();
+          syncSettingToCloud('offer_slides', newSlides);
           return { slides: newSlides };
         });
       },
       updateSlide: (key, updates) => {
         set((s) => {
           const newSlides = s.slides.map((x) => (x.key === key ? { ...x, ...updates } : x));
-          supabase.from('store_settings').upsert({ id: 'offer_slides', data: newSlides }).then();
+          syncSettingToCloud('offer_slides', newSlides);
           return { slides: newSlides };
         });
       },
@@ -380,7 +399,7 @@ export const useOffersStore = create<OffersState>()(
       updateVisualCategory: (id, updates) => {
         set((s) => {
           const newCats = s.visualCategories.map((x) => (x.id === id ? { ...x, ...updates } : x));
-          supabase.from('store_settings').upsert({ id: 'visual_categories', data: newCats }).then();
+          syncSettingToCloud('visual_categories', newCats);
           return { visualCategories: newCats };
         });
       },
@@ -390,21 +409,21 @@ export const useOffersStore = create<OffersState>()(
           const newCats = exists
             ? s.visualCategories.map((x) => (x.id === cat.id ? cat : x))
             : [...s.visualCategories, cat];
-          supabase.from('store_settings').upsert({ id: 'visual_categories', data: newCats }).then();
+          syncSettingToCloud('visual_categories', newCats);
           return { visualCategories: newCats };
         });
       },
       deleteVisualCategory: (id) => {
         set((s) => {
           const newCats = s.visualCategories.filter((x) => x.id !== id);
-          supabase.from('store_settings').upsert({ id: 'visual_categories', data: newCats }).then();
+          syncSettingToCloud('visual_categories', newCats);
           return { visualCategories: newCats };
         });
       },
       toggleHideVisualCategory: (id) => {
         set((s) => {
           const newCats = s.visualCategories.map((x) => (x.id === id ? { ...x, hidden: !x.hidden } : x));
-          supabase.from('store_settings').upsert({ id: 'visual_categories', data: newCats }).then();
+          syncSettingToCloud('visual_categories', newCats);
           return { visualCategories: newCats };
         });
       },
@@ -417,7 +436,7 @@ export const useOffersStore = create<OffersState>()(
           const newCats = [...s.visualCategories];
           const [moved] = newCats.splice(idx, 1);
           newCats.splice(targetIdx, 0, moved);
-          supabase.from('store_settings').upsert({ id: 'visual_categories', data: newCats }).then();
+          syncSettingToCloud('visual_categories', newCats);
           return { visualCategories: newCats };
         });
       },
@@ -436,7 +455,7 @@ export const useOffersStore = create<OffersState>()(
           const nextLogos = brand.logo ? { ...s.retroBrandLogos, [brand.id]: brand.logo } : s.retroBrandLogos;
           syncRetroCatalogToCloud(nextBrands, now);
           if (brand.logo) {
-            supabase.from('store_settings').upsert({ id: 'retro_brand_logos', data: nextLogos }).then();
+            syncSettingToCloud('retro_brand_logos', nextLogos);
           }
           return { retroBrands: nextBrands, retroBrandLogos: nextLogos, retroCatalogUpdatedAt: now };
         });
@@ -451,7 +470,7 @@ export const useOffersStore = create<OffersState>()(
             : s.retroBrandLogos;
           syncRetroCatalogToCloud(nextBrands, now);
           if (updates.logo !== undefined) {
-            supabase.from('store_settings').upsert({ id: 'retro_brand_logos', data: nextLogos }).then();
+            syncSettingToCloud('retro_brand_logos', nextLogos);
           }
           return { retroBrands: nextBrands, retroBrandLogos: nextLogos, retroCatalogUpdatedAt: now };
         });
@@ -509,7 +528,7 @@ export const useOffersStore = create<OffersState>()(
             : s.retroDeviceImages;
           syncRetroCatalogToCloud(nextBrands, now);
           if (device.image) {
-            supabase.from('store_settings').upsert({ id: 'retro_device_images', data: nextDeviceImages }).then();
+            syncSettingToCloud('retro_device_images', nextDeviceImages);
           }
           return {
             retroBrands: nextBrands,
@@ -536,7 +555,7 @@ export const useOffersStore = create<OffersState>()(
               : s.retroDeviceImages;
           syncRetroCatalogToCloud(nextBrands, now);
           if (updates.image !== undefined) {
-            supabase.from('store_settings').upsert({ id: 'retro_device_images', data: nextDeviceImages }).then();
+            syncSettingToCloud('retro_device_images', nextDeviceImages);
           }
           return {
             retroBrands: nextBrands,
@@ -602,7 +621,7 @@ export const useOffersStore = create<OffersState>()(
           const nextBrands = s.retroBrands.map((b) =>
             b.id === brandId ? { ...b, logo: image } : b
           );
-          supabase.from('store_settings').upsert({ id: 'retro_brand_logos', data: updated }).then();
+          syncSettingToCloud('retro_brand_logos', updated);
           syncRetroCatalogToCloud(nextBrands, now);
           return { retroBrandLogos: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
         });
@@ -618,7 +637,7 @@ export const useOffersStore = create<OffersState>()(
             delete copy.logo;
             return copy;
           });
-          supabase.from('store_settings').upsert({ id: 'retro_brand_logos', data: updated }).then();
+          syncSettingToCloud('retro_brand_logos', updated);
           syncRetroCatalogToCloud(nextBrands, now);
           return { retroBrandLogos: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
         });
@@ -638,7 +657,7 @@ export const useOffersStore = create<OffersState>()(
               devices: b.devices.map((d) => (d.id === deviceId ? { ...d, image } : d)),
             };
           });
-          supabase.from('store_settings').upsert({ id: 'retro_device_images', data: updated }).then();
+          syncSettingToCloud('retro_device_images', updated);
           syncRetroCatalogToCloud(nextBrands, now);
           return { retroDeviceImages: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
         });
@@ -660,7 +679,7 @@ export const useOffersStore = create<OffersState>()(
               ),
             };
           });
-          supabase.from('store_settings').upsert({ id: 'retro_device_images', data: updated }).then();
+          syncSettingToCloud('retro_device_images', updated);
           syncRetroCatalogToCloud(nextBrands, now);
           return { retroDeviceImages: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
         });
@@ -684,7 +703,7 @@ export const useOffersStore = create<OffersState>()(
               ),
             };
           });
-          supabase.from('store_settings').upsert({ id: 'retro_kind_images', data: updated }).then();
+          syncSettingToCloud('retro_kind_images', updated);
           syncRetroCatalogToCloud(nextBrands, now);
           return { retroKindImages: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
         });
@@ -707,7 +726,7 @@ export const useOffersStore = create<OffersState>()(
               }),
             };
           });
-          supabase.from('store_settings').upsert({ id: 'retro_kind_images', data: updated }).then();
+          syncSettingToCloud('retro_kind_images', updated);
           syncRetroCatalogToCloud(nextBrands, now);
           return { retroKindImages: updated, retroBrands: nextBrands, retroCatalogUpdatedAt: now };
         });

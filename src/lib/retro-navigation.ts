@@ -27,7 +27,7 @@ export const RETRO_BRANDS: RetroBrand[] = [
   d('ps3','PlayStation 3 Slim','/media/retro-verified/playstation-ps3.webp',['playstation 3','ps3']),
   d('ps4','PlayStation 4 Pro','/media/retro-verified/playstation-ps4.webp',['playstation 4','ps4']),
   d('ps5','PlayStation 5 Slim','/media/retro-verified/playstation-ps5.webp',['playstation 5','ps5']),
-  d('psp','PSP','/media/consoles/psp-normal.png',['playstation portable','psp']),
+  d('psp','PSP','/media/catalog/psp/psp-3006-pearl-white.webp',['playstation portable','psp']),
   d('psvita','PS Vita','/media/retro-verified/playstation-psvita.webp',['ps vita','playstation vita','psvita'])]},
  {id:'nintendo',name:'Nintendo',color:'#f04747',devices:[
   d('nes','NES / Famicom','/media/catalog/nintendo/nintendo-classic-mini-nes-30-games-pre-installed.webp',['nintendo entertainment system','famicom','nes']),

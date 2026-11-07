@@ -124,18 +124,39 @@ export default function RetroBrowseClient({
   const kind = RETRO_KINDS.find((x) => x.id === kindId) || RETRO_KINDS[0];
 
   const mergedProducts = useMemo(() => {
-    const map = new Map<string, Product>();
+    // Cloud database products take full precedence over static fallback catalog products.
+    // If a cloud product shares a SKU with a static catalog product, the cloud version replaces it.
+    const byId = new Map<string, Product>();
+    const skuToId = new Map<string, string>();
+
     for (const sp of serverProducts) {
-      const key = sp.id || (sp.sku ? sp.sku.trim().toUpperCase() : '');
-      if (key) map.set(key, sp);
-    }
-    if (clientProducts && clientProducts.length > 0) {
-      for (const cp of clientProducts) {
-        const key = cp.id || (cp.sku ? cp.sku.trim().toUpperCase() : '');
-        if (key) map.set(key, cp as unknown as Product);
+      if (sp.id) {
+        byId.set(sp.id, sp);
+        if (sp.sku) {
+          skuToId.set(sp.sku.trim().toUpperCase(), sp.id);
+        }
       }
     }
-    return Array.from(map.values());
+
+    if (clientProducts && clientProducts.length > 0) {
+      for (const cp of clientProducts) {
+        const product = cp as unknown as Product;
+        if (!product || !product.id) continue;
+
+        if (product.sku) {
+          const skuKey = product.sku.trim().toUpperCase();
+          const existingStaticId = skuToId.get(skuKey);
+          if (existingStaticId && existingStaticId !== product.id) {
+            byId.delete(existingStaticId);
+          }
+          skuToId.set(skuKey, product.id);
+        }
+
+        byId.set(product.id, product);
+      }
+    }
+
+    return Array.from(byId.values());
   }, [serverProducts, clientProducts]);
 
   const effectiveTokens = useMemo(() => {

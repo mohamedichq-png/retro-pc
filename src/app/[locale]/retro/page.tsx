@@ -8,7 +8,12 @@ import { useOffersStore, DEFAULT_RETRO_BRAND_LOGOS } from '@/stores/useOffersSto
 
 function DeviceImage({ src, name, ar }: { src: string; name: string; ar: boolean }) {
   const [failed, setFailed] = useState(false);
-  if (failed) {
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (failed || !src) {
     return (
       <span className="text-center text-xs text-slate-500">
         {ar ? 'صورة الجهاز غير متوفرة بعد' : 'Device photo unavailable'}
@@ -19,7 +24,6 @@ function DeviceImage({ src, name, ar }: { src: string; name: string; ar: boolean
     <img
       src={src}
       alt={name}
-      loading="lazy"
       onError={() => setFailed(true)}
       className="h-full w-full object-contain transition duration-200 group-hover:scale-105"
     />
@@ -28,6 +32,11 @@ function DeviceImage({ src, name, ar }: { src: string; name: string; ar: boolean
 
 function BrandLogoImage({ src, name }: { src: string; name: string }) {
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
   if (failed || !src) {
     return (
       <span className="px-4 text-xl font-black tracking-wider text-white uppercase group-hover:text-cyan-300 transition">
@@ -39,7 +48,6 @@ function BrandLogoImage({ src, name }: { src: string; name: string }) {
     <img
       src={src}
       alt={name}
-      loading="lazy"
       onError={() => setFailed(true)}
       className="h-31.25 max-h-full w-[94%] object-contain transition duration-200 group-hover:scale-105"
     />
@@ -48,6 +56,11 @@ function BrandLogoImage({ src, name }: { src: string; name: string }) {
 
 function KindSectionImage({ src, name, kindId, ar }: { src?: string; name: string; kindId: string; ar: boolean }) {
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
   const placeholderIcon = kindId === 'consoles' ? '🕹️' : kindId === 'games' ? '💿' : '🎮';
 
   if (!src || failed) {
@@ -67,7 +80,6 @@ function KindSectionImage({ src, name, kindId, ar }: { src?: string; name: strin
     <img
       src={src}
       alt={name}
-      loading="lazy"
       onError={() => setFailed(true)}
       className="h-full w-full object-contain transition duration-200 group-hover:scale-105"
     />
@@ -233,9 +245,7 @@ function RetroStoreContent() {
             const defaultKindImg =
               k.id === 'consoles'
                 ? (retroDeviceImages[`${brand.id}:${device.id}`] || device.image)
-                : k.id === 'accessories'
-                ? '/media/catalog/retro-gaming-classics/speedlink-competition-pro-usb-sports-tournament-edition.webp'
-                : '/media/catalog/retro-gaming-classics/family-computer-r915-hd-600-games.webp';
+                : '';
             const kindImg = customKindImg || defaultKindImg || '';
             return (
               <Link
