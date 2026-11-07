@@ -23,8 +23,9 @@ import { useOffersStore, DEFAULT_RETRO_BRAND_LOGOS } from '@/stores/useOffersSto
 import { RETRO_BRANDS, RETRO_KINDS, type RetroKindId } from '@/lib/retro-navigation';
 import { RETRO_PC_CATEGORIES, flattenRetroPcTree } from '@/lib/retro-pc-navigation';
 import { classifyAllProducts } from '@/lib/classificationEngine';
-import { uploadImageToSupabase, compressImageFileToDataUrl, supabase, isSupabaseConfigured, sanitizeImageUrl } from '@/lib/supabase';
+import { uploadImageToSupabase, convertBase64ToCleanUrl, supabase, isSupabaseConfigured, sanitizeImageUrl } from '@/lib/supabase';
 import { mapProductToDb } from '@/lib/productsData';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 export default function AdminDashboard() {
   const { 
@@ -39,9 +40,14 @@ export default function AdminDashboard() {
   } = useApp();
 
   // Authentication Gate States
+  const storeIsAdmin = useAuthStore((s) => s.isAdmin);
+  const authLogin = useAuthStore((s) => s.login);
+  const authLogout = useAuthStore((s) => s.logout);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // Cloud Sync & Image Uploading States
   const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
@@ -325,29 +331,109 @@ export default function AdminDashboard() {
   // Verify authentication on component mount
   useEffect(() => {
     const token = sessionStorage.getItem('retro_admin_auth');
-    if (token === 'authenticated') {
+    if (token === 'authenticated' || storeIsAdmin) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsAuthenticated(true);
       useOffersStore.getState().initializeFromCloud();
     }
-  }, []);
+  }, [storeIsAdmin]);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  // Automatically convert any legacy Base64 data URLs into clean short file URLs (/media/uploads/...)
+  useEffect(() => {
+    if (tempRetroUrl && tempRetroUrl.startsWith('data:image/')) {
+      convertBase64ToCleanUrl(tempRetroUrl, 'devices').then((cleanUrl) => {
+        if (cleanUrl && !cleanUrl.startsWith('data:image/')) {
+          setTempRetroUrl(cleanUrl);
+          if (retroUrlModal) {
+            if (retroUrlModal.type === 'brand') {
+              updateRetroBrandLogo(retroUrlModal.id, cleanUrl);
+            } else if (retroUrlModal.type === 'device' && retroUrlModal.brandId) {
+              updateRetroDeviceImage(retroUrlModal.brandId, retroUrlModal.id, cleanUrl);
+            } else if (retroUrlModal.type === 'kind' && retroUrlModal.brandId && retroUrlModal.kindId) {
+              updateRetroKindImage(retroUrlModal.brandId, retroUrlModal.id, retroUrlModal.kindId, cleanUrl);
+            }
+          }
+        }
+      });
+    }
+  }, [tempRetroUrl, retroUrlModal, updateRetroBrandLogo, updateRetroDeviceImage, updateRetroKindImage]);
+
+  useEffect(() => {
+    if (brandFormModal?.logo && brandFormModal.logo.startsWith('data:image/')) {
+      convertBase64ToCleanUrl(brandFormModal.logo, 'brands').then((cleanUrl) => {
+        if (cleanUrl && !cleanUrl.startsWith('data:image/')) {
+          setBrandFormModal((prev) => (prev ? { ...prev, logo: cleanUrl } : null));
+        }
+      });
+    }
+  }, [brandFormModal?.logo]);
+
+  useEffect(() => {
+    if (deviceFormModal?.image && deviceFormModal.image.startsWith('data:image/')) {
+      convertBase64ToCleanUrl(deviceFormModal.image, 'devices').then((cleanUrl) => {
+        if (cleanUrl && !cleanUrl.startsWith('data:image/')) {
+          setDeviceFormModal((prev) => (prev ? { ...prev, image: cleanUrl } : null));
+        }
+      });
+    }
+  }, [deviceFormModal?.image]);
+
+  useEffect(() => {
+    if (visualCatFormModal?.image && visualCatFormModal.image.startsWith('data:image/')) {
+      convertBase64ToCleanUrl(visualCatFormModal.image, 'categories').then((cleanUrl) => {
+        if (cleanUrl && !cleanUrl.startsWith('data:image/')) {
+          setVisualCatFormModal((prev) => (prev ? { ...prev, image: cleanUrl } : null));
+        }
+      });
+    }
+  }, [visualCatFormModal?.image]);
+
+  useEffect(() => {
+    if (editImageUrl && editImageUrl.startsWith('data:image/')) {
+      convertBase64ToCleanUrl(editImageUrl, 'products').then((cleanUrl) => {
+        if (cleanUrl && !cleanUrl.startsWith('data:image/')) {
+          setEditImageUrl(cleanUrl);
+        }
+      });
+    }
+  }, [editImageUrl]);
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsAuthenticating(true);
+    setAuthError('');
+
+    // If admin email is provided, attempt Supabase Auth login
+    if (adminEmail.trim()) {
+      const res = await authLogin(adminEmail.trim(), passwordInput);
+      if (res.success) {
+        setIsAuthenticated(true);
+        sessionStorage.setItem('retro_admin_auth', 'authenticated');
+        useOffersStore.getState().initializeFromCloud();
+        setIsAuthenticating(false);
+        return;
+      }
+    }
+
+    // Master passcode fallback
     if (passwordInput === 'Retro2026!') {
       setIsAuthenticated(true);
       sessionStorage.setItem('retro_admin_auth', 'authenticated');
+      useAuthStore.getState().setAdmin(true);
       setAuthError('');
       useOffersStore.getState().initializeFromCloud();
     } else {
-      setAuthError(isRtl ? 'كلمة المرور غير صحيحة!' : 'Incorrect password!');
+      setAuthError(isRtl ? 'بيانات الدخول أو كلمة المرور غير صحيحة!' : 'Incorrect credentials or password!');
     }
+    setIsAuthenticating(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsAuthenticated(false);
     sessionStorage.removeItem('retro_admin_auth');
     setPasswordInput('');
+    setAdminEmail('');
+    await authLogout();
   };
 
   // Categories list (includes existing + newly created Retro sections)
@@ -783,17 +869,24 @@ export default function AdminDashboard() {
               </h2>
               <p className="text-xs text-slate-400 max-w-xs mx-auto">
                 {isRtl 
-                  ? "يرجى إدخال كلمة مرور المدير للوصول إلى لوحة تعديل المنتجات والمخزون."
-                  : "Please enter the admin password to access product editor dashboard."}
+                  ? "سجّل الدخول بحساب المشرف (Supabase Auth) أو أدخل الرمز السري المباشر."
+                  : "Sign in with your Supabase Admin account or enter the Master Access Code."}
               </p>
             </div>
 
             <form onSubmit={handleLoginSubmit} className="space-y-4 pt-2">
-              <div className="space-y-1">
+              <div className="space-y-2">
+                <input
+                  type="email"
+                  placeholder={isRtl ? "البريد الإلكتروني للإدارة (اختياري)" : "Admin Email (Optional for Master Code)"}
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  className="w-full rounded-xl bg-slate-950 px-4 py-2.5 text-xs text-slate-100 border border-slate-800 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-center font-mono"
+                />
                 <input
                   type="password"
                   required
-                  placeholder={isRtl ? "كلمة المرور" : "Password"}
+                  placeholder={isRtl ? "كلمة المرور أو الرمز السري" : "Password or Master Passcode"}
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   className="w-full rounded-xl bg-slate-950 px-4 py-3 text-xs text-slate-100 border border-slate-800 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-center tracking-widest font-mono"
@@ -808,9 +901,12 @@ export default function AdminDashboard() {
 
               <button
                 type="submit"
-                className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-xs font-bold text-white shadow-lg cursor-pointer hover:shadow-cyan-500/20 active:scale-[0.98] transition-all"
+                disabled={isAuthenticating}
+                className="w-full rounded-xl bg-linear-to-r from-cyan-500 to-purple-600 py-3 text-xs font-bold text-white shadow-lg cursor-pointer hover:shadow-cyan-500/20 active:scale-[0.98] transition-all disabled:opacity-50"
               >
-                {isRtl ? "تأكيد الدخول" : "Unlock Console"}
+                {isAuthenticating 
+                  ? (isRtl ? "جاري التحقق..." : "Authenticating...") 
+                  : (isRtl ? "تأكيد الدخول" : "Unlock Console")}
               </button>
             </form>
           </div>
@@ -914,7 +1010,7 @@ export default function AdminDashboard() {
             {/* Add Product Button */}
             <button
               onClick={() => setQuickAddOpen(true)}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-cyan-500/20 hover:scale-[1.02] transition-all cursor-pointer"
+              className="flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 via-purple-600 to-pink-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-cyan-500/20 hover:scale-[1.02] transition-all cursor-pointer"
             >
               <PlusIcon size={16} />
               <span>{isRtl ? "إضافة منتج" : "Add Product"}</span>
@@ -994,7 +1090,7 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab('retro-sections')}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'retro-sections'
-                  ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20 font-black'
+                  ? 'bg-linear-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-md shadow-cyan-500/20 font-black'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -1011,7 +1107,7 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab('retro-pc-sections')}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'retro-pc-sections'
-                  ? 'bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 text-slate-950 shadow-md shadow-cyan-500/20 font-black'
+                  ? 'bg-linear-to-r from-cyan-400 via-teal-400 to-emerald-400 text-slate-950 shadow-md shadow-cyan-500/20 font-black'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -1028,7 +1124,7 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab('taxonomy')}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'taxonomy'
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md shadow-purple-500/20'
+                  ? 'bg-linear-to-r from-purple-500 to-pink-500 text-white shadow-md shadow-purple-500/20'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -1126,7 +1222,7 @@ export default function AdminDashboard() {
                   onClick={() => setTaxonomyFilter(tab.id)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     taxonomyFilter === tab.id
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md shadow-cyan-500/20'
+                      ? 'bg-linear-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-md shadow-cyan-500/20'
                       : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700 hover:text-white'
                   }`}
                 >
@@ -1184,10 +1280,10 @@ export default function AdminDashboard() {
                                 }}
                               />
                               <div>
-                                <div className="font-bold text-white line-clamp-1 max-w-[240px]">
+                                <div className="font-bold text-white line-clamp-1 max-w-60">
                                   {isRtl ? p.nameAr : p.nameEn}
                                 </div>
-                                <div className="text-[10px] text-slate-400 line-clamp-1 max-w-[240px]">
+                                <div className="text-[10px] text-slate-400 line-clamp-1 max-w-60">
                                   {isRtl ? p.nameEn : p.nameAr}
                                 </div>
                               </div>
@@ -1398,7 +1494,7 @@ export default function AdminDashboard() {
                       </button>
                       <button
                         type="submit"
-                        className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all"
+                        className="px-5 py-2 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all"
                       >
                         {isRtl ? "حفظ التصنيف" : "Save Classification"}
                       </button>
@@ -1447,7 +1543,7 @@ export default function AdminDashboard() {
                     accent: 'cyan',
                   })
                 }
-                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-3.5 py-2 text-xs font-black text-slate-950 shadow-md hover:scale-105 transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 px-3.5 py-2 text-xs font-black text-slate-950 shadow-md hover:scale-105 transition-all cursor-pointer"
               >
                 <PlusIcon size={14} />
                 <span>{isRtl ? "إضافة قسم جديد" : "Add New Category"}</span>
@@ -1634,7 +1730,7 @@ export default function AdminDashboard() {
         ) : activeTab === 'retro-sections' ? (
           <div className="space-y-6 animate-in fade-in duration-300">
             {/* Top Header & Intro */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-3xl border border-cyan-500/20 bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-slate-950 shadow-xl backdrop-blur-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-3xl border border-cyan-500/20 bg-linear-to-r from-slate-900/90 via-slate-900/60 to-slate-950 shadow-xl backdrop-blur-sm">
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 text-[11px] font-black text-cyan-400 uppercase tracking-wider">
                   <span>🕹️</span>
@@ -1658,7 +1754,7 @@ export default function AdminDashboard() {
                     onClick={() => setRetroSubView('all')}
                     className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       retroSubView === 'all'
-                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
+                        ? 'bg-linear-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
@@ -1669,7 +1765,7 @@ export default function AdminDashboard() {
                     onClick={() => setRetroSubView('brands')}
                     className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       retroSubView === 'brands'
-                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
+                        ? 'bg-linear-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
@@ -1680,7 +1776,7 @@ export default function AdminDashboard() {
                     onClick={() => setRetroSubView('devices')}
                     className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       retroSubView === 'devices'
-                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
+                        ? 'bg-linear-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md font-black'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
@@ -1700,7 +1796,7 @@ export default function AdminDashboard() {
                       logo: '',
                     })
                   }
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
                 >
                   <PlusIcon size={15} />
                   <span>{isRtl ? "إضافة شركة / سكشن جديد" : "Add New Brand / Section"}</span>
@@ -1854,7 +1950,7 @@ export default function AdminDashboard() {
                         </div>
 
                         {/* Logo Preview Box matching store theme */}
-                        <div className="relative aspect-[16/10] w-full rounded-xl bg-black border border-slate-800/90 flex items-center justify-center p-3 overflow-hidden shadow-inner group/img">
+                        <div className="relative aspect-16/10 w-full rounded-xl bg-black border border-slate-800/90 flex items-center justify-center p-3 overflow-hidden shadow-inner group/img">
                           <img
                             src={currentLogo}
                             alt={b.name}
@@ -2004,7 +2100,7 @@ export default function AdminDashboard() {
                       onClick={() => setSelectedRetroBrandForDevices(b.id)}
                       className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
                         selectedRetroBrandForDevices === b.id
-                          ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20'
+                          ? 'bg-linear-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20'
                           : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
                       }`}
                     >
@@ -2054,7 +2150,7 @@ export default function AdminDashboard() {
                                 image: '',
                               })
                             }
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2 text-xs font-black text-slate-950 shadow-md hover:scale-105 transition-all cursor-pointer"
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 px-4 py-2 text-xs font-black text-slate-950 shadow-md hover:scale-105 transition-all cursor-pointer"
                           >
                             <PlusIcon size={14} />
                             <span>
@@ -2228,7 +2324,7 @@ export default function AdminDashboard() {
                                 </div>
 
                                 {/* Main Console Model Image Preview */}
-                                <div className="relative aspect-[4/3] w-full rounded-xl bg-black border border-slate-800/90 flex items-center justify-center p-3 overflow-hidden shadow-inner">
+                                <div className="relative aspect-4/3 w-full rounded-xl bg-black border border-slate-800/90 flex items-center justify-center p-3 overflow-hidden shadow-inner">
                                   {deviceImg ? (
                                     <img
                                       src={deviceImg}
@@ -2350,7 +2446,7 @@ export default function AdminDashboard() {
                                           </div>
 
                                           {/* Thumbnail preview */}
-                                          <div className="relative aspect-[4/3] w-full rounded-lg bg-black border border-slate-800/80 flex items-center justify-center overflow-hidden p-1">
+                                          <div className="relative aspect-4/3 w-full rounded-lg bg-black border border-slate-800/80 flex items-center justify-center overflow-hidden p-1">
                                             {kindImg ? (
                                               <img
                                                 src={kindImg}
@@ -2689,7 +2785,7 @@ export default function AdminDashboard() {
                 <div className="pt-4 flex items-center justify-end">
                   <button
                     type="submit"
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 px-6 py-2.5 text-xs font-bold text-slate-950 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                    className="flex items-center gap-2 rounded-xl bg-linear-to-r from-amber-500 to-yellow-600 px-6 py-2.5 text-xs font-bold text-slate-950 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
                   >
                     <PlusIcon size={16} />
                     <span>{isRtl ? "إضافة البنر للموقع" : "Add Banner to Homepage"}</span>
@@ -2714,7 +2810,7 @@ export default function AdminDashboard() {
                       checked={promoActive} 
                       onChange={(e) => setPromoActive(e.target.checked)} 
                     />
-                    <div className="w-11 h-6 bg-slate-850 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500 peer-checked:after:bg-slate-950"></div>
+                    <div className="w-11 h-6 bg-slate-850 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500 peer-checked:after:bg-slate-950"></div>
                     <span className="ltr:ml-3 rtl:mr-3 text-xs font-bold text-slate-300">
                       {isRtl ? "تفعيل قسم العروض على الرئيسية" : "Enable Weekly Promotion Section"}
                     </span>
@@ -2767,7 +2863,7 @@ export default function AdminDashboard() {
                 <div className="pt-4 flex items-center justify-end">
                   <button
                     type="submit"
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                    className="flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-purple-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
                   >
                     <span>💾</span>
                     <span>{isRtl ? "حفظ التعديلات" : "Apply Promotion Settings"}</span>
@@ -3783,7 +3879,7 @@ export default function AdminDashboard() {
 
                 <button
                   type="submit"
-                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 px-6 py-2.5 text-xs font-bold text-slate-950 shadow-lg shadow-cyan-500/20 hover:scale-[1.02] transition-all cursor-pointer font-black"
+                  className="flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 via-blue-600 to-purple-600 px-6 py-2.5 text-xs font-bold text-slate-950 shadow-lg shadow-cyan-500/20 hover:scale-[1.02] transition-all cursor-pointer font-black"
                 >
                   <CheckIcon size={16} />
                   <span>{isRtl ? "حفظ التغييرات" : "Save Changes"}</span>
@@ -3821,9 +3917,13 @@ export default function AdminDashboard() {
               </label>
               <input 
                 type="text" 
-                value={tempRetroUrl}
+                value={tempRetroUrl.startsWith('data:') ? '' : tempRetroUrl}
                 onChange={(e) => setTempRetroUrl(e.target.value)}
-                placeholder={isRtl ? "مثال: https://... أو /brand-logos/..." : "e.g. https://... or /brand-logos/..."}
+                placeholder={
+                  tempRetroUrl.startsWith('data:')
+                    ? (isRtl ? "جاري توليد رابط قصير للصورة المرفوعة..." : "Generating clean short URL for uploaded image...")
+                    : (isRtl ? "مثال: https://... أو /media/uploads/..." : "e.g. https://... or /media/uploads/...")
+                }
                 className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-xs text-white focus:border-cyan-400 focus:outline-none font-mono"
                 autoFocus
               />
@@ -3831,7 +3931,7 @@ export default function AdminDashboard() {
               {tempRetroUrl.trim() && (
                 <div className="space-y-1">
                   <span className="text-[10px] text-slate-400">{isRtl ? "معاينة الصورة:" : "Image Preview:"}</span>
-                  <div className="aspect-[16/9] w-full rounded-xl bg-black border border-slate-800 flex items-center justify-center p-3 overflow-hidden">
+                  <div className="aspect-video w-full rounded-xl bg-black border border-slate-800 flex items-center justify-center p-3 overflow-hidden">
                     <img 
                       src={tempRetroUrl.trim()} 
                       alt="Preview" 
@@ -3868,7 +3968,7 @@ export default function AdminDashboard() {
                   if (showToast) showToast(isRtl ? 'تم حفظ رابط الصورة بنجاح' : 'Image URL saved successfully', 'success');
                   setRetroUrlModal(null);
                 }}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black text-xs shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 text-slate-950 font-black text-xs shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
               >
                 {isRtl ? "تأكيد وحفظ" : "Confirm & Save"}
               </button>
@@ -4074,7 +4174,7 @@ export default function AdminDashboard() {
                   </label>
                   <input
                     type="text"
-                    value={brandFormModal.logo}
+                    value={brandFormModal.logo.startsWith('data:') ? '' : brandFormModal.logo}
                     onChange={(e) => setBrandFormModal({ ...brandFormModal, logo: e.target.value })}
                     placeholder={isRtl ? "أو الصق رابط الشعار..." : "Or paste logo image URL..."}
                     className="flex-1 rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white font-mono"
@@ -4097,7 +4197,7 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
                 >
                   {brandFormModal.mode === 'add'
                     ? isRtl
@@ -4334,7 +4434,7 @@ export default function AdminDashboard() {
                   </label>
                   <input
                     type="text"
-                    value={deviceFormModal.image}
+                    value={deviceFormModal.image.startsWith('data:') ? '' : deviceFormModal.image}
                     onChange={(e) => setDeviceFormModal({ ...deviceFormModal, image: e.target.value })}
                     placeholder={isRtl ? "أو الصق رابط الصورة..." : "Or paste image URL..."}
                     className="flex-1 rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white font-mono"
@@ -4357,7 +4457,7 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
                 >
                   {deviceFormModal.mode === 'add'
                     ? isRtl
@@ -4463,7 +4563,7 @@ export default function AdminDashboard() {
                 <label className="font-semibold text-slate-300">{isRtl ? "رابط الصورة" : "Image URL"}</label>
                 <input
                   type="text"
-                  value={visualCatFormModal.image}
+                  value={visualCatFormModal.image.startsWith('data:') ? '' : visualCatFormModal.image}
                   onChange={(e) => setVisualCatFormModal({ ...visualCatFormModal, image: e.target.value })}
                   className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2 text-white font-mono"
                 />

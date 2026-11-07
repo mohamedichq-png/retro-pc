@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
 const isOldBlockedProject = (url?: string) => !url || url.includes('qdozfcplmd') || url.includes('vjodbkieotbmphzopgtt') || url.includes('placeholder');
 
@@ -20,7 +20,7 @@ export function sanitizeImageUrl(url?: string | null, fallback = '/media/image53
   return url;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
 /**
  * Compresses and converts an image File in the browser to an optimized WebP Data URL
@@ -87,53 +87,72 @@ export async function compressImageFileToDataUrl(
 }
 
 /**
- * Uploads an image file to Supabase Storage ('retro-images') and returns the permanent public URL.
- * Never stores raw Base64 data URLs in PostgreSQL to avoid database bloat and quota exhaustion.
+ * Uploads an image file to Supabase Storage ('retro-images') or local server (/api/upload)
+ * and returns a clean, short URL (e.g. https://.../retro-images/... or /media/uploads/...).
+ * Avoids storing raw Base64 data URLs so links are always short and readable.
  */
 export async function uploadImageToSupabase(file: File, folder = 'products'): Promise<string | null> {
-  if (!isSupabaseConfigured) {
-    return null;
-  }
-
   try {
+    // 1. Primary: Server-side upload (/api/upload) using privileged Supabase Storage client ('retro-images')
+    if (typeof window !== 'undefined') {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder', folder);
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.url && typeof json.url === 'string') {
+            return json.url;
+          }
+        }
+      } catch (apiErr) {
+        console.warn('/api/upload warning, trying client storage:', apiErr);
+      }
+    }
+
     const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').toLowerCase();
     const fileName = `${folder}/${Date.now()}_${cleanName}`;
 
-    // Target primary bucket: 'retro-images'
-    const { error: errRetro } = await supabase.storage.from('retro-images').upload(fileName, file, {
-      cacheControl: '3600',
-      upsert: true
-    });
+    if (isSupabaseConfigured) {
+      // Target primary bucket: 'retro-images'
+      const { error: errRetro } = await supabase.storage.from('retro-images').upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
 
-    if (!errRetro) {
-      const { data } = supabase.storage.from('retro-images').getPublicUrl(fileName);
-      return data.publicUrl;
+      if (!errRetro) {
+        const { data } = supabase.storage.from('retro-images').getPublicUrl(fileName);
+        return data.publicUrl;
+      }
+
+      // Secondary fallback: 'media'
+      const { error: err1 } = await supabase.storage.from('media').upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+      if (!err1) {
+        const { data } = supabase.storage.from('media').getPublicUrl(fileName);
+        return data.publicUrl;
+      }
+
+      // Tertiary fallback: 'products'
+      const { error: err2 } = await supabase.storage.from('products').upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+      if (!err2) {
+        const { data } = supabase.storage.from('products').getPublicUrl(fileName);
+        return data.publicUrl;
+      }
     }
 
-    // Secondary fallback: 'media'
-    const { error: err1 } = await supabase.storage.from('media').upload(fileName, file, {
-      cacheControl: '3600',
-      upsert: true
-    });
-
-    if (!err1) {
-      const { data } = supabase.storage.from('media').getPublicUrl(fileName);
-      return data.publicUrl;
-    }
-
-    // Tertiary fallback: 'products'
-    const { error: err2 } = await supabase.storage.from('products').upload(fileName, file, {
-      cacheControl: '3600',
-      upsert: true
-    });
-
-    if (!err2) {
-      const { data } = supabase.storage.from('products').getPublicUrl(fileName);
-      return data.publicUrl;
-    }
-
-    console.warn('Supabase storage upload failed across buckets, using optimized fallback:', errRetro?.message);
-    // Fallback: Compress to optimized WebP so image uploads NEVER fail or get lost even if bucket is pending
+    // Last resort offline fallback
     const fallbackDataUrl = await compressImageFileToDataUrl(file);
     return fallbackDataUrl;
   } catch (err) {
@@ -144,5 +163,33 @@ export async function uploadImageToSupabase(file: File, folder = 'products'): Pr
       return null;
     }
   }
+}
+
+/**
+ * Converts an existing Base64 Data URL ('data:image/...') into a clean, short file URL ('/media/uploads/...')
+ */
+export async function convertBase64ToCleanUrl(dataUrl: string, folder = 'sections'): Promise<string> {
+  if (!dataUrl || !dataUrl.startsWith('data:image/')) {
+    return dataUrl;
+  }
+  if (typeof window === 'undefined') {
+    return dataUrl;
+  }
+  try {
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl, folder }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.url && typeof json.url === 'string') {
+        return json.url;
+      }
+    }
+  } catch (err) {
+    console.warn('convertBase64ToCleanUrl warning:', err);
+  }
+  return dataUrl;
 }
 

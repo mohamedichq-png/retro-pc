@@ -28,6 +28,9 @@ export interface UserSession {
   email: string;
   name: string;
   phone?: string;
+  role?: string;
+  avatarUrl?: string;
+  createdAt?: string;
   isLoggedIn: boolean;
   membershipLevel?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
 }

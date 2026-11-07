@@ -1,5 +1,6 @@
 // RETRO Qatar — Account Page (Server)
 
+import { Suspense } from 'react';
 import { getDictionary, hasLocale } from '@/i18n/dictionaries';
 import type { Locale } from '@/i18n/dictionaries';
 import { notFound } from 'next/navigation';
@@ -17,5 +18,9 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
 
   const dict = await getDictionary(locale as Locale);
 
-  return <AccountContent dict={dict} locale={locale as Locale} />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-retro-bg flex items-center justify-center text-retro-cyan font-bold">Loading...</div>}>
+      <AccountContent dict={dict} locale={locale as Locale} />
+    </Suspense>
+  );
 }

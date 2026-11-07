@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect, @next/next/no-img-element */
 "use client";
 
 import React, { useState } from 'react';
@@ -13,12 +14,10 @@ import {
   SearchIcon,
   PlusIcon,
   SparklesIcon,
-  GamingPcIcon,
-  CpuIcon,
-  MonitorIcon,
   RepairIcon
 } from './Icons';
 import QuickAddProductModal from './QuickAddProductModal';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 export default function Navbar() {
   const { language, setLanguage, t, isRtl, cart, activeCashier } = useApp();
@@ -28,12 +27,13 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [headerSearch, setHeaderSearch] = useState('');
+  const storeIsAdmin = useAuthStore((s) => s.isAdmin);
   const [isAdmin, setIsAdmin] = useState(false);
 
   React.useEffect(() => {
-    const token = sessionStorage.getItem('retro_admin_auth');
-    setIsAdmin(token === 'authenticated');
-  }, [pathname]);
+    const token = typeof window !== 'undefined' ? sessionStorage.getItem('retro_admin_auth') : null;
+    setIsAdmin(Boolean(storeIsAdmin || token === 'authenticated'));
+  }, [pathname, storeIsAdmin]);
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'ar' : 'en');
@@ -73,13 +73,13 @@ export default function Navbar() {
               <img 
                 src="/logo-ar.png" 
                 alt="رترو بي سي للكمبيوتر" 
-                className="h-14 w-auto max-w-[180px] object-contain transition-all duration-300 group-hover:scale-105" 
+                className="h-14 w-auto max-w-45 object-contain transition-all duration-300 group-hover:scale-105" 
               />
             ) : (
               <img 
                 src="/logo-en.png" 
                 alt="Retro For Toys Trading and Repair" 
-                className="h-14 w-auto max-w-[180px] object-contain transition-all duration-300 group-hover:scale-105" 
+                className="h-14 w-auto max-w-45 object-contain transition-all duration-300 group-hover:scale-105" 
               />
             )}
           </Link>
@@ -115,7 +115,7 @@ export default function Navbar() {
             {isAdmin && (
               <Link
                 href="/admin"
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:scale-105 hover:shadow-purple-500/40 transition-all duration-300 cursor-pointer"
+                className="flex items-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 via-purple-600 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-cyan-500/20 hover:scale-105 hover:shadow-purple-500/40 transition-all duration-300 cursor-pointer"
                 title={isRtl ? "لوحة إدارة المنتجات والمخزون" : "Manage Products"}
               >
                 <PlusIcon size={16} />
@@ -145,9 +145,8 @@ export default function Navbar() {
               {t('repairCenter')}
             </Link>
 
-
             {/* Cart Icon Link */}
-            <a
+            <Link
               href="/#store-catalog"
               className="relative rounded-xl border border-slate-800 bg-slate-900/80 p-2.5 text-slate-300 hover:text-cyan-400 hover:border-cyan-400/40 transition-all cursor-pointer"
             >
@@ -157,7 +156,7 @@ export default function Navbar() {
                   {cartItemsCount}
                 </span>
               )}
-            </a>
+            </Link>
 
             {/* Language Switch */}
             <button 
@@ -264,8 +263,6 @@ export default function Navbar() {
               >
                 {t('repairCenter')}
               </Link>
-
-
             </div>
 
             {isAdmin && (
@@ -273,7 +270,7 @@ export default function Navbar() {
                 <Link
                   href="/admin"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 py-3 text-xs font-bold text-white shadow-lg text-center"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-purple-600 py-3 text-xs font-bold text-white shadow-lg text-center"
                 >
                   <PlusIcon size={16} />
                   <span>{isRtl ? "لوحة إدارة المنتجات" : "Product Management Desk"}</span>
@@ -291,16 +288,16 @@ export default function Navbar() {
           <span className="text-[10px] font-semibold">{t('home')}</span>
         </Link>
 
-        <a href="/#store-catalog" className="flex flex-col items-center gap-1 text-slate-400 hover:text-cyan-400">
+        <Link href="/#store-catalog" className="flex flex-col items-center gap-1 text-slate-400 hover:text-cyan-400">
           <SearchIcon size={20} />
           <span className="text-[10px] font-semibold">{t('shop')}</span>
-        </a>
+        </Link>
 
         {/* Floating Center Admin Dashboard Link */}
         {isAdmin && (
           <Link
             href="/admin"
-            className="-mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-500 to-purple-600 text-white shadow-lg shadow-cyan-500/40 border-2 border-slate-950 animate-pulse cursor-pointer"
+            className="-mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-tr from-cyan-500 to-purple-600 text-white shadow-lg shadow-cyan-500/40 border-2 border-slate-950 animate-pulse cursor-pointer"
             title={isRtl ? "إدارة المنتجات" : "Manage Products"}
           >
             <PlusIcon size={24} />
@@ -311,8 +308,6 @@ export default function Navbar() {
           <RepairIcon size={20} />
           <span className="text-[10px] font-semibold">{t('repairCenter')}</span>
         </Link>
-
-
       </div>
 
       {/* Admin Quick Add Product Modal */}

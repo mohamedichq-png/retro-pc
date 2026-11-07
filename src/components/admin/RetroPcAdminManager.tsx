@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   PlusIcon,
   TrashIcon,
@@ -23,7 +23,7 @@ import {
   productMatchesRetroPcNode,
   type RetroPcCategoryNode,
 } from '@/lib/retro-pc-navigation';
-import { uploadImageToSupabase, sanitizeImageUrl } from '@/lib/supabase';
+import { uploadImageToSupabase, sanitizeImageUrl, convertBase64ToCleanUrl } from '@/lib/supabase';
 import type { Product } from '@/types';
 
 interface RetroPcAdminManagerProps {
@@ -106,6 +106,30 @@ export default function RetroPcAdminManager({
     currentUrl: string;
   } | null>(null);
   const [tempUrl, setTempUrl] = useState('');
+
+  // Auto-convert any legacy Base64 data:image/ URLs into clean file URLs
+  useEffect(() => {
+    if (tempUrl && tempUrl.startsWith('data:image/')) {
+      convertBase64ToCleanUrl(tempUrl, 'sections').then((cleanUrl) => {
+        if (cleanUrl && !cleanUrl.startsWith('data:')) {
+          setTempUrl(cleanUrl);
+          if (urlModal) {
+            updateRetroPcCategoryImage(urlModal.nodeId, cleanUrl);
+          }
+        }
+      });
+    }
+  }, [tempUrl, urlModal, updateRetroPcCategoryImage]);
+
+  useEffect(() => {
+    if (catFormModal?.image && catFormModal.image.startsWith('data:image/')) {
+      convertBase64ToCleanUrl(catFormModal.image, 'sections').then((cleanUrl) => {
+        if (cleanUrl && !cleanUrl.startsWith('data:')) {
+          setCatFormModal((prev) => (prev ? { ...prev, image: cleanUrl } : null));
+        }
+      });
+    }
+  }, [catFormModal?.image]);
 
   // Modal State: Move Category to another parent (or root)
   const [moveModal, setMoveModal] = useState<{
@@ -212,7 +236,7 @@ export default function RetroPcAdminManager({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header Banner */}
-      <div className="rounded-3xl border border-cyan-500/30 bg-gradient-to-r from-slate-900 via-cyan-950/25 to-slate-900 p-6 shadow-xl">
+      <div className="rounded-3xl border border-cyan-500/30 bg-linear-to-r from-slate-900 via-cyan-950/25 to-slate-900 p-6 shadow-xl">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-[11px] font-black text-cyan-300 uppercase">
@@ -271,7 +295,7 @@ export default function RetroPcAdminManager({
                   image: '',
                 })
               }
-              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-2 text-xs font-black text-slate-950 shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-cyan-400 to-blue-500 px-4 py-2 text-xs font-black text-slate-950 shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
             >
               <PlusIcon size={15} />
               <span>
@@ -471,7 +495,7 @@ export default function RetroPcAdminManager({
                         ↓
                       </button>
                       <span
-                        className="text-[10px] font-mono text-slate-500 px-1 truncate max-w-[90px]"
+                        className="text-[10px] font-mono text-slate-500 px-1 truncate max-w-22.5"
                         title={node.id}
                       >
                         {node.id}
@@ -1157,7 +1181,7 @@ export default function RetroPcAdminManager({
 
                   <input
                     type="text"
-                    value={catFormModal.image}
+                    value={catFormModal.image.startsWith('data:') ? '' : catFormModal.image}
                     onChange={(e) =>
                       setCatFormModal({ ...catFormModal, image: e.target.value })
                     }
@@ -1188,7 +1212,7 @@ export default function RetroPcAdminManager({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all cursor-pointer"
                 >
                   {catFormModal.mode === 'add'
                     ? isRtl
@@ -1226,9 +1250,15 @@ export default function RetroPcAdminManager({
             <div className="space-y-3 text-xs">
               <input
                 type="text"
-                value={tempUrl}
+                value={tempUrl.startsWith('data:') ? '' : tempUrl}
                 onChange={(e) => setTempUrl(e.target.value)}
-                placeholder="https://... or /media/..."
+                placeholder={
+                  tempUrl.startsWith('data:')
+                    ? isRtl
+                      ? 'جاري تحويل الصورة إلى رابط قصير...'
+                      : 'Converting image to clean short URL...'
+                    : 'https://... or /media/...'
+                }
                 className="w-full rounded-xl bg-slate-950 border border-slate-800 px-3.5 py-2.5 text-white font-mono"
               />
               {tempUrl && (

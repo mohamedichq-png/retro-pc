@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
@@ -12,6 +12,7 @@ import { SearchOverlay } from '@/components/ui/SearchOverlay';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 import type { Dictionary, Locale } from '@/i18n/dictionaries';
 import { AppProvider } from '@/context/AppContext';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 interface ClientProvidersProps {
   dict: Dictionary;
@@ -23,6 +24,11 @@ export function ClientProviders({ dict, locale, children }: ClientProvidersProps
   const pathname = usePathname();
   const cleanPath = pathname?.replace(/\/+$/, '') || '';
   const isGateway = cleanPath === `/${locale}`;
+
+  // Automatically initialize and sync Supabase Auth session on mount
+  useEffect(() => {
+    useAuthStore.getState().initializeAuth();
+  }, []);
 
   // Preserve the AppContext even on the store-selection landing page.
   if (isGateway) {

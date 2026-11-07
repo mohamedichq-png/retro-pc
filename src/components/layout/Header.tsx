@@ -36,6 +36,7 @@ export function Header({ dict, locale }: HeaderProps) {
   const compareCount = useCompareStore((s) => s.items.length);
   const { setCartDrawerOpen, setSearchOverlayOpen, toggleMobileMenu, setActiveDepartment } = useUIStore();
   const user = useAuthStore((s) => s.user);
+  const isAdmin = useAuthStore((s) => s.isAdmin);
 
   const oppositeLocale = locale === 'en' ? 'ar' : 'en';
 
@@ -303,6 +304,18 @@ export function Header({ dict, locale }: HeaderProps) {
               {user ? user.name : dict.nav.account}
             </span>
           </Link>
+
+          {/* Admin Desk Shortcut if Authenticated Admin */}
+          {isAdmin && (
+            <Link
+              href={`/${locale}/admin`}
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-retro-cyan to-retro-purple px-2.5 py-1.5 text-xs font-bold text-white shadow-md hover:scale-105 transition-all"
+              title={isRtl ? 'لوحة تحكم الإدارة' : 'Admin ERP Desk'}
+            >
+              <span>⚙️</span>
+              <span className="hidden xl:inline">{isRtl ? 'الإدارة' : 'Admin'}</span>
+            </Link>
+          )}
 
           {/* Wishlist */}
           <Link
